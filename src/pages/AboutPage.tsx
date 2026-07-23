@@ -1,0 +1,230 @@
+import { siteName, siteSlogan, phone, brands } from "../data";
+import { CheckIcon, TruckIcon, PhoneIcon, ArrowRightIcon } from "../components/icons";
+
+type Props = {
+  onBack: () => void;
+  onShop: () => void;
+  onOrder: () => void;
+};
+
+export default function AboutPage({ onBack, onShop, onOrder }: Props) {
+  const values = [
+    {
+      icon: "🏆",
+      title: "کیفیت بی‌رقیب",
+      desc: "انتخاب دقیق محصولات از برترین کارخانجات کشور و کنترل کیفی در تمام مراحل توزیع.",
+    },
+    {
+      icon: "❄️",
+      title: "زنجیره سرمای استاندارد",
+      desc: "ناوگان مجهز به یخچال‌های زیر صفر و بالای صفر برای حفظ تازگی در تمام مسیر توزیع.",
+    },
+    {
+      icon: "🤝",
+      title: "اعتماد دو دهه‌ای",
+      desc: "همکاری مستمر با هزاران فروشگاه، فست‌فود، رستوران و هایپرمارکت در سراسر ایران.",
+    },
+    {
+      icon: "🚚",
+      title: "ارسال سریع و مطمئن",
+      desc: "تحویل در تهران کمتر از ۲۴ ساعت و ارسال تخصصی به تمامی شهرستان‌ها با بسته‌بندی استاندارد.",
+    },
+    {
+      icon: "💎",
+      title: "تنوع بی‌نظیر محصولات",
+      desc: "بیش از ۴۰ نوع محصول در سه دسته سوسیس، کالباس و فرآورده‌های منجمد از برندهای معتبر.",
+    },
+    {
+      icon: "📞",
+      title: "پشتیبانی ۲۴ ساعته",
+      desc: "تیم فروش و پشتیبانی ما در تمام ساعات شبانه‌روز آماده پاسخ‌گویی و ثبت سفارش هستند.",
+    },
+  ];
+
+  const stats = [
+    { value: "+۲۰", label: "سال سابقه درخشان" },
+    { value: "+۴۰", label: "نوع محصول متنوع" },
+    { value: "+۱۰۰۰", label: "مشتری وفادار فعال" },
+    { value: "۳۱", label: "استان تحت پوشش" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-cream-50 font-sans text-stone-800">
+      {/* HERO */}
+      <section className="relative isolate overflow-hidden">
+        <img
+          src="/images/banner.jpg"
+          alt="درباره پخش سوسیس و کالباس نوین"
+          className="absolute inset-0 -z-20 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-l from-stone-950/92 via-stone-900/80 to-paprika-950/60" />
+
+        <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 text-center text-white">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-bold backdrop-blur">
+            ★ درباره مجموعه ما
+          </span>
+          <h1 className="mt-6 font-display text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+            درباره {siteName}
+          </h1>
+          <p className="mx-auto mt-5 max-w-3xl text-base leading-relaxed text-stone-200 sm:text-lg">
+            بیش از دو دهه تجربه، اعتماد و کیفیت در صنعت توزیع فرآورده‌های گوشتی ایران
+          </p>
+
+          <button
+            onClick={onBack}
+            className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-bold backdrop-blur transition hover:bg-white/20"
+          >
+            <ArrowRightIcon className="h-4 w-4" />
+            بازگشت به صفحه نخست
+          </button>
+        </div>
+      </section>
+
+      {/* INTRO + STATS */}
+      <section className="py-20 sm:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
+            <div className="text-right space-y-6">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-paprika-50 px-4 py-1.5 text-xs font-bold text-paprika-700">
+                معرفی مجموعه
+              </span>
+              <p className="text-base leading-loose text-stone-600 sm:text-lg">
+                <strong className="font-bold text-paprika-700">«{siteName}»</strong> با بیش از دو دهه سابقه درخشان در صنعت توزیع مواد غذایی، از یک دفتر کوچک در تهران آغاز به کار کرد و امروز به یکی از معتبرترین شبکه‌های پخش فرآورده‌های گوشتی در کشور تبدیل شده است. {siteSlogan}
+              </p>
+              <p className="text-base leading-loose text-stone-600">
+                ما با تکیه بر تیمی متخصص، ناوگان مجهز و همکاری با برندهای بزرگ صنعت، توانسته‌ایم اعتماد بیش از هزار فروشگاه، رستوران، فست‌فود و هایپرمارکت را در سراسر ایران جلب کنیم.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-5">
+              {stats.map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-3xl border border-stone-200/70 bg-white p-8 text-center shadow-sm transition hover:-translate-y-1 hover:border-paprika-300 hover:shadow-lg"
+                >
+                  <div className="font-display text-4xl font-bold text-paprika-700 sm:text-5xl">
+                    {s.value}
+                  </div>
+                  <div className="mt-2 text-sm font-bold text-stone-600">
+                    {s.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* VALUES */}
+      <section className="bg-white py-20 sm:py-24 border-y border-stone-100">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-paprika-50 px-4 py-1.5 text-xs font-bold text-paprika-700">
+              ★ ارزش‌های بنیادین
+            </span>
+            <h2 className="mt-4 font-display text-3xl font-bold text-stone-800 sm:text-4xl">
+              چرا مشتریان به ما اعتماد می‌کنند؟
+            </h2>
+          </div>
+
+          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {values.map((v) => (
+              <div
+                key={v.title}
+                className="group rounded-3xl border border-stone-200/70 bg-gradient-to-b from-white to-cream-50/40 p-8 shadow-sm transition hover:-translate-y-1 hover:border-paprika-300 hover:shadow-lg"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-paprika-50 text-3xl transition group-hover:bg-paprika-100">
+                  {v.icon}
+                </div>
+                <h3 className="mt-5 font-display text-xl font-bold text-stone-800">
+                  {v.title}
+                </h3>
+                <p className="mt-2 leading-relaxed text-stone-600 text-sm">
+                  {v.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* BRANDS */}
+      <section className="py-20 sm:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-50 px-4 py-1.5 text-xs font-bold text-gold-700">
+              ★ شرکای تجاری
+            </span>
+            <h2 className="mt-4 font-display text-3xl font-bold text-stone-800 sm:text-4xl">
+              برندهایی که افتخار همکاری با آن‌ها را داریم
+            </h2>
+          </div>
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
+            {brands.map((b) => (
+              <div
+                key={b.name}
+                className="rounded-2xl border border-stone-200 bg-white px-6 py-4 text-sm font-bold text-stone-700 shadow-sm"
+              >
+                {b.name}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-paprika-700 via-paprika-800 to-stone-900 py-20 text-white">
+        <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:28px_28px]" />
+        <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
+          <h2 className="font-display text-3xl font-bold sm:text-4xl">
+            آماده همکاری با کسب‌وکار شما هستیم
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-paprika-100/90">
+            برای دریافت لیست قیمت، مشاوره تخصصی یا ثبت سفارش عمده، همین حالا با ما در تماس باشید.
+          </p>
+
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <button
+              onClick={onOrder}
+              className="w-full rounded-full bg-white px-8 py-4 text-base font-bold text-paprika-700 shadow-lg transition hover:bg-paprika-50 sm:w-auto"
+            >
+              ثبت سفارش عمده
+            </button>
+            <button
+              onClick={onShop}
+              className="w-full rounded-full border-2 border-white/60 bg-white/5 px-8 py-4 text-base font-bold backdrop-blur transition hover:bg-white/15 sm:w-auto"
+            >
+              مشاهده فروشگاه
+            </button>
+            <a
+              href={`tel:${phone.replace(/-/g, "")}`}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border-2 border-white/40 bg-transparent px-8 py-4 text-base font-bold transition hover:bg-white/10 sm:w-auto"
+            >
+              <PhoneIcon className="h-5 w-5" />
+              {phone}
+            </a>
+          </div>
+
+          <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+              <CheckIcon className="mx-auto h-6 w-6 text-gold-300" />
+              <div className="mt-2 text-sm font-bold">ضمانت اصالت</div>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+              <TruckIcon className="mx-auto h-6 w-6 text-gold-300" />
+              <div className="mt-2 text-sm font-bold">ارسال سراسری</div>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+              <PhoneIcon className="mx-auto h-6 w-6 text-gold-300" />
+              <div className="mt-2 text-sm font-bold">پشتیبانی ۲۴/۷</div>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+              <span className="block text-2xl">💎</span>
+              <div className="mt-2 text-sm font-bold">کیفیت لوکس</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
