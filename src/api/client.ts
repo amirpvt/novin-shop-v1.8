@@ -68,6 +68,7 @@ export interface ApiProduct {
   available: boolean;
   order: number;
   category: number | null;
+  category_name: string;
   created_at: string;
 }
 
@@ -157,6 +158,7 @@ export interface WholesaleCreateInput {
 export const productsApi = {
   getAll: (params?: {
     category?: string;
+    brand?: string;
     search?: string;
     ordering?: string;
     page?: number;

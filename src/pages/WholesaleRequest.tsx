@@ -39,9 +39,9 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
   // Step 1: Wholesale Catalog
   if (step === 1) {
     return (
-      <div className="min-h-screen bg-cream-50 pt-24 pb-20 font-sans text-right" dir="rtl">
+      <div className="min-h-screen bg-cream-50 pb-20 font-sans text-right" dir="rtl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 flex-wrap">
             <div>
               <h1 className="font-display text-3xl font-bold text-stone-800 sm:text-4xl">
                 کاتالوگ استعلام عمده (B2B)

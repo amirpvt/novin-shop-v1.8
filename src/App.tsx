@@ -138,7 +138,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-cream-50 font-sans text-stone-800">
       <ScrollToTop />
-
       <Navbar
         siteName={siteName}
         user={user}
@@ -156,25 +155,27 @@ export default function App() {
         onSearch={handleSearch}
       />
 
-      <AppRouter
-        products={products}
-        productsLoading={productsLoading}
+      <main className="pt-36 lg:pt-52">
+        <AppRouter
+          products={products}
+          productsLoading={productsLoading}
 
-        category={null}
-        brand={null}
-        searchTerm=""
+          category={null}
+          brand={null}
+          searchTerm=""
 
-        lastOrderNumber={lastOrderNumber}
+          lastOrderNumber={lastOrderNumber}
 
-        goShop={goShop}
-        goWholesaleRequest={goWholesaleRequest}
-        goProductDetails={goProductDetails}
+          goShop={goShop}
+          goWholesaleRequest={goWholesaleRequest}
+          goProductDetails={goProductDetails}
 
-        onAddToCart={addRetailItem}
+          onAddToCart={addRetailItem}
 
-        handleRetailCheckout={handleRetailCheckout}
-        handleWholesaleSubmit={handleWholesaleSubmit}
-      />
+          handleRetailCheckout={handleRetailCheckout}
+          handleWholesaleSubmit={handleWholesaleSubmit}
+        />
+      </main>
 
       <Footer
         id="contact"

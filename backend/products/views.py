@@ -11,7 +11,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.filter(available=True)
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["category"]
-    search_fields = ["name"]
+    filterset_fields = ["category", "brand"]
+    search_fields = ["name", "brand"]
     ordering_fields = ["price", "order", "created_at"]
     ordering = ["order"]

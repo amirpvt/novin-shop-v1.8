@@ -17,7 +17,6 @@ export const categories = ["سوسیس", "کالباس", "فرآورده های 
 // ─── Product type (سازگار با API Django) ──────────────────────────────
 // id = number (Django auto-increment PK)
 // desc → description (نام فیلد در Django)
-// brand حذف شد (Django فقط category داره)
 
 export type Product = {
   id: number;
@@ -154,7 +153,7 @@ export function mapApiProduct(apiProduct: import("./api/client").ApiProduct): Pr
       brand: apiProduct.brand || "",
 
       tag: apiProduct.tag || undefined,
-      category: apiProduct.category?.toString() || "",
+      category: apiProduct.category_name || "",
       image: apiProduct.image || "/images/placeholder.jpg",
       badge: apiProduct.badge || undefined,
       available: apiProduct.available,

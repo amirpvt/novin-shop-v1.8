@@ -119,7 +119,7 @@ export default function AdminPanel({
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 pb-20 pt-24 text-stone-800 font-sans">
+    <div className="min-h-screen bg-stone-100 pb-20 pt-12 text-stone-800 font-sans">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Top Breadcrumb & Owner Badge */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-3xl bg-stone-900 p-8 text-white shadow-xl">
