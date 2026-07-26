@@ -9,7 +9,7 @@ import Footer from "./components/Footer";
 
 import AdminPanel from "./pages/AdminPanel";
 
-import { siteName } from "./data";
+import { siteName, type Product } from "./data";
 import { useRetailCart } from "./context/RetailCartContext";
 import { useWholesaleRequest } from "./context/WholesaleRequestContext";
 
@@ -17,8 +17,9 @@ import { useToast } from "./hooks/useToast";
 import { useAuth } from "./hooks/useAuth";
 import { useProducts } from "./hooks/useProducts";
 import { useNavigation } from "./hooks/useNavigation";
-import { type User } from "./storage";
+import { type User, type StoredOrder } from "./storage";
 import { useOrders } from "./hooks/useOrders";
+import type { Order } from "./api/client";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -28,13 +29,31 @@ function ScrollToTop() {
   return null;
 }
 
+// ─── Map API order → shape used by AdminPanel ─────────────────────────
+const STATUS_FA: Record<string, StoredOrder["status"]> = {
+  PENDING: "جدید",
+  CONFIRMED: "در حال پیگیری",
+  PREPARING: "در حال پیگیری",
+  SHIPPED: "در حال پیگیری",
+  DELIVERED: "انجام شده",
+  CANCELLED: "لغو شده",
+};
+
+function mapOrderToStored(o: Order): StoredOrder {
+  return {
+    id: String(o.id),
+    customerName: o.name,
+    customerPhone: o.phone,
+    productName: o.items?.map((i) => `${i.product_name} ×${i.quantity}`).join("، ") || "",
+    message: o.message || "",
+    status: STATUS_FA[o.order_status] ?? "جدید",
+    createdAt: new Date(o.created_at).toLocaleDateString("fa-IR"),
+  };
+}
+
 export default function App() {
   const {
     page,
-
-    category,
-    brand,
-    searchTerm,
 
     lastOrderNumber,
 
@@ -49,15 +68,23 @@ export default function App() {
     handleSearch,
   } = useNavigation();
 
-  const { getRetailCount, clearRetailCart, addRetailItem } = useRetailCart();  const { getWholesaleCount, clearWholesaleRequest } = useWholesaleRequest();
+  const { retailCart, getRetailCount, clearRetailCart } = useRetailCart();
+  const { addWholesaleItem, clearWholesaleRequest } = useWholesaleRequest();
 
-  const { products, loading: productsLoading, fetchProducts } = useProducts();
-  const { orders, wholesaleRequests, fetchOrders, fetchWholesaleRequests, createOrder, addWholesaleOrder } = useOrders();
+  const { products } = useProducts();
+  const { orders, fetchOrders, createOrder, addWholesaleOrder } = useOrders();
 
   const { toast, showToast } = useToast();
   const { user, login, logout } = useAuth();
 
   const [authOpen, setAuthOpen] = useState(false);
+
+  // Fetch orders for admin panel
+  useEffect(() => {
+    if (page === "admin" && user?.role === "admin") {
+      fetchOrders();
+    }
+  }, [page, user, fetchOrders]);
 
   const handleLogin = (newUser: User) => {
     login(newUser);
@@ -77,16 +104,15 @@ export default function App() {
 
   const handleRetailCheckout = async () => {
     try {
-      const cartItems = JSON.parse(localStorage.getItem("novin_shopping_cart") || "[]");
-      if (cartItems.length === 0) {
+      if (retailCart.length === 0) {
         showToast("سبد خرید خالی است");
         return;
       }
 
       const order = await createOrder({
         name: user?.name || "مهمان",
-        phone: user?.phone || "۰۹۱۲۳۴۵۶۷۸۹",
-        items: cartItems.map((item: any) => ({
+        phone: user?.phone || "",
+        items: retailCart.map((item) => ({
           product_id: item.id,
           quantity: item.qty,
         })),
@@ -94,8 +120,8 @@ export default function App() {
 
       goOrderSuccess(order.order_number);
       clearRetailCart();
-      showToast("سفارش تک‌فروشی شما با موفقیت ثبت شد");
-    } catch (err) {
+      showToast("سفارش شما با موفقیت ثبت شد");
+    } catch {
       showToast("خطا در ثبت سفارش. لطفاً دوباره تلاش کنید.");
     }
   };
@@ -106,16 +132,21 @@ export default function App() {
       clearWholesaleRequest();
       goHome();
       showToast("درخواست استعلام عمده شما ثبت شد و در پنل مدیریت قرار گرفت.");
-    } catch (err) {
+    } catch {
       showToast("خطا در ثبت درخواست. لطفاً دوباره تلاش کنید.");
     }
   };
 
-  const handleUpdateProducts = (newList: typeof products) => {
+  const handleAddToWholesale = (product: Product) => {
+    addWholesaleItem(product);
+    showToast("به لیست استعلام عمده اضافه شد");
+  };
+
+  const handleUpdateProducts = () => {
     showToast("کاتالوگ بروزرسانی شد");
   };
 
-  const handleUpdateOrders = (newOrders: typeof orders) => {
+  const handleUpdateOrders = () => {
     showToast("وضعیت سفارش بروزرسانی شد");
   };
 
@@ -127,7 +158,7 @@ export default function App() {
     return (
       <AdminPanel
         products={products}
-        orders={orders}
+        orders={orders.map(mapOrderToStored)}
         onUpdateProducts={handleUpdateProducts}
         onUpdateOrders={handleUpdateOrders}
         onBack={goHome}
@@ -158,20 +189,11 @@ export default function App() {
       <main className="pt-36 lg:pt-52">
         <AppRouter
           products={products}
-          productsLoading={productsLoading}
-
-          category={null}
-          brand={null}
-          searchTerm=""
-
           lastOrderNumber={lastOrderNumber}
-
           goShop={goShop}
           goWholesaleRequest={goWholesaleRequest}
-          goProductDetails={goProductDetails}
-
-          onAddToCart={addRetailItem}
-
+          goProductDetails={(product) => goProductDetails(product.id)}
+          onWholesale={handleAddToWholesale}
           handleRetailCheckout={handleRetailCheckout}
           handleWholesaleSubmit={handleWholesaleSubmit}
         />

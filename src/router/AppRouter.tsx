@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useNavigate } from "react-router-dom";
 
 import Banner from "../components/Banner";
 import Brands from "../components/Brands";
@@ -15,40 +15,21 @@ import type { Product } from "../data";
 
 interface AppRouterProps {
   products: Product[];
-  productsLoading: boolean;
-
-  category: string | null;
-  brand: string | null;
-  searchTerm: string;
 
   lastOrderNumber: string;
 
-  goShop: (
-    category?: string | null,
-    brand?: string | null
-  ) => void;
-
+  goShop: (category?: string | null, brand?: string | null) => void;
   goWholesaleRequest: () => void;
-
   goProductDetails: (product: Product) => void;
 
-  onAddToCart: (product: Product) => void;
+  onWholesale: (product: Product) => void;
 
   handleRetailCheckout: () => void;
-
-  handleWholesaleSubmit: (
-    formData: any,
-    items: any[]
-  ) => void;
+  handleWholesaleSubmit: (formData: any, items: any[]) => void;
 }
 
 export default function AppRouter({
   products,
-  productsLoading,
-
-  category,
-  brand,
-  searchTerm,
 
   lastOrderNumber,
 
@@ -56,11 +37,15 @@ export default function AppRouter({
   goWholesaleRequest,
   goProductDetails,
 
-  onAddToCart,
+  onWholesale,
 
   handleRetailCheckout,
   handleWholesaleSubmit,
 }: AppRouterProps) {
+  const navigate = useNavigate();
+  const goBack = () => navigate(-1);
+  const goHome = () => navigate("/");
+
   return (
     <Routes>
       <Route
@@ -88,11 +73,8 @@ export default function AppRouter({
         element={
           <Shop
             products={products}
-            loading={productsLoading}
-            initialCategoryId={category}
-            initialBrandName={brand}
-            initialSearch={searchTerm}
             onProductClick={goProductDetails}
+            onWholesale={onWholesale}
           />
         }
       />
@@ -110,6 +92,7 @@ export default function AppRouter({
         path="/cart"
         element={
           <RetailCart
+            onBack={() => goShop()}
             onCheckout={handleRetailCheckout}
           />
         }
@@ -120,7 +103,7 @@ export default function AppRouter({
         element={
           <WholesaleRequest
             products={products}
-            onBack={() => window.history.back()}
+            onBack={goBack}
             onSubmit={handleWholesaleSubmit}
           />
         }
@@ -128,7 +111,13 @@ export default function AppRouter({
 
       <Route
         path="/about"
-        element={<AboutPage />}
+        element={
+          <AboutPage
+            onBack={goHome}
+            onShop={() => goShop()}
+            onOrder={goWholesaleRequest}
+          />
+        }
       />
 
       <Route
@@ -136,6 +125,7 @@ export default function AppRouter({
         element={
           <OrderSuccess
             orderNumber={lastOrderNumber}
+            onBack={goHome}
           />
         }
       />
