@@ -14,10 +14,6 @@ export const brands: { name: string; image: string }[] = [
 
 export const categories = ["سوسیس", "کالباس", "فرآورده های منجمد"] as const;
 
-// ─── Product type (سازگار با API Django) ──────────────────────────────
-// id = number (Django auto-increment PK)
-// desc → description (نام فیلد در Django)
-
 export type Product = {
   id: number;
   name: string;
@@ -30,14 +26,16 @@ export type Product = {
   image: string;
   badge?: string;
   available: boolean;
+  stock?: number;
+  is_featured?: boolean;
+  brand_name?: string;
+  category_name?: string;
 };
-
-// ─── Fallback mock data (اگر API در دسترس نباشد) ─────────────────────
 
 export const products: Product[] = [
   {
     id: 1,
-    name: "سوسیس بالایی گوشت",
+    name: "سوسیس بلغاری گوشت",
     description: "۱۰۰٪ گوشت گوساله تازه با ادویه‌جات طبیعی و دودی ملایم.",
     price: 89000,
     unit: "هر بسته ۵۰۰ گرم",
@@ -47,6 +45,7 @@ export const products: Product[] = [
     image: "/images/p1.jpg",
     badge: "گوشت تازه",
     available: true,
+    stock: 150,
   },
   {
     id: 2,
@@ -59,6 +58,7 @@ export const products: Product[] = [
     image: "/images/p2.jpg",
     badge: "کم‌چرب",
     available: true,
+    stock: 80,
   },
   {
     id: 3,
@@ -72,6 +72,7 @@ export const products: Product[] = [
     image: "/images/p3.jpg",
     badge: "دودی",
     available: true,
+    stock: 45,
   },
   {
     id: 4,
@@ -79,11 +80,12 @@ export const products: Product[] = [
     description: "سبک و کم‌چرب با سینه مرغ تازه، مناسب رژیمی.",
     price: 69000,
     unit: "هر بسته ۵۰۰ گرم",
-    brand: "لاله بناب", 
+    brand: "لاله بناب",
     category: "سوسیس",
     image: "/images/p4.jpg",
     badge: "رژیمی",
     available: true,
+    stock: 120,
   },
   {
     id: 5,
@@ -96,6 +98,7 @@ export const products: Product[] = [
     image: "/images/p5.jpg",
     badge: "مهمانی",
     available: true,
+    stock: 200,
   },
   {
     id: 6,
@@ -107,7 +110,8 @@ export const products: Product[] = [
     category: "کالباس",
     image: "/images/p6.jpg",
     badge: "کم‌نمک",
-    available: true,
+    available: false,
+    stock: 0,
   },
   {
     id: 7,
@@ -120,6 +124,7 @@ export const products: Product[] = [
     image: "/images/p7.jpg",
     badge: "منجمد",
     available: true,
+    stock: 60,
   },
   {
     id: 8,
@@ -132,6 +137,7 @@ export const products: Product[] = [
     image: "/images/p8.jpg",
     badge: "منجمد",
     available: true,
+    stock: 35,
   },
 ];
 
@@ -139,23 +145,44 @@ export function formatPrice(n: number) {
   return n.toLocaleString("fa-IR") + " تومان";
 }
 
-// ─── Mapper: API Product → Frontend Product ────────────────────────────
-// تبدیل محصول API به فرمت فرانت‌اند
-
+// ─── Mapper: API Product → Frontend Product (Phase 2 FIXED) ──────────
 export function mapApiProduct(apiProduct: import("./api/client").ApiProduct): Product {
+  // برند: اگر brand_name داریم از آن استفاده کن، وگرنه id برند
+  const brandName =
+    (apiProduct as any).brand_name ||
+    (typeof apiProduct.brand === "string" ? apiProduct.brand : "") ||
+    "";
+
+  // دسته: category_name یا id
+  const catName =
+    (apiProduct as any).category_name ||
+    (apiProduct.category ? String(apiProduct.category) : "") ||
+    "";
+
+  // تصویر: اگر URL کامل دارد یا relative
+  let img = (apiProduct as any).image || "/images/placeholder.jpg";
+  // اگر URL بک‌اند داشت و شامل /media/ بود، همان را نگه دار
+  // وگرنه اگر id داشت، از /images/p{id}.jpg استفاده کن برای زیبایی
+  if (!img || img.includes("placeholder")) {
+    const id = apiProduct.id;
+    img = id && id <= 8 ? `/images/p${id}.jpg` : "/images/placeholder.jpg";
+  }
+
   return {
-      id: apiProduct.id,
-      name: apiProduct.name,
-      description: apiProduct.description || apiProduct.name,
-      price: parseFloat(apiProduct.price),
-      unit: apiProduct.unit || "",
-
-      brand: apiProduct.brand || "",
-
-      tag: apiProduct.tag || undefined,
-      category: apiProduct.category_name || "",
-      image: apiProduct.image || "/images/placeholder.jpg",
-      badge: apiProduct.badge || undefined,
-      available: apiProduct.available,
+    id: apiProduct.id,
+    name: apiProduct.name,
+    description: apiProduct.description || apiProduct.name,
+    price: parseFloat(apiProduct.price as any) || 0,
+    unit: apiProduct.unit || "بسته",
+    brand: brandName,
+    brand_name: brandName,
+    tag: (apiProduct.tag as string) || undefined,
+    category: catName,
+    category_name: catName,
+    image: img,
+    badge: (apiProduct.badge as string) || undefined,
+    available: apiProduct.available,
+    stock: (apiProduct as any).stock ?? 0,
+    is_featured: (apiProduct as any).is_featured ?? false,
   };
 }

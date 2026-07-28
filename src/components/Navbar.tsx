@@ -11,7 +11,11 @@ import {
   PackageIcon
 } from "./icons";
 import { siteName } from "../data";
-import type { User } from "../storage";
+// FIXED: پشتیبانی از ApiUser هم + role superadmin
+import type { User as OldUser } from "../storage";
+import type { ApiUser } from "../api/client";
+
+type User = OldUser | ApiUser;
 
 type Props = {
   siteName: string;
@@ -69,6 +73,10 @@ export default function Navbar({
     { label: "درباره ما", onClick: onAbout, id: "about" },
     { label: "تماس با ما", onClick: onContact, id: "contact" },
   ];
+
+  // 🐛 FIX: superadmin هم باید پنل ببیند، نه فقط admin
+  const isAdmin = user && (user.role === "admin" || user.role === "superadmin");
+  const userDisplayName = user ? (("name" in user && user.name) || (user as any).username || "کاربر") : "";
 
   return (
     <header className="fixed inset-x-0 top-0 z-[100] w-full font-sans transition-all duration-500">
@@ -153,18 +161,23 @@ export default function Navbar({
             <div className="hidden sm:flex items-center">
               {user ? (
                 <div className="flex items-center gap-2 ml-2">
-                  {user.role === "admin" ? (
-                    <button
-                      onClick={onOpenAdmin}
-                      className="group flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-bold text-gold-400 shadow-xl transition hover:bg-stone-800 active:scale-95"
-                    >
-                      <CrownIcon className="h-4 w-4" />
-                      <span className="hidden lg:inline">پنل مدیریت</span>
-                    </button>
+                  {isAdmin ? (
+                    <>
+                      <button
+                        onClick={onOpenAdmin}
+                        className="group flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-bold text-gold-400 shadow-xl transition hover:bg-stone-800 active:scale-95"
+                      >
+                        <CrownIcon className="h-4 w-4" />
+                        <span className="hidden lg:inline">پنل مدیریت</span>
+                      </button>
+                      <div className="flex items-center gap-2 rounded-xl bg-white border border-stone-200 px-3 py-2 text-[10px] font-bold text-stone-600">
+                        <span className="max-w-[80px] truncate">{userDisplayName}</span>
+                      </div>
+                    </>
                   ) : (
                     <div className="flex items-center gap-2 rounded-xl bg-white border border-stone-200 px-4 py-2 text-xs font-bold text-stone-700">
                       <UserIcon className="h-4 w-4 text-paprika-600" />
-                      <span className="max-w-[80px] truncate">{user.name}</span>
+                      <span className="max-w-[80px] truncate">{userDisplayName}</span>
                     </div>
                   )}
                   <button
@@ -219,7 +232,7 @@ export default function Navbar({
           </div>
         </nav>
 
-        {/* Desktop Nav Links (Secondary Row) */}
+        {/* Desktop Nav Links */}
         <div className="hidden lg:block border-t border-stone-200/50 mt-4 pt-2">
           <div className="mx-auto max-w-7xl flex items-center justify-center gap-1">
             {navLinks.map((l) => {
@@ -245,87 +258,68 @@ export default function Navbar({
 
       {/* --- MOBILE DRAWER --- */}
       <div className={`fixed inset-0 z-[110] lg:hidden transition-all duration-500 ${mobileMenuOpen ? "visible" : "invisible pointer-events-none"}`}>
-        {/* Overlay */}
         <div 
           className={`absolute inset-0 bg-stone-900/60 backdrop-blur-sm transition-opacity duration-500 ${mobileMenuOpen ? "opacity-100" : "opacity-0"}`} 
           onClick={() => setMobileMenuOpen(false)}
         />
-        
-        {/* Sidebar */}
         <div className={`absolute inset-y-0 right-0 w-80 max-w-[85vw] bg-white shadow-2xl transition-transform duration-500 ease-out ${mobileMenuOpen ? "translate-x-0" : "translate-x-full"}`}>
           <div className="flex flex-col h-full text-right" dir="rtl">
-            {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-stone-100">
               <span className="font-display text-lg font-black text-stone-800">منوی اصلی</span>
-              <button 
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded-lg bg-stone-50 text-stone-400 cursor-pointer"
-              >
+              <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-lg bg-stone-50 text-stone-400 cursor-pointer">
                 <CloseIcon className="h-6 w-6" />
               </button>
             </div>
-
-            {/* Mobile Search */}
             <div className="p-6 border-b border-stone-100 bg-stone-50/50">
               <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  submitSearch(mobileSearchValue);
-                  setMobileMenuOpen(false);
-                }}
+                onSubmit={(e) => { e.preventDefault(); submitSearch(mobileSearchValue); setMobileMenuOpen(false); }}
                 className="relative"
               >
-                <button
-                  type="submit"
-                  aria-label="جستجو"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-stone-400 cursor-pointer"
-                >
+                <button type="submit" className="absolute inset-y-0 right-0 flex items-center pr-3 text-stone-400 cursor-pointer">
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </button>
-                <input
-                  type="text"
-                  value={mobileSearchValue}
-                  onChange={(e) => setMobileSearchValue(e.target.value)}
-                  placeholder="جستجو میان محصولات..."
-                  className="w-full rounded-xl border border-stone-200 bg-white py-3 pr-10 pl-3 text-sm font-bold text-stone-800 outline-none focus:border-paprika-600/30"
-                />
+                <input type="text" value={mobileSearchValue} onChange={(e) => setMobileSearchValue(e.target.value)} placeholder="جستجو میان محصولات..." className="w-full rounded-xl border border-stone-200 bg-white py-3 pr-10 pl-3 text-sm font-bold text-stone-800 outline-none focus:border-paprika-600/30" />
               </form>
             </div>
-
-            {/* Links */}
             <div className="flex-1 overflow-y-auto p-4">
               <div className="space-y-1">
                 {navLinks.map((l) => {
                   const isActive = currentPage === l.id;
                   return (
-                    <button
-                      key={l.id}
-                      onClick={() => { l.onClick(); setMobileMenuOpen(false); }}
-                      className={`flex w-full items-center gap-3 rounded-xl px-4 py-4 text-right text-base font-bold transition-all cursor-pointer ${
-                        isActive 
-                          ? "bg-paprika-50 text-paprika-600 shadow-sm" 
-                          : "text-stone-700 hover:bg-stone-50"
-                      }`}
-                    >
+                    <button key={l.id} onClick={() => { l.onClick(); setMobileMenuOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-4 py-4 text-right text-base font-bold transition-all cursor-pointer ${isActive ? "bg-paprika-50 text-paprika-600 shadow-sm" : "text-stone-700 hover:bg-stone-50"}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-paprika-600" : "bg-stone-300"}`} />
                       {l.label}
                     </button>
                   );
                 })}
               </div>
-
-              {/* Mobile CTA */}
+              {/* FIXED MOBILE ADMIN BUTTON */}
+              {user && (
+                <div className="mt-6 space-y-3">
+                  {isAdmin && (
+                    <button onClick={() => { onOpenAdmin(); setMobileMenuOpen(false); }} className="w-full flex items-center justify-center gap-2 rounded-2xl bg-stone-900 py-4 text-center font-black text-gold-400 shadow-xl">
+                      <CrownIcon className="h-5 w-5" />
+                      پنل مدیریت
+                    </button>
+                  )}
+                  <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} className="w-full rounded-2xl bg-paprika-50 py-3 text-center font-bold text-paprika-600">
+                    خروج از حساب
+                  </button>
+                </div>
+              )}
+              {!user && (
+                <div className="mt-6">
+                  <button onClick={() => { onOpenAuth(); setMobileMenuOpen(false); }} className="w-full rounded-2xl bg-paprika-600 py-4 text-center font-black text-white shadow-xl">
+                    ورود / ثبت‌نام
+                  </button>
+                </div>
+              )}
               <div className="mt-8 px-2">
-                <button
-                  onClick={() => { onOrder(); setMobileMenuOpen(false); }}
-                  className="w-full rounded-2xl bg-stone-900 py-4 text-center font-black text-white shadow-xl transition hover:bg-stone-800 cursor-pointer"
-                >
+                <button onClick={() => { onOrder(); setMobileMenuOpen(false); }} className="w-full rounded-2xl bg-stone-900 py-4 text-center font-black text-white shadow-xl transition hover:bg-stone-800 cursor-pointer">
                   ثبت سفارش عمده نوین
                 </button>
               </div>
             </div>
-
-            {/* Footer */}
             <div className="p-6 border-t border-stone-100 bg-stone-50">
               <a href="tel:09300117977" className="flex flex-col gap-1 items-center text-center group">
                 <div className="flex items-center gap-2 text-stone-900 font-black">

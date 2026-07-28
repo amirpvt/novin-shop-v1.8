@@ -1,3 +1,13 @@
+/**
+ * API Service - Phase 1 (with JWT Auth)
+ *
+ * نکته: BASE_URL از متغیر محیطی Vite خوانده می‌شود.
+ * در فایل .env فرانت:
+ *   VITE_API_BASE_URL=http://127.0.0.1:8000/api
+ */
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || "http://127.0.0.1:8000/api";
+
+// ─── Types ──────────────────────────────────────────────────────────────
 export interface Category {
   id: number;
   name: string;
@@ -17,6 +27,7 @@ export interface ApiProduct {
   badge: string | null;
   image: string;
   available: boolean;
+  stock: number;
   order: number;
 }
 
@@ -24,73 +35,181 @@ export interface ApiOrder {
   order_number: string;
   name: string;
   phone: string;
-  product: string;
+  address: string;
   message: string;
   order_status: string;
   total_amount: number;
   payment_status: string;
+  items: ApiOrderItem[];
   created_at: string;
 }
 
-const BASE_URL = "http://127.0.0.1:8000/api";
+export interface ApiOrderItem {
+  id: number;
+  product: number;
+  product_name: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+}
 
-export const apiService = {
-  async fetchCategories(): Promise<Category[]> {
-    const res = await fetch(`${BASE_URL}/products/categories/`);
-    
-    if (!res.ok) {
-      throw new Error("Failed to load categories");
+export interface ApiUser {
+  id: number;
+  username: string;
+  email: string;
+  name: string;
+  phone: string;
+  role: "superadmin" | "admin" | "customer";
+  is_staff: boolean;
+  customer: {
+    phone: string;
+    address: string;
+    city: string;
+    postal_code: string;
+    national_id: string;
+    customer_type: "retail" | "wholesale" | "both";
+    is_wholesale_approved: boolean;
+  } | null;
+}
+
+export interface ApiAuthResponse {
+  access: string;
+  refresh: string;
+  user: ApiUser;
+}
+
+// ─── Token Helpers ──────────────────────────────────────────────────────
+const TOKEN_KEY = "novin_auth_tokens";
+
+export const tokenStore = {
+  get(): { access: string; refresh: string } | null {
+    try {
+      const raw = localStorage.getItem(TOKEN_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
     }
+  },
+  set(tokens: { access: string; refresh: string }) {
+    localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
+  },
+  clear() {
+    localStorage.removeItem(TOKEN_KEY);
+  },
+};
 
-    const data = await res.json();
+// ─── Fetch Helper (خودکار Authorization Header) ────────────────────────
+async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const tokens = tokenStore.get();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init.headers as Record<string, string>),
+  };
+  if (tokens?.access) {
+    headers["Authorization"] = `Bearer ${tokens.access}`;
+  }
 
+  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+  if (!res.ok) {
+    let err: any = { detail: `HTTP ${res.status}` };
+    try {
+      err = await res.json();
+    } catch {
+      /* ignore */
+    }
+    throw new Error(err.detail || err.message || "خطا در ارتباط با سرور");
+  }
+  return res.json() as Promise<T>;
+}
+
+// ─── API Service ────────────────────────────────────────────────────────
+export const apiService = {
+  // ── Categories & Products ────────────────────────────────────────────
+  async fetchCategories(): Promise<Category[]> {
+    const data = await apiFetch<any>("/products/categories/");
     return data.results ?? data;
   },
+
   async fetchProducts(params: {
     category?: string | number | null;
     search?: string;
-  }): Promise<ApiProduct[]> {
-
+  } = {}): Promise<ApiProduct[]> {
     const url = new URL(`${BASE_URL}/products/`);
-
-    if (params.category) {
-      url.searchParams.append(
-        "category",
-        params.category.toString()
-      );
-    }
-
-    if (params.search) {
-      url.searchParams.append(
-        "search",
-        params.search
-      );
-    }
-
+    if (params.category) url.searchParams.append("category", params.category.toString());
+    if (params.search) url.searchParams.append("search", params.search);
     const res = await fetch(url.toString());
-
-    if (!res.ok) {
-      throw new Error("Failed to load products");
-    }
-
+    if (!res.ok) throw new Error("Failed to load products");
     const data = await res.json();
-
     return data.results ?? data;
   },
 
+  // ── Orders ──────────────────────────────────────────────────────────
   async trackOrder(orderNumber: string): Promise<ApiOrder> {
-    const res = await fetch(`${BASE_URL}/orders/track/${orderNumber}/`);
-    if (!res.ok) throw new Error("سفارش یافت نشد");
-    return res.json();
+    return apiFetch<ApiOrder>(`/orders/track/${orderNumber}/`);
   },
 
   async createPayment(orderId: string): Promise<{ payment_url: string }> {
-    const res = await fetch(`${BASE_URL}/orders/payments/create/`, {
+    return apiFetch<{ payment_url: string }>("/orders/payments/create/", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ order_id: orderId }),
     });
-    if (!res.ok) throw new Error("خطا در ایجاد درخواست پرداخت");
-    return res.json();
-  }
+  },
+
+  // ── 🆕 Authentication ──────────────────────────────────────────────
+  async register(payload: {
+    username: string;
+    email?: string;
+    password: string;
+    password2: string;
+    first_name?: string;
+    last_name?: string;
+    phone: string;
+  }): Promise<ApiAuthResponse> {
+    const data = await apiFetch<ApiAuthResponse>("/auth/register/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    tokenStore.set({ access: data.access, refresh: data.refresh });
+    return data;
+  },
+
+  async login(username: string, password: string): Promise<ApiAuthResponse> {
+    const data = await apiFetch<ApiAuthResponse>("/auth/login/", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+    tokenStore.set({ access: data.access, refresh: data.refresh });
+    return data;
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await apiFetch("/auth/logout/", { method: "POST" });
+    } catch {
+      /* حتی اگه خطا داشت، توکن پاک می‌شود */
+    }
+    tokenStore.clear();
+  },
+
+  async getProfile(): Promise<ApiUser> {
+    return apiFetch<ApiUser>("/auth/profile/");
+  },
+
+  async updateProfile(patch: Partial<ApiUser["customer"]>): Promise<ApiUser> {
+    return apiFetch<ApiUser>("/auth/profile/", {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+
+  async changePassword(old_password: string, new_password: string): Promise<{ detail: string }> {
+    return apiFetch<{ detail: string }>("/auth/change-password/", {
+      method: "POST",
+      body: JSON.stringify({ old_password, new_password }),
+    });
+  },
+
+  isAuthenticated(): boolean {
+    return !!tokenStore.get()?.access;
+  },
 };

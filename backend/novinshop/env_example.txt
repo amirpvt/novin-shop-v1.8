@@ -1,0 +1,17 @@
+# Django
+SECRET_KEY=your-super-secret-key-change-in-production-9f3a2c1b
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# CORS - در production فقط دامنه فرانت‌اند را بگذارید
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173
+
+# Database (در production به PostgreSQL تغییر دهید)
+# DATABASE_URL=postgres://user:password@localhost:5432/novin_shop
+
+# زرین‌پال - بعداً در فاز 7 اضافه می‌شود
+# ZARINPAL_MERCHANT_ID=your-merchant-id
+# ZARINPAL_SANDBOX=True
+
+# SMS Panel - اختیاری
+# KAVENEGAR_API_KEY=your-api-key
