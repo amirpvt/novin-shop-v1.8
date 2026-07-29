@@ -186,3 +186,21 @@ LOGGING = {
         "level": "INFO",
     },
 }
+
+# اضافه کن به backend/novinshop/settings.py (آخر فایل)
+
+# ─── Zarinpal Payment ───────────────────────────────────────────
+ZARINPAL_MERCHANT_ID = env(
+    "ZARINPAL_MERCHANT_ID",
+    default="00000000-0000-0000-0000-000000000000"  # sandbox dummy - برای تست mock برمی‌گردد
+)
+ZARINPAL_SANDBOX = env.bool("ZARINPAL_SANDBOX", default=True)
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
+# BACKEND_URL برای callback اگر نیاز شد
+BACKEND_URL = env("BACKEND_URL", default="http://127.0.0.1:8000")
+
+# نمونه .env:
+# ZARINPAL_MERCHANT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  (از پنل زرین‌پال بگیر)
+# ZARINPAL_SANDBOX=True  # برای تست True، برای واقعی False
+# FRONTEND_URL=http://localhost:5173
+

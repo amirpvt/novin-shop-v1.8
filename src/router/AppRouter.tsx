@@ -1,4 +1,4 @@
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import Banner from "../components/Banner";
 import Brands from "../components/Brands";
@@ -11,59 +11,50 @@ import WholesaleRequest from "../pages/WholesaleRequest";
 import ProductDetails from "../pages/ProductDetails";
 import OrderSuccess from "../pages/OrderSuccess";
 
+// Phase 4 NEW
+import PaymentVerify from "../pages/PaymentVerify";
+import OrderTracking from "../pages/OrderTracking";
+
 import type { Product } from "../data";
 
 interface AppRouterProps {
   products: Product[];
-
+  productsLoading: boolean;
+  category: string | null;
+  brand: string | null;
+  searchTerm: string;
   lastOrderNumber: string;
-
   goShop: (category?: string | null, brand?: string | null) => void;
   goWholesaleRequest: () => void;
   goProductDetails: (product: Product) => void;
-
-  onWholesale: (product: Product) => void;
-
+  onAddToCart: (product: Product) => void;
   handleRetailCheckout: () => void;
   handleWholesaleSubmit: (formData: any, items: any[]) => void;
 }
 
 export default function AppRouter({
   products,
-
+  productsLoading,
+  category,
+  brand,
+  searchTerm,
   lastOrderNumber,
-
   goShop,
   goWholesaleRequest,
   goProductDetails,
-
-  onWholesale,
-
+  onAddToCart,
   handleRetailCheckout,
   handleWholesaleSubmit,
 }: AppRouterProps) {
-  const navigate = useNavigate();
-  const goBack = () => navigate(-1);
-  const goHome = () => navigate("/");
-
   return (
     <Routes>
       <Route
         path="/"
         element={
           <>
-            <Banner
-              onProducts={() => goShop()}
-              onOrder={goWholesaleRequest}
-            />
-
-            <Brands
-              onSelect={(brand) => goShop(null, brand)}
-            />
-
-            <Categories
-              onSelect={(category) => goShop(category)}
-            />
+            <Banner onProducts={() => goShop()} onOrder={goWholesaleRequest} />
+            <Brands onSelect={(brand) => goShop(null, brand)} />
+            <Categories onSelect={(category) => goShop(category)} />
           </>
         }
       />
@@ -73,29 +64,23 @@ export default function AppRouter({
         element={
           <Shop
             products={products}
+            loading={productsLoading}
+            initialCategoryId={category}
+            initialBrandName={brand}
+            initialSearch={searchTerm}
             onProductClick={goProductDetails}
-            onWholesale={onWholesale}
           />
         }
       />
 
       <Route
         path="/product/:id"
-        element={
-          <ProductDetails
-            products={products}
-          />
-        }
+        element={<ProductDetails products={products} />}
       />
 
       <Route
         path="/cart"
-        element={
-          <RetailCart
-            onBack={() => goShop()}
-            onCheckout={handleRetailCheckout}
-          />
-        }
+        element={<RetailCart onCheckout={handleRetailCheckout} />}
       />
 
       <Route
@@ -103,32 +88,25 @@ export default function AppRouter({
         element={
           <WholesaleRequest
             products={products}
-            onBack={goBack}
+            onBack={() => window.history.back()}
             onSubmit={handleWholesaleSubmit}
           />
         }
       />
 
-      <Route
-        path="/about"
-        element={
-          <AboutPage
-            onBack={goHome}
-            onShop={() => goShop()}
-            onOrder={goWholesaleRequest}
-          />
-        }
-      />
+      <Route path="/about" element={<AboutPage />} />
 
       <Route
         path="/success"
-        element={
-          <OrderSuccess
-            orderNumber={lastOrderNumber}
-            onBack={goHome}
-          />
-        }
+        element={<OrderSuccess orderNumber={lastOrderNumber} />}
       />
+
+      {/* Phase 4 NEW ROUTES - FIXED */}
+      <Route path="/payment/verify" element={<PaymentVerify />} />
+      <Route path="/payment-mock" element={<PaymentVerify />} />
+      <Route path="/track" element={<OrderTracking />} />
+      <Route path="/order-tracking" element={<OrderTracking />} />
+      <Route path="/orders/track" element={<OrderTracking />} />
     </Routes>
   );
 }
