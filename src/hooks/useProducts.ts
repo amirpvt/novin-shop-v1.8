@@ -8,8 +8,6 @@ export function useProducts() {
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
 
-  // ─── Fetch products from API ─────────────────────────────────────────
-
   const fetchProducts = useCallback(async (params?: {
     category?: string;
     search?: string;
@@ -20,12 +18,16 @@ export function useProducts() {
     setError(null);
     try {
       const response = await productsApi.getAll(params);
-      const mapped = response.results.map(mapApiProduct);
-      
-      console.log("API PRODUCTS:", response);
-      console.log("MAPPED PRODUCTS:", mapped);
-      
-      setProducts(mapped);
+      const apiResults = (response as any).results ?? response;
+      if (Array.isArray(apiResults) && apiResults.length > 0) {
+        const mapped = apiResults.map((p: ApiProduct) => mapApiProduct(p));
+        console.log("✅ API PRODUCTS:", apiResults.length, "items");
+        setProducts(mapped);
+      } else {
+        console.warn("⚠️ API returned empty, keeping fallback");
+        // اگر API خالی بود، fallback را نگه دار ولی خطا نده
+        // setProducts(fallbackProducts);
+      }
     } catch (err) {
       console.error("Failed to fetch products:", err);
       setError(err instanceof Error ? err.message : "خطا در دریافت محصولات");
@@ -35,27 +37,19 @@ export function useProducts() {
     }
   }, []);
 
-  // ─── Fetch categories ────────────────────────────────────────────────
-
   const fetchCategories = useCallback(async () => {
     try {
       const cats = await productsApi.getCategories();
-      setCategories(cats);
+      if (cats && cats.length > 0) setCategories(cats as any);
     } catch (err) {
       console.error("Failed to fetch categories:", err);
     }
   }, []);
 
-  // ─── Initial load ────────────────────────────────────────────────────
-
   useEffect(() => {
     fetchProducts();
     fetchCategories();
   }, [fetchProducts, fetchCategories]);
-
-  // ─── CRUD Operations (Admin) ─────────────────────────────────────────
-  // Note: These now work with local state. For full admin CRUD via API,
-  // you would add POST/PUT/DELETE endpoints in the backend.
 
   const updateProducts = useCallback((newProducts: Product[]) => {
     setProducts(newProducts);
@@ -71,21 +65,19 @@ export function useProducts() {
     );
   }, []);
 
-  const deleteProduct = useCallback((productId: number) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
+  const deleteProduct = useCallback((productId: number | string) => {
+    setProducts((prev) => prev.filter((p) => String(p.id) !== String(productId)));
   }, []);
 
-  const duplicateProduct = useCallback((productId: number) => {
+  const duplicateProduct = useCallback((productId: number | string) => {
     setProducts((prev) => {
-      const product = prev.find((p) => p.id === productId);
+      const product = prev.find((p) => String(p.id) === String(productId));
       if (!product) return prev;
-
       const duplicated: Product = {
         ...product,
-        id: Date.now(), // temporary ID
+        id: Date.now(),
         name: `${product.name} (کپی)`,
       };
-
       return [...prev, duplicated];
     });
   }, []);
@@ -95,10 +87,8 @@ export function useProducts() {
     loading,
     error,
     categories,
-
     fetchProducts,
     fetchCategories,
-
     updateProducts,
     addProduct,
     editProduct,

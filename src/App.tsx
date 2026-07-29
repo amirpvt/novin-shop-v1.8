@@ -17,7 +17,6 @@ import { useToast } from "./hooks/useToast";
 import { useAuth } from "./hooks/useAuth";
 import { useProducts } from "./hooks/useProducts";
 import { useNavigation } from "./hooks/useNavigation";
-import { type User } from "./storage";
 import { useOrders } from "./hooks/useOrders";
 
 function ScrollToTop() {
@@ -31,13 +30,10 @@ function ScrollToTop() {
 export default function App() {
   const {
     page,
-
     category,
     brand,
     searchTerm,
-
     lastOrderNumber,
-
     goHome,
     goShop,
     goAdmin,
@@ -49,20 +45,21 @@ export default function App() {
     handleSearch,
   } = useNavigation();
 
-  const { getRetailCount, clearRetailCart, addRetailItem } = useRetailCart();  const { getWholesaleCount, clearWholesaleRequest } = useWholesaleRequest();
+  const { getRetailCount, clearRetailCart, addRetailItem } = useRetailCart();
+  const { getWholesaleCount, clearWholesaleRequest } = useWholesaleRequest();
 
   const { products, loading: productsLoading, fetchProducts } = useProducts();
   const { orders, wholesaleRequests, fetchOrders, fetchWholesaleRequests, createOrder, addWholesaleOrder } = useOrders();
 
   const { toast, showToast } = useToast();
-  const { user, login, logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const [authOpen, setAuthOpen] = useState(false);
 
-  const handleLogin = (newUser: User) => {
-    login(newUser);
-    showToast(`خوش آمدید، ${newUser.name}`);
-    if (newUser.role === "admin") {
+  // FIXED: superadmin هم ادمین حساب میشه
+  const handleLogin = (newUser: any) => {
+    showToast(`خوش آمدید، ${newUser.name || newUser.username}`);
+    if (newUser.role === "admin" || newUser.role === "superadmin") {
       goAdmin();
     }
   };
@@ -84,8 +81,8 @@ export default function App() {
       }
 
       const order = await createOrder({
-        name: user?.name || "مهمان",
-        phone: user?.phone || "۰۹۱۲۳۴۵۶۷۸۹",
+        name: (user as any)?.name || (user as any)?.username || "مهمان",
+        phone: (user as any)?.phone || "۰۹۱۲۳۴۵۶۷۸۹",
         items: cartItems.map((item: any) => ({
           product_id: item.id,
           quantity: item.qty,
@@ -138,10 +135,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-cream-50 font-sans text-stone-800">
       <ScrollToTop />
-
       <Navbar
         siteName={siteName}
-        user={user}
+        user={user as any}
         currentPage={page}
         cartCount={getRetailCount()}
         onHome={goHome}
@@ -159,19 +155,14 @@ export default function App() {
       <AppRouter
         products={products}
         productsLoading={productsLoading}
-
         category={null}
         brand={null}
         searchTerm=""
-
         lastOrderNumber={lastOrderNumber}
-
         goShop={goShop}
         goWholesaleRequest={goWholesaleRequest}
         goProductDetails={goProductDetails}
-
         onAddToCart={addRetailItem}
-
         handleRetailCheckout={handleRetailCheckout}
         handleWholesaleSubmit={handleWholesaleSubmit}
       />
