@@ -50,9 +50,7 @@ export default function App() {
 
   const [authOpen, setAuthOpen] = useState(false);
 
-  // 🆕 FIX 1: وقتی لاگین می‌کند، user را در App هم ست کن تا دکمه سفارشات من فوری بیاید
   const handleLogin = (newUser: any) => {
-    // این خط مهم بود که جا افتاده بود - باعث می‌شد تا رفرش دکمه نیاید
     login(newUser);
     showToast(`خوش آمدید، ${newUser.name || newUser.username}`);
     if (newUser.role === "admin" || newUser.role === "superadmin") {
@@ -66,21 +64,18 @@ export default function App() {
     if (page === "admin") goHome();
   };
 
-  // 🆕 FIX 2: اگه مهمان خواست سفارش بده، اول ورود الزامی است
   const handleRetailCheckout = async () => {
     if (!user) {
       showToast("برای ثبت سفارش ابتدا وارد شوید");
       setAuthOpen(true);
       return;
     }
-
     try {
       const cartItems = JSON.parse(localStorage.getItem("novin_shopping_cart") || "[]");
       if (cartItems.length === 0) {
         showToast("سبد خرید خالی است");
         return;
       }
-
       const order = await createOrder({
         name: user?.name || user?.username || "مهمان",
         phone: user?.phone || "09120000000",
@@ -89,7 +84,6 @@ export default function App() {
           quantity: item.qty,
         })),
       });
-
       goOrderSuccess(order.order_number);
       clearRetailCart();
       showToast("سفارش شما با موفقیت ثبت شد");
@@ -104,7 +98,6 @@ export default function App() {
       setAuthOpen(true);
       return;
     }
-
     try {
       await addWholesaleOrder(formData, items);
       clearWholesaleRequest();
@@ -143,6 +136,9 @@ export default function App() {
         onSearch={handleSearch}
         onMyOrders={() => { window.location.href = "/my-orders"; }}
       />
+
+      {/* فاصله اصلی برای تمام صفحات - بدون تغییر */}
+      <div className="h-[108px] lg:h-[148px]" />
 
       <AppRouter
         products={products}

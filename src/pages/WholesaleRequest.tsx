@@ -36,10 +36,10 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
     onSubmit(form, wholesaleItems);
   };
 
-  // Step 1: Wholesale Catalog
+  // Step 1: فقط این صفحه 1 سانت (حدود 40px) بیشتر فاصله دارد - بقیه سایت بدون تغییر
   if (step === 1) {
     return (
-      <div className="min-h-screen bg-cream-50 pb-20 font-sans text-right" dir="rtl">
+      <div className="min-h-screen bg-cream-50 pb-20 pt-10 lg:pt-[60px] font-sans text-right" dir="rtl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 flex-wrap">
             <div>
@@ -101,17 +101,17 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                       {inWholesale ? (
                         <div className="flex items-center gap-2 bg-gold-50 p-1 rounded-xl">
                           <button 
-                            onClick={() => updateWholesaleQuantity(p.id, inWholesale.quantity + 1)}
+                            onClick={() => updateWholesaleQuantity(p.id as any, inWholesale.quantity + 1)}
                             className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-gold-700 font-bold hover:bg-gold-100 transition shadow-sm"
                           >+</button>
                           <input 
                             type="number" 
                             className="w-12 text-center bg-transparent border-none font-mono font-bold text-gold-900 outline-none"
                             value={inWholesale.quantity}
-                            onChange={(e) => updateWholesaleQuantity(p.id, Number(e.target.value))}
+                            onChange={(e) => updateWholesaleQuantity(p.id as any, Number(e.target.value))}
                           />
                           <button 
-                            onClick={() => updateWholesaleQuantity(p.id, inWholesale.quantity - 1)}
+                            onClick={() => updateWholesaleQuantity(p.id as any, inWholesale.quantity - 1)}
                             className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-gold-700 font-bold hover:bg-gold-100 transition shadow-sm"
                           >-</button>
                         </div>
@@ -128,7 +128,7 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                   </div>
                   {inWholesale && (
                     <button 
-                      onClick={() => removeWholesaleItem(p.id)}
+                      onClick={() => removeWholesaleItem(p.id as any)}
                       className="absolute top-3 left-3 bg-white/90 hover:bg-paprika-50 hover:text-paprika-600 text-stone-400 p-2 rounded-full shadow-md backdrop-blur transition"
                     >
                       <TrashIcon className="h-4 w-4" />
@@ -143,13 +143,13 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
     );
   }
 
-  // Step 2: Customer Information
+  // Step 2: هم 1 سانت بیشتر
   return (
-    <div className="min-h-screen bg-cream-50 pt-24 pb-20 font-sans text-right" dir="rtl">
+    <div className="min-h-screen bg-cream-50 pt-12 lg:pt-[72px] pb-20 font-sans text-right" dir="rtl">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <button
           onClick={() => setStep(1)}
-          className="inline-flex items-center gap-1 text-sm font-bold text-stone-500 transition hover:text-gold-700 mb-6"
+          className="inline-flex items-center gap-1 text-sm font-bold text-stone-500 transition hover:text-gold-700 mb-6 mt-4"
         >
           <ArrowRightIcon className="h-4 w-4" />
           بازگشت به کاتالوگ و ویرایش لیست
