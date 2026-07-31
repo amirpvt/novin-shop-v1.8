@@ -1,11 +1,19 @@
-import { categories } from "../data";
+import { useEffect, useState } from "react";
+import { productsApi, type Category as ApiCategory } from "../api/client";
+import { categories as fallbackCategories } from "../data";
 
-const CAT_IMAGES: Record<string, string> = {
+const CAT_IMAGES_FALLBACK: Record<string, string> = {
   سوسیس:
     "https://images.pexels.com/photos/4113462/pexels-photo-4113462.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1000&w=1200",
   کالباس:
     "https://images.pexels.com/photos/13149103/pexels-photo-13149103.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=900",
   "فرآورده های منجمد":
+    "https://images.pexels.com/photos/6941033/pexels-photo-6941033.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1000&w=1200",
+  sausage:
+    "https://images.pexels.com/photos/4113462/pexels-photo-4113462.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1000&w=1200",
+  kalbas:
+    "https://images.pexels.com/photos/13149103/pexels-photo-13149103.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=900",
+  frozen:
     "https://images.pexels.com/photos/6941033/pexels-photo-6941033.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1000&w=1200",
 };
 
@@ -13,16 +21,97 @@ const CAT_SUB: Record<string, string> = {
   سوسیس: "سوسیس آلمانی، دودی، مرغ و کوکتل",
   کالباس: "کالباس گوشت، مرغ، ژامبون و کم‌نمک",
   "فرآورده های منجمد": "ناگت، کتلت، برگر و سمبوسه",
+  sausage: "سوسیس آلمانی، دودی، مرغ",
+  kalbas: "کالباس گوشت و مرغ",
+  frozen: "ناگت، کتلت، برگر",
 };
 
 type Props = {
   onSelect: (category: string) => void;
 };
 
+// نوع دسته با عکس دلخواه
+type CategoryWithImage = {
+  id: number;
+  name: string;
+  slug: string;
+  image?: string | null;
+  description?: string;
+};
+
 export default function Categories({ onSelect }: Props) {
+  const [apiCategories, setApiCategories] = useState<CategoryWithImage[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const cats: any = await productsApi.getCategories();
+        const list = (cats.results ?? cats) as CategoryWithImage[];
+        if (list && list.length > 0) {
+          setApiCategories(list);
+        } else {
+          // fallback to hardcoded list
+          setApiCategories(
+            fallbackCategories.map((name, idx) => ({
+              id: idx,
+              name,
+              slug: name,
+              image: null,
+            }))
+          );
+        }
+      } catch {
+        setApiCategories(
+          fallbackCategories.map((name, idx) => ({
+            id: idx,
+            name,
+            slug: name,
+            image: null,
+          }))
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const getImageUrl = (cat: CategoryWithImage) => {
+    // اگر عکس دلخواه از API اومده، همون
+    if (cat.image) {
+      // اگر URL کامل است یا /media/ است، همان را بده
+      if (cat.image.startsWith("http") || cat.image.startsWith("/media/")) {
+        // اگر نسبی بود و base لازم داشت
+        if (cat.image.startsWith("/media/")) {
+          const base = (import.meta as any).env?.VITE_API_BASE_URL?.replace("/api", "") || "http://127.0.0.1:8000";
+          return `${base}${cat.image}`;
+        }
+        return cat.image;
+      }
+      // اگر فقط نام فایل بود
+      return cat.image;
+    }
+    // fallback به عکس‌های پیش‌فرض
+    return CAT_IMAGES_FALLBACK[cat.name] || CAT_IMAGES_FALLBACK[cat.slug] || CAT_IMAGES_FALLBACK["سوسیس"];
+  };
+
+  if (loading) {
+    return (
+      <section className="bg-cream-50 py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-[30rem] rounded-[2rem] bg-stone-100 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-cream-50 to-white py-20 sm:py-28">
-      {/* decorative blobs */}
       <div className="pointer-events-none absolute -top-20 left-1/4 h-72 w-72 rounded-full bg-paprika-200/30 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-1/4 h-72 w-72 rounded-full bg-gold-200/30 blur-3xl" />
 
@@ -31,63 +120,42 @@ export default function Categories({ onSelect }: Props) {
           <span className="inline-flex items-center gap-1.5 rounded-full bg-paprika-50 px-4 py-1.5 text-xs font-bold text-paprika-700">
             ★ کاتالوگ محصولات نوین
           </span>
-          <h2 className="mt-4 font-display text-4xl font-bold text-stone-800 sm:text-5xl">
-            دسته‌بندی محصولات
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-stone-500">
-            روی هر دسته کلیک کنید تا محصولات آن را در فروشگاه مشاهده کنید
-          </p>
+          <h2 className="mt-4 font-display text-4xl font-bold text-stone-800 sm:text-5xl">دسته‌بندی محصولات</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-stone-500">روی هر دسته کلیک کنید تا محصولات آن را در فروشگاه مشاهده کنید - عکس‌ها از پنل ادمین قابل تغییر است</p>
         </div>
 
         <div className="mt-14 grid grid-cols-1 gap-8 md:grid-cols-3">
-          {categories.map((c, idx) => (
+          {apiCategories.map((cat, idx) => (
             <button
-              key={c}
-              onClick={() => onSelect(c)}
+              key={cat.id}
+              onClick={() => onSelect(cat.name)}
               style={{ animationDelay: `${idx * 120}ms` }}
               className="group relative flex h-[30rem] flex-col justify-end overflow-hidden rounded-[2rem] border border-stone-200/70 bg-stone-900 text-right shadow-xl shadow-stone-900/10 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-paprika-900/20 cursor-pointer sm:h-[34rem]"
             >
-              {/* Background image */}
               <img
-                src={CAT_IMAGES[c]}
-                alt={c}
+                src={getImageUrl(cat)}
+                alt={cat.name}
                 loading="lazy"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-110"
               />
-
-              {/* Dark gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/70 to-stone-950/10 transition group-hover:from-paprika-950 group-hover:via-stone-950/75" />
 
-
-
-              {/* Content */}
               <div className="relative z-10 p-8 text-white">
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold backdrop-blur">
                   <span className="h-1.5 w-1.5 rounded-full bg-paprika-500" />
                   دسته‌بندی
                 </div>
-                <h3 className="font-display text-3xl font-bold drop-shadow-lg sm:text-4xl">
-                  {c}
-                </h3>
+                <h3 className="font-display text-3xl font-bold drop-shadow-lg sm:text-4xl">{cat.name}</h3>
                 <p className="mt-2 text-sm text-stone-200/90 leading-relaxed">
-                  {CAT_SUB[c]}
+                  {CAT_SUB[cat.name] || CAT_SUB[cat.slug] || cat.description || "محصولات متنوع نوین"}
                 </p>
 
                 <div className="mt-5 flex items-center justify-between border-t border-white/20 pt-4">
                   <span className="inline-flex items-center gap-1.5 text-sm font-bold text-gold-300 transition group-hover:gap-3">
-                    مشاهده محصولات
-                    <span className="transition group-hover:-translate-x-1">←</span>
+                    مشاهده محصولات <span className="transition group-hover:-translate-x-1">←</span>
                   </span>
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur transition group-hover:bg-paprika-600">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-5 w-5"
-                    >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
                       <path d="M5 12h14M13 6l6 6-6 6" />
                     </svg>
                   </span>

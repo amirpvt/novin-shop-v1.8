@@ -14,33 +14,42 @@ export default function MyOrders() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const load = async () => {
+    const loadAll = async () => {
       setLoading(true);
       setError("");
       try {
-        if (tab === "retail") {
-          const data: any = await ordersApi.myOrders();
-          setOrders(data.results ?? data);
-        } else {
-          const data: any = await wholesaleApi.myRequests();
-          setWholesale(data.results ?? data);
-        }
+        const [ordersData, wholesaleData] = await Promise.all([
+          ordersApi.myOrders().catch(() => []),
+          wholesaleApi.myRequests().catch(() => []),
+        ]);
+        setOrders((ordersData as any).results ?? (ordersData as any) ?? []);
+        setWholesale((wholesaleData as any).results ?? (wholesaleData as any) ?? []);
       } catch (e: any) {
-        if (e.message.includes("401") || e.message.includes("Unauthorized")) {
-          setError("برای مشاهده سفارشات باید وارد شوید");
-        } else {
-          setError(e.message || "خطا در دریافت سفارشات");
-        }
+        setError(e.message || "خطا");
       } finally {
         setLoading(false);
       }
     };
-    load();
-  }, [tab]);
+    loadAll();
+  }, []);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      if (tab === "retail") {
+        const data: any = await ordersApi.myOrders();
+        setOrders(data.results ?? data);
+      } else {
+        const data: any = await wholesaleApi.myRequests();
+        setWholesale(data.results ?? data);
+      }
+    } catch {}
+    finally { setLoading(false); }
+  };
 
   return (
     <div className="min-h-screen bg-cream-50 pt-28 pb-20 px-4" dir="rtl">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-black">سفارشات من</h1>
           <button onClick={() => navigate("/")} className="text-sm font-bold text-stone-500 hover:text-paprika-600">بازگشت به فروشگاه</button>
@@ -52,63 +61,97 @@ export default function MyOrders() {
         </div>
 
         {loading ? (
-          <div className="text-center py-20">
-            <div className="animate-spin text-3xl mb-4">⏳</div>
-            <p className="text-stone-500">در حال بارگذاری...</p>
-          </div>
+          <div className="text-center py-20">⏳ در حال بارگذاری...</div>
         ) : error ? (
           <div className="rounded-3xl bg-white border p-12 text-center">
-            <div className="text-5xl mb-4">🔒</div>
-            <p className="text-stone-700 font-bold">{error}</p>
-            <button onClick={() => navigate("/")} className="mt-6 bg-paprika-600 text-white px-8 py-3 rounded-2xl font-bold">ورود / ثبت‌نام</button>
-            <div className="mt-6">
-              <p className="text-xs text-stone-400 mb-2">اگر مهمان سفارش داده‌اید، با شماره سفارش پیگیری کنید:</p>
-              <button onClick={() => navigate("/track")} className="text-sm font-bold text-paprika-600 underline">پیگیری با شماره سفارش</button>
-            </div>
+            <p className="font-bold">{error}</p>
+            <button onClick={() => navigate("/")} className="mt-6 bg-paprika-600 text-white px-8 py-3 rounded-2xl font-bold">ورود</button>
           </div>
         ) : tab === "retail" ? (
           orders.length === 0 ? (
-            <div className="rounded-3xl bg-white border p-12 text-center text-stone-400">هنوز سفارشی ثبت نکرده‌اید</div>
+            <div className="rounded-3xl bg-white border p-12 text-center text-stone-400">سفارش تکی ندارید</div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {orders.map((o) => (
-                <div key={o.id} className="bg-white rounded-3xl p-6 border shadow-sm hover:shadow-md transition">
-                  <div className="flex justify-between items-start mb-3">
+                <div key={o.id} className="bg-white rounded-[2rem] border shadow-sm overflow-hidden hover:shadow-lg transition">
+                  <div className="p-6 flex justify-between items-start">
                     <div>
-                      <p className="font-mono font-black text-stone-900">{o.order_number}</p>
+                      <p className="font-mono font-black">{o.order_number}</p>
                       <p className="text-xs text-stone-400 mt-1">{new Date(o.created_at).toLocaleDateString("fa-IR")}</p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${o.order_status === "PENDING" ? "bg-amber-100 text-amber-700" : o.order_status === "CONFIRMED" ? "bg-blue-100 text-blue-700" : o.order_status === "SHIPPED" ? "bg-purple-100 text-purple-700" : o.order_status === "DELIVERED" ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-600"}`}>
-                      {o.order_status === "PENDING" ? "در انتظار" : o.order_status === "CONFIRMED" ? "تایید شده" : o.order_status === "PREPARING" ? "آماده‌سازی" : o.order_status === "SHIPPED" ? "ارسال شده" : o.order_status === "DELIVERED" ? "تحویل شده" : o.order_status}
-                    </span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${o.order_status === "DELIVERED" ? "bg-emerald-100 text-emerald-700" : o.order_status === "PENDING" ? "bg-amber-100 text-amber-700" : "bg-stone-100"}`}>{o.order_status}</span>
                   </div>
-                  <div className="text-sm text-stone-600 mb-3">
-                    {o.items?.map((i) => `${i.product_name} × ${i.quantity}`).join("، ")}
+
+                  {/* 🆕 عکس محصولات */}
+                  <div className="px-6 pb-4">
+                    <p className="text-xs font-bold text-stone-500 mb-3">محصولات سفارش:</p>
+                    <div className="grid gap-3">
+                      {(o.items as any)?.map((item: any) => (
+                        <div key={item.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-2xl border">
+                          <img src={item.product_image || "/images/placeholder.jpg"} alt={item.product_name} className="h-16 w-16 rounded-xl object-cover bg-white border" />
+                          <div className="flex-1">
+                            <p className="font-bold text-sm text-stone-800">{item.product_name}</p>
+                            <p className="text-xs text-stone-500 mt-1">تعداد: {item.quantity} × {formatPrice(item.price)}</p>
+                          </div>
+                          <div className="text-left">
+                            <p className="font-black text-sm text-paprika-700">{formatPrice(item.price * item.quantity)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center pt-3 border-t">
-                    <span className="text-sm text-stone-500">مبلغ</span>
-                    <span className="font-black text-paprika-700">{formatPrice(o.total_amount)}</span>
+
+                  <div className="px-6 py-4 bg-stone-50 border-t flex justify-between items-center">
+                    <span className="text-sm text-stone-500">مبلغ کل</span>
+                    <span className="font-black text-lg text-stone-900">{formatPrice(o.total_amount)}</span>
                   </div>
                 </div>
               ))}
             </div>
           )
         ) : wholesale.length === 0 ? (
-          <div className="rounded-3xl bg-white border p-12 text-center text-stone-400">درخواست عمده‌ای ندارید</div>
+          <div className="rounded-3xl bg-white border p-12 text-center text-stone-400">درخواست عمده ندارید</div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {wholesale.map((w) => (
-              <div key={w.id} className="bg-white rounded-3xl p-6 border shadow-sm">
-                <div className="flex justify-between">
-                  <p className="font-mono font-bold">{w.request_number}</p>
+              <div key={w.id} className="bg-white rounded-[2rem] border shadow-sm overflow-hidden">
+                <div className="p-6 flex justify-between">
+                  <div>
+                    <p className="font-mono font-bold">{w.request_number}</p>
+                    <p className="text-xs text-stone-400 mt-1">{new Date(w.created_at).toLocaleDateString("fa-IR")}</p>
+                  </div>
                   <span className="px-3 py-1 rounded-full bg-stone-100 text-xs font-bold">{w.status}</span>
                 </div>
-                <p className="mt-2 font-bold text-stone-800">{w.company_name}</p>
-                <p className="text-sm text-stone-500 mt-1">{w.items?.map((i) => `${i.product_name} × ${i.quantity}`).join("، ")}</p>
+
+                <div className="px-6 pb-2">
+                  <p className="font-bold">{w.company_name}</p>
+                  <p className="text-xs text-stone-500 mt-1">👤 {w.contact_person} - 📞 {w.phone}</p>
+                </div>
+
+                {/* 🆕 عکس محصولات عمده */}
+                <div className="px-6 pb-4">
+                  <p className="text-xs font-bold text-stone-500 mb-3">محصولات درخواستی:</p>
+                  <div className="grid gap-3">
+                    {(w.items as any)?.map((item: any) => (
+                      <div key={item.id} className="flex gap-3 items-center bg-stone-50 p-3 rounded-2xl border">
+                        <img src={item.product_image || "/images/placeholder.jpg"} alt={item.product_name} className="h-16 w-16 rounded-xl object-cover bg-white border" />
+                        <div className="flex-1">
+                          <p className="font-bold text-sm">{item.product_name}</p>
+                          <p className="text-xs text-stone-500 mt-1">تعداد: {item.quantity}</p>
+                          {item.notes && <p className="text-[10px] text-stone-400 mt-1">📝 {item.notes}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         )}
+
+        <div className="flex justify-center mt-6">
+          <button onClick={refresh} className="text-xs bg-white border px-6 py-2.5 rounded-full font-bold hover:bg-stone-50">🔄 رفرش</button>
+        </div>
       </div>
     </div>
   );

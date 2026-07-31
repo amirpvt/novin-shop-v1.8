@@ -16,8 +16,6 @@ export function useNavigation() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ─── Derived state from URL ──────────────────────────────────────────
-
   const page = useMemo<Page>(() => {
     const path = location.pathname;
     if (path === "/") return "home";
@@ -28,6 +26,8 @@ export function useNavigation() {
     if (path === "/about") return "about";
     if (path === "/success") return "order-success";
     if (path.startsWith("/product/")) return "product-details";
+    if (path.startsWith("/my-orders")) return "home";
+    if (path.startsWith("/track")) return "home";
     return "home";
   }, [location.pathname]);
 
@@ -36,11 +36,7 @@ export function useNavigation() {
   const searchTerm = searchParams.get("search") || "";
   const lastOrderNumber = searchParams.get("order") || "";
 
-  // ─── Navigation actions ──────────────────────────────────────────────
-
-  const goHome = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
+  const goHome = useCallback(() => { navigate("/"); }, [navigate]);
 
   const goShop = useCallback(
     (cat: string | null = null, br: string | null = null) => {
@@ -52,25 +48,16 @@ export function useNavigation() {
     [navigate]
   );
 
-  const goAdmin = useCallback(() => {
-    navigate("/admin");
-  }, [navigate]);
+  const goAdmin = useCallback(() => { navigate("/admin"); }, [navigate]);
+  const goAbout = useCallback(() => { navigate("/about"); }, [navigate]);
+  const goRetailCart = useCallback(() => { navigate("/cart"); }, [navigate]);
+  const goWholesaleRequest = useCallback(() => { navigate("/wholesale"); }, [navigate]);
 
-  const goAbout = useCallback(() => {
-    navigate("/about");
-  }, [navigate]);
-
-  const goRetailCart = useCallback(() => {
-    navigate("/cart");
-  }, [navigate]);
-
-  const goWholesaleRequest = useCallback(() => {
-    navigate("/wholesale");
-  }, [navigate]);
-
+  // ✅ FIX: اگر product object دادند، id اش را بگیر - این باگ باعث می‌شد صفحه محصول باز نشود
   const goProductDetails = useCallback(
-    (productId: number | string) => {
-      navigate(`/product/${productId}`);
+    (product: any) => {
+      const id = typeof product === "object" ? product.id : product;
+      navigate(`/product/${id}`);
     },
     [navigate]
   );
@@ -96,29 +83,14 @@ export function useNavigation() {
   const setPage = useCallback(
     (newPage: Page) => {
       switch (newPage) {
-        case "home":
-          goHome();
-          break;
-        case "shop":
-          goShop();
-          break;
-        case "retail-cart":
-          goRetailCart();
-          break;
-        case "wholesale-request":
-          goWholesaleRequest();
-          break;
-        case "admin":
-          goAdmin();
-          break;
-        case "about":
-          goAbout();
-          break;
-        case "order-success":
-          goOrderSuccess(lastOrderNumber || "ORD-00000000");
-          break;
-        default:
-          goHome();
+        case "home": goHome(); break;
+        case "shop": goShop(); break;
+        case "retail-cart": goRetailCart(); break;
+        case "wholesale-request": goWholesaleRequest(); break;
+        case "admin": goAdmin(); break;
+        case "about": goAbout(); break;
+        case "order-success": goOrderSuccess(lastOrderNumber || "ORD-00000000"); break;
+        default: goHome();
       }
     },
     [goHome, goShop, goRetailCart, goWholesaleRequest, goAdmin, goAbout, goOrderSuccess, lastOrderNumber]
@@ -130,9 +102,7 @@ export function useNavigation() {
     brand,
     searchTerm,
     lastOrderNumber,
-
     setPage,
-
     goHome,
     goShop,
     goAdmin,
