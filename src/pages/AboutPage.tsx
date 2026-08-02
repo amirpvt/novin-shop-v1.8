@@ -1,4 +1,4 @@
-import { siteName, siteSlogan, phone, brands } from "../data";
+import { siteName, siteSlogan, phone, phoneFixed, mobilePhone, address, brands } from "../data";
 import { CheckIcon, TruckIcon, PhoneIcon, ArrowRightIcon } from "../components/icons";
 
 type Props = {
@@ -27,7 +27,7 @@ export default function AboutPage({ onBack, onShop, onOrder }: Props) {
     {
       icon: "🚚",
       title: "ارسال سریع و مطمئن",
-      desc: "تحویل در تهران کمتر از ۲۴ ساعت و ارسال تخصصی به تمامی شهرستان‌ها با بسته‌بندی استاندارد.",
+      desc: "تحویل در البرز و تهران کمتر از ۲۴ ساعت و ارسال تخصصی به تمامی شهرستان‌ها.",
     },
     {
       icon: "💎",
@@ -53,7 +53,7 @@ export default function AboutPage({ onBack, onShop, onOrder }: Props) {
       {/* HERO */}
       <section className="relative isolate overflow-hidden">
         <img
-          src="/images/banner.jpg"
+          src="/images/banner7.png"
           alt="درباره پخش سوسیس و کالباس نوین"
           className="absolute inset-0 -z-20 h-full w-full object-cover"
         />
@@ -94,6 +94,31 @@ export default function AboutPage({ onBack, onShop, onOrder }: Props) {
               <p className="text-base leading-loose text-stone-600">
                 ما با تکیه بر تیمی متخصص، ناوگان مجهز و همکاری با برندهای بزرگ صنعت، توانسته‌ایم اعتماد بیش از هزار فروشگاه، رستوران، فست‌فود و هایپرمارکت را در سراسر ایران جلب کنیم.
               </p>
+
+              {/* آدرس جدید */}
+              <div className="mt-8 rounded-3xl bg-white p-6 border border-stone-200 shadow-sm">
+                <h4 className="font-black text-stone-800 mb-3 flex items-center gap-2">📍 آدرس فروشگاه</h4>
+                <p className="text-sm leading-loose text-stone-700 font-medium">
+                  {address}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                <div className="rounded-2xl bg-stone-900 text-white p-5 flex items-center gap-3">
+                  <PhoneIcon className="h-6 w-6 text-gold-400" />
+                  <div>
+                    <p className="text-[10px] text-stone-400 font-bold">تلفن ثابت</p>
+                    <p className="font-mono font-black tracking-wider" dir="ltr">{phoneFixed}</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-paprika-600 text-white p-5 flex items-center gap-3">
+                  <PhoneIcon className="h-6 w-6 text-white" />
+                  <div>
+                    <p className="text-[10px] text-paprika-100 font-bold">تلفن همراه</p>
+                    <p className="font-mono font-black tracking-wider" dir="ltr">{mobilePhone}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-5">
@@ -148,6 +173,34 @@ export default function AboutPage({ onBack, onShop, onOrder }: Props) {
         </div>
       </section>
 
+      {/* CONTACT INFO HIGHLIGHT */}
+      <section className="py-16 bg-cream-50">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="rounded-[2.5rem] bg-white border border-stone-200 shadow-xl p-8 sm:p-10">
+            <h3 className="text-2xl font-black text-center mb-8">اطلاعات تماس پخش نوین</h3>
+            <div className="grid gap-6 sm:grid-cols-3">
+              <div className="text-center p-6 rounded-2xl bg-stone-50 border">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-900 text-white mb-3">📍</div>
+                <p className="text-xs font-bold text-stone-500 mb-1">آدرس</p>
+                <p className="text-sm font-bold leading-loose">{address}</p>
+              </div>
+              <div className="text-center p-6 rounded-2xl bg-stone-900 text-white">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white/10 mb-3">📞</div>
+                <p className="text-xs font-bold text-stone-400 mb-1">تلفن ثابت</p>
+                <p className="font-mono text-lg font-black" dir="ltr">{phoneFixed}</p>
+                <a href={`tel:${phoneFixed.replace(/-/g, "")}`} className="mt-3 inline-block text-xs bg-white text-stone-900 px-4 py-1.5 rounded-full font-bold">تماس</a>
+              </div>
+              <div className="text-center p-6 rounded-2xl bg-paprika-600 text-white">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white/20 mb-3">📱</div>
+                <p className="text-xs font-bold text-paprika-100 mb-1">تلفن همراه</p>
+                <p className="font-mono text-lg font-black" dir="ltr">{mobilePhone}</p>
+                <a href={`tel:${mobilePhone.replace(/-/g, "")}`} className="mt-3 inline-block text-xs bg-white text-paprika-700 px-4 py-1.5 rounded-full font-bold">تماس فوری</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* BRANDS */}
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -197,31 +250,12 @@ export default function AboutPage({ onBack, onShop, onOrder }: Props) {
               مشاهده فروشگاه
             </button>
             <a
-              href={`tel:${phone.replace(/-/g, "")}`}
+              href={`tel:${mobilePhone.replace(/-/g, "")}`}
               className="inline-flex w-full items-center justify-center gap-2 rounded-full border-2 border-white/40 bg-transparent px-8 py-4 text-base font-bold transition hover:bg-white/10 sm:w-auto"
             >
               <PhoneIcon className="h-5 w-5" />
-              {phone}
+              {mobilePhone}
             </a>
-          </div>
-
-          <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-              <CheckIcon className="mx-auto h-6 w-6 text-gold-300" />
-              <div className="mt-2 text-sm font-bold">ضمانت اصالت</div>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-              <TruckIcon className="mx-auto h-6 w-6 text-gold-300" />
-              <div className="mt-2 text-sm font-bold">ارسال سراسری</div>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-              <PhoneIcon className="mx-auto h-6 w-6 text-gold-300" />
-              <div className="mt-2 text-sm font-bold">پشتیبانی ۲۴/۷</div>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-              <span className="block text-2xl">💎</span>
-              <div className="mt-2 text-sm font-bold">کیفیت لوکس</div>
-            </div>
           </div>
         </div>
       </section>

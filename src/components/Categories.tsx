@@ -2,19 +2,18 @@ import { useEffect, useState } from "react";
 import { productsApi, type Category as ApiCategory } from "../api/client";
 import { categories as fallbackCategories } from "../data";
 
-const CAT_IMAGES_FALLBACK: Record<string, string> = {
-  سوسیس:
-    "https://images.pexels.com/photos/4113462/pexels-photo-4113462.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1000&w=1200",
-  کالباس:
-    "https://images.pexels.com/photos/13149103/pexels-photo-13149103.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=900",
-  "فرآورده های منجمد":
-    "https://images.pexels.com/photos/6941033/pexels-photo-6941033.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1000&w=1200",
-  sausage:
-    "https://images.pexels.com/photos/4113462/pexels-photo-4113462.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1000&w=1200",
-  kalbas:
-    "https://images.pexels.com/photos/13149103/pexels-photo-13149103.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1200&w=900",
-  frozen:
-    "https://images.pexels.com/photos/6941033/pexels-photo-6941033.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=1000&w=1200",
+// ✅ عکس‌های دسته‌بندی از فضای خود پروژه - نه Pexels
+const CAT_IMAGES_LOCAL: Record<string, string> = {
+  سوسیس: "/images/categories/cat-sausage2.jpg",
+  کالباس: "/images/p2.jpg",
+  "فرآورده های منجمد": "/images/p7.jpg",
+  sausage: "/images/categories/cat-sausage2.jpg",
+  kalbas: "/images/p2.jpg",
+  frozen: "/images/p7.jpg",
+  // fallback اضافی
+  default1: "/images/p1.jpg",
+  default2: "/images/p3.jpg",
+  default3: "/images/p5.jpg",
 };
 
 const CAT_SUB: Record<string, string> = {
@@ -30,7 +29,6 @@ type Props = {
   onSelect: (category: string) => void;
 };
 
-// نوع دسته با عکس دلخواه
 type CategoryWithImage = {
   id: number;
   name: string;
@@ -51,7 +49,6 @@ export default function Categories({ onSelect }: Props) {
         if (list && list.length > 0) {
           setApiCategories(list);
         } else {
-          // fallback to hardcoded list
           setApiCategories(
             fallbackCategories.map((name, idx) => ({
               id: idx,
@@ -78,22 +75,19 @@ export default function Categories({ onSelect }: Props) {
   }, []);
 
   const getImageUrl = (cat: CategoryWithImage) => {
-    // اگر عکس دلخواه از API اومده، همون
+    // اگر از API عکس دلخواه اومده (از پنل ادمین آپلود شده)، همون رو نشون بده
     if (cat.image) {
-      // اگر URL کامل است یا /media/ است، همان را بده
       if (cat.image.startsWith("http") || cat.image.startsWith("/media/")) {
-        // اگر نسبی بود و base لازم داشت
         if (cat.image.startsWith("/media/")) {
           const base = (import.meta as any).env?.VITE_API_BASE_URL?.replace("/api", "") || "http://127.0.0.1:8000";
           return `${base}${cat.image}`;
         }
         return cat.image;
       }
-      // اگر فقط نام فایل بود
       return cat.image;
     }
-    // fallback به عکس‌های پیش‌فرض
-    return CAT_IMAGES_FALLBACK[cat.name] || CAT_IMAGES_FALLBACK[cat.slug] || CAT_IMAGES_FALLBACK["سوسیس"];
+    // ✅ فقط عکس‌های لوکال پروژه
+    return CAT_IMAGES_LOCAL[cat.name] || CAT_IMAGES_LOCAL[cat.slug] || `/images/p${(cat.id % 8) + 1}.jpg`;
   };
 
   if (loading) {
@@ -121,7 +115,7 @@ export default function Categories({ onSelect }: Props) {
             ★ کاتالوگ محصولات نوین
           </span>
           <h2 className="mt-4 font-display text-4xl font-bold text-stone-800 sm:text-5xl">دسته‌بندی محصولات</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-stone-500">روی هر دسته کلیک کنید تا محصولات آن را در فروشگاه مشاهده کنید - عکس‌ها از پنل ادمین قابل تغییر است</p>
+          <p className="mx-auto mt-3 max-w-2xl text-stone-500">روی هر دسته کلیک کنید تا محصولات آن را در فروشگاه مشاهده کنید</p>
         </div>
 
         <div className="mt-14 grid grid-cols-1 gap-8 md:grid-cols-3">

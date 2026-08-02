@@ -2,7 +2,10 @@ export const siteName = "پخش سوسیس و کالباس نوین";
 export const siteSlogan =
   "توزیع عمده و خرده‌فروشی انواع سوسیس، کالباس و فرآورده‌های گوشتی با بهترین برندها";
 
-export const phone = "۰۲۱-۱۲۳۴۵۶۷۸";
+export const phone = "09300117977";
+export const phoneFixed = "02636640196";
+export const mobilePhone = "09300117977";
+export const address = "استان البرز، کرج، جاده ملارد، خیابان نیروگاه، شهرک ارم، روبروی آتشنشانی، خیابان پریسای شرقی، جنب حسینیه چهارده معصوم، پخش نوین";
 
 export const brands: { name: string; image: string }[] = [
   { name: "فرآورده های گوشتی گلچین", image: "/images/brands/golchin.jpg" },
@@ -145,44 +148,29 @@ export function formatPrice(n: number) {
   return n.toLocaleString("fa-IR") + " تومان";
 }
 
-// ─── Mapper: API Product → Frontend Product (Phase 2 FIXED) ──────────
-export function mapApiProduct(apiProduct: import("./api/client").ApiProduct): Product {
-  // برند: اگر brand_name داریم از آن استفاده کن، وگرنه id برند
-  const brandName =
-    (apiProduct as any).brand_name ||
-    (typeof apiProduct.brand === "string" ? apiProduct.brand : "") ||
-    "";
-
-  // دسته: category_name یا id
-  const catName =
-    (apiProduct as any).category_name ||
-    (apiProduct.category ? String(apiProduct.category) : "") ||
-    "";
-
-  // تصویر: اگر URL کامل دارد یا relative
-  let img = (apiProduct as any).image || "/images/placeholder.jpg";
-  // اگر URL بک‌اند داشت و شامل /media/ بود، همان را نگه دار
-  // وگرنه اگر id داشت، از /images/p{id}.jpg استفاده کن برای زیبایی
+export function mapApiProduct(apiProduct: any): Product {
+  const brandName = apiProduct.brand_name || (typeof apiProduct.brand === "string" ? apiProduct.brand : "") || "";
+  const catName = apiProduct.category_name || (apiProduct.category ? String(apiProduct.category) : "") || "";
+  let img = apiProduct.image || "/images/placeholder.jpg";
   if (!img || img.includes("placeholder")) {
     const id = apiProduct.id;
     img = id && id <= 8 ? `/images/p${id}.jpg` : "/images/placeholder.jpg";
   }
-
   return {
     id: apiProduct.id,
     name: apiProduct.name,
     description: apiProduct.description || apiProduct.name,
-    price: parseFloat(apiProduct.price as any) || 0,
+    price: parseFloat(apiProduct.price) || 0,
     unit: apiProduct.unit || "بسته",
     brand: brandName,
     brand_name: brandName,
-    tag: (apiProduct.tag as string) || undefined,
+    tag: apiProduct.tag || undefined,
     category: catName,
     category_name: catName,
     image: img,
-    badge: (apiProduct.badge as string) || undefined,
+    badge: apiProduct.badge || undefined,
     available: apiProduct.available,
-    stock: (apiProduct as any).stock ?? 0,
-    is_featured: (apiProduct as any).is_featured ?? false,
+    stock: apiProduct.stock ?? 0,
+    is_featured: apiProduct.is_featured ?? false,
   };
 }

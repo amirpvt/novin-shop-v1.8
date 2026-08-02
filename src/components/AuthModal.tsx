@@ -1,7 +1,3 @@
-/**
- * AuthModal - Phase 1 (Login + Register)
- * طراحی RTL، موبایل فرندلی، اتصال به API واقعی
- */
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 
@@ -10,7 +6,7 @@ type Tab = "login" | "register";
 interface Props {
   open: boolean;
   onClose: () => void;
-  onLogin?: (user: any) => void; // اختیاری - برای سازگاری با App.tsx
+  onLogin?: (user: any) => void;
 }
 
 export default function AuthModal({ open, onClose, onLogin }: Props) {
@@ -18,12 +14,11 @@ export default function AuthModal({ open, onClose, onLogin }: Props) {
   const [tab, setTab] = useState<Tab>("login");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [showPass, setShowPass] = useState(false);
 
-  // Login form state
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // Register form state
   const [r, setR] = useState({
     first_name: "",
     last_name: "",
@@ -56,8 +51,12 @@ export default function AuthModal({ open, onClose, onLogin }: Props) {
       const u = await login(username, password);
       onLogin?.(u);
       onClose();
+      reset();
     } catch (e: any) {
-      setErr(e.message || "نام کاربری یا رمز عبور اشتباه است");
+      let msg = e.message || "نام کاربری یا رمز عبور اشتباه است";
+      if (msg.includes("No active account")) msg = "حساب کاربری یافت نشد - رمز را چک کنید";
+      if (msg.includes("400")) msg = "نام کاربری یا رمز عبور اشتباه است";
+      setErr(msg);
     } finally {
       setLoading(false);
     }
@@ -70,184 +69,241 @@ export default function AuthModal({ open, onClose, onLogin }: Props) {
       setErr("رمز عبور و تکرار آن یکسان نیست");
       return;
     }
+    if (r.password.length < 8) {
+      setErr("رمز عبور باید حداقل 8 کاراکتر باشد");
+      return;
+    }
+    if (!/^09[0-9]{9}$/.test(r.phone)) {
+      setErr("شماره موبایل باید با 09 شروع شود و 11 رقم باشد");
+      return;
+    }
     setLoading(true);
     try {
       const u = await register(r);
       onLogin?.(u);
       onClose();
+      reset();
     } catch (e: any) {
-      setErr(e.message || "خطا در ثبت‌نام. لطفاً اطلاعات را بررسی کنید.");
+      let msg = e.message || "خطا در ثبت‌نام";
+      try {
+        const parsed = JSON.parse(msg);
+        if (parsed.username) msg = "این نام کاربری قبلاً گرفته شده";
+        else if (parsed.phone) msg = "این شماره موبایل قبلاً ثبت شده";
+        else if (parsed.email) msg = "این ایمیل قبلاً ثبت شده";
+        else if (typeof parsed === "object") msg = Object.values(parsed).flat().join(" - ") as string;
+      } catch {}
+      setErr(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Tabs */}
-        <div className="flex border-b border-stone-200">
-          {(["login", "register"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => switchTab(t)}
-              className={`flex-1 py-4 text-center text-sm font-bold transition ${
-                tab === t
-                  ? "border-b-2 border-rose-700 text-rose-700"
-                  : "text-stone-500 hover:text-stone-700"
-              }`}
-            >
-              {t === "login" ? "ورود" : "ثبت‌نام"}
-            </button>
-          ))}
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-stone-900/70 p-4 backdrop-blur-md" onClick={onClose}>
+      <div className="w-full max-w-5xl overflow-hidden rounded-[2.5rem] bg-white shadow-[0_25px_80px_rgba(0,0,0,0.3)] grid grid-cols-1 lg:grid-cols-2" onClick={(e) => e.stopPropagation()}>
+        
+        {/* Left - Branding */}
+        <div className="relative hidden lg:flex flex-col justify-between bg-gradient-to-br from-stone-900 via-stone-800 to-paprika-900 p-10 text-white overflow-hidden">
+          <div className="absolute -top-20 -right-20 h-80 w-80 rounded-full bg-paprika-600/20 blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-gold-500/10 blur-3xl" />
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-3">
+              <img src="/images/logo.png" alt="نوین" className="h-40 w-40 rounded-xl" />
+            </div>
+          </div>
+
+          <div className="relative z-10">
+            <h2 className="font-display text-4xl font-black leading-tight">
+              به خانواده<br />
+              <span className="text-gold-400">بزرگ نوین</span><br />
+              خوش آمدید
+            </h2>
+            <p className="mt-4 text-stone-300 leading-relaxed">
+              با ورود به حساب کاربری می‌توانید سفارشات خود را پیگیری کنید، از تخفیف‌های ویژه با خبر شوید و خرید عمده را سریع‌تر انجام دهید.
+            </p>
+
+            <div className="mt-8 space-y-3">
+              <div className="flex items-center gap-3 text-sm">
+                <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center">✓</div>
+                <span>پیگیری لحظه‌ای سفارشات تکی و عمده</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center">✓</div>
+                <span>ذخیره آدرس و تسویه سریع‌تر</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center">✓</div>
+                <span>تخفیف‌های اختصاصی مشتریان وفادار</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative z-10 text-xs text-stone-500">
+            © {new Date().getFullYear()} پخش نوین - تمامی حقوق محفوظ است
+          </div>
         </div>
 
-        {/* Body */}
-        <div className="p-6">
-          {err && (
-            <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs text-rose-700">
-              {err}
-            </div>
-          )}
+        {/* Right - Form */}
+        <div className="flex flex-col">
+          {/* Tabs */}
+          <div className="flex p-2 gap-2 bg-stone-50 m-3 rounded-2xl">
+            <button
+              onClick={() => switchTab("login")}
+              className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${tab === "login" ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`}
+            >
+              ورود
+            </button>
+            <button
+              onClick={() => switchTab("register")}
+              className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${tab === "register" ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`}
+            >
+              ثبت‌نام
+            </button>
+            <button onClick={onClose} className="h-11 w-11 grid place-items-center rounded-xl bg-white border text-stone-400 hover:text-stone-700">✕</button>
+          </div>
 
-          {tab === "login" ? (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-xs font-bold text-stone-700">نام کاربری یا موبایل</label>
-                <input
-                  type="text"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-rose-500"
-                  placeholder="admin یا 0912..."
-                />
+          <div className="flex-1 overflow-y-auto p-8">
+            {err && (
+              <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex gap-3 text-sm text-red-700">
+                <span className="text-lg">⚠️</span>
+                <span className="leading-relaxed">{err}</span>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-bold text-stone-700">رمز عبور</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-rose-500"
-                  placeholder="••••••••"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-xl bg-rose-700 py-3 text-sm font-bold text-white transition hover:bg-rose-800 disabled:opacity-50"
-              >
-                {loading ? "در حال ورود..." : "ورود"}
-              </button>
-              <p className="text-center text-xs text-stone-500">
-                حساب ندارید؟{" "}
-                <button type="button" onClick={() => switchTab("register")} className="font-bold text-rose-700">
-                  ثبت‌نام کنید
-                </button>
-              </p>
-            </form>
-          ) : (
-            <form onSubmit={handleRegister} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            )}
+
+            {tab === "login" ? (
+              <form onSubmit={handleLogin} className="space-y-5">
                 <div>
-                  <label className="mb-1 block text-xs font-bold text-stone-700">نام</label>
-                  <input
-                    type="text"
-                    required
-                    value={r.first_name}
-                    onChange={(e) => setR({ ...r, first_name: e.target.value })}
-                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm outline-none focus:border-rose-500"
-                  />
+                  <h3 className="text-2xl font-black text-stone-900">خوش آمدید 👋</h3>
+                  <p className="text-sm text-stone-500 mt-2">برای ادامه وارد حساب کاربری خود شوید</p>
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-stone-700">نام خانوادگی</label>
-                  <input
-                    type="text"
-                    required
-                    value={r.last_name}
-                    onChange={(e) => setR({ ...r, last_name: e.target.value })}
-                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm outline-none focus:border-rose-500"
-                  />
+
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <label className="text-[11px] font-black text-stone-500 tracking-widest uppercase">نام کاربری</label>
+                    <div className="relative mt-2">
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400">👤</span>
+                      <input
+                        type="text"
+                        required
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full rounded-2xl border-2 border-stone-100 bg-stone-50 pr-11 pl-4 py-3.5 text-sm font-medium outline-none focus:border-paprika-500 focus:bg-white transition"
+                        placeholder="admin یا شماره موبایل"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-black text-stone-500 tracking-widest uppercase">رمز عبور</label>
+                    <div className="relative mt-2">
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400">🔒</span>
+                      <input
+                        type={showPass ? "text" : "password"}
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full rounded-2xl border-2 border-stone-100 bg-stone-50 pr-11 pl-12 py-3.5 text-sm font-medium outline-none focus:border-paprika-500 focus:bg-white transition"
+                        placeholder="••••••••"
+                      />
+                      <button type="button" onClick={() => setShowPass(!showPass)} className="absolute left-3 top-1/2 -translate-y-1/2 h-8 px-3 rounded-xl bg-white border text-[11px] font-bold text-stone-500">
+                        {showPass ? "مخفی" : "نمایش"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-bold text-stone-700">شماره موبایل</label>
-                <input
-                  type="tel"
-                  required
-                  pattern="09[0-9]{9}"
-                  value={r.phone}
-                  onChange={(e) => setR({ ...r, phone: e.target.value })}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-rose-500"
-                  placeholder="09123456789"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-bold text-stone-700">ایمیل (اختیاری)</label>
-                <input
-                  type="email"
-                  value={r.email}
-                  onChange={(e) => setR({ ...r, email: e.target.value })}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-rose-500"
-                  dir="ltr"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-bold text-stone-700">نام کاربری</label>
-                <input
-                  type="text"
-                  required
-                  value={r.username}
-                  onChange={(e) => setR({ ...r, username: e.target.value })}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-rose-500"
-                  dir="ltr"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-bold text-stone-700">رمز عبور (حداقل ۸ کاراکتر)</label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={r.password}
-                  onChange={(e) => setR({ ...r, password: e.target.value })}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-rose-500"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-bold text-stone-700">تکرار رمز عبور</label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={r.password2}
-                  onChange={(e) => setR({ ...r, password2: e.target.value })}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-rose-500"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-xl bg-rose-700 py-3 text-sm font-bold text-white transition hover:bg-rose-800 disabled:opacity-50"
-              >
-                {loading ? "در حال ثبت‌نام..." : "ثبت‌نام"}
-              </button>
-              <p className="text-center text-xs text-stone-500">
-                حساب دارید؟{" "}
-                <button type="button" onClick={() => switchTab("login")} className="font-bold text-rose-700">
-                  وارد شوید
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-2xl bg-stone-900 py-4 text-sm font-black text-white shadow-xl shadow-stone-900/20 hover:bg-black disabled:opacity-50 transition flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      در حال ورود...
+                    </>
+                  ) : (
+                    "ورود به حساب"
+                  )}
                 </button>
-              </p>
-            </form>
-          )}
+
+                <div className="text-center text-xs text-stone-500 pt-2">
+                  حساب ندارید؟{" "}
+                  <button type="button" onClick={() => switchTab("register")} className="font-black text-paprika-600 hover:underline">
+                    ثبت‌نام کنید
+                  </button>
+                </div>
+
+                <div className="pt-4 border-t border-stone-100">
+                  <p className="text-[11px] text-stone-400 text-center">با ورود، شرایط و قوانین نوین را می‌پذیرید</p>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div>
+                  <h3 className="text-2xl font-black">ایجاد حساب جدید</h3>
+                  <p className="text-sm text-stone-500 mt-1">ثبت‌نام کمتر از ۱ دقیقه</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-stone-500">نام</label>
+                    <input required value={r.first_name} onChange={(e) => setR({ ...r, first_name: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="علی" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-stone-500">نام خانوادگی</label>
+                    <input required value={r.last_name} onChange={(e) => setR({ ...r, last_name: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="رضایی" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-stone-500">شماره موبایل *</label>
+                  <input required type="tel" value={r.phone} onChange={(e) => setR({ ...r, phone: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white font-mono" placeholder="09123456789" dir="ltr" />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-stone-500">نام کاربری *</label>
+                  <input required value={r.username} onChange={(e) => setR({ ...r, username: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="مثلا ali123" dir="ltr" />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-stone-500">ایمیل (اختیاری)</label>
+                  <input type="email" value={r.email} onChange={(e) => setR({ ...r, email: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="ali@email.com" dir="ltr" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-stone-500">رمز عبور *</label>
+                    <input required type="password" minLength={8} value={r.password} onChange={(e) => setR({ ...r, password: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500" placeholder="حداقل 8 کاراکتر" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-stone-500">تکرار رمز *</label>
+                    <input required type="password" value={r.password2} onChange={(e) => setR({ ...r, password2: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500" placeholder="تکرار رمز" />
+                  </div>
+                </div>
+
+                {r.password && (
+                  <div className="flex gap-1">
+                    <div className={`h-1 flex-1 rounded-full ${r.password.length >= 8 ? "bg-emerald-500" : "bg-stone-200"}`} />
+                    <div className={`h-1 flex-1 rounded-full ${r.password.length >= 10 ? "bg-emerald-500" : "bg-stone-200"}`} />
+                    <div className={`h-1 flex-1 rounded-full ${/[A-Z]/.test(r.password) && /[0-9]/.test(r.password) ? "bg-emerald-500" : "bg-stone-200"}`} />
+                  </div>
+                )}
+
+                <button type="submit" disabled={loading} className="w-full rounded-2xl bg-paprika-600 py-4 text-sm font-black text-white shadow-xl shadow-paprika-600/20 hover:bg-paprika-700 disabled:opacity-50 transition">
+                  {loading ? "در حال ثبت‌نام..." : "ثبت‌نام و ورود"}
+                </button>
+
+                <div className="text-center text-xs text-stone-500">
+                  قبلاً ثبت‌نام کرده‌اید؟{" "}
+                  <button type="button" onClick={() => switchTab("login")} className="font-black text-stone-900 hover:underline">
+                    وارد شوید
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       </div>
     </div>
