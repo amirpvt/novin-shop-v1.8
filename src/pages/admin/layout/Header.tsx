@@ -13,7 +13,7 @@ export default function Header({ onBack }: HeaderProps) {
           بخش ویژه مدیریت کسب و کار
         </div>
         <h1 className="mt-4 font-display text-3xl font-bold sm:text-4xl">
-          پنل حرفه‌ای مدیریت فروشگاه
+          پنل مدیریت فروشگاه
         </h1>
         <p className="mt-2 text-stone-400 text-sm">
           مدیریت لحظه‌ای کاتالوگ محصولات، قیمت‌ها و بررسی سفارش‌های عمده ثبت‌شده

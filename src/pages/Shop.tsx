@@ -20,30 +20,28 @@ export default function Shop({
 }: Props) {
 
 const navigate = useNavigate();
-
 const [searchParams] = useSearchParams();
+const initialCategoryId = searchParams.get("category");
+const initialBrandName = searchParams.get("brand");
+const initialSearch = searchParams.get("search") ?? "";
 
-const initialCategoryId =
-  searchParams.get("category");
-
-const initialBrandName =
-  searchParams.get("brand");
-
-const initialSearch =
-  searchParams.get("search") ?? "";
-  // State
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    initialCategoryId || null
-  );
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategoryId || null);
   const [search, setSearch] = useState(initialSearch || "");
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(
-    initialBrandName || null
-  );
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(initialBrandName || null);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("relevant");
 
-  // Price range states
+  // برندهای واقعی از محصولات (نه هاردکد اشتباه)
+  const uniqueBrands = useMemo(() => {
+    const set = new Set<string>();
+    localProducts.forEach(p => {
+      if (p.brand) set.add(p.brand);
+      if ((p as any).brand_name) set.add((p as any).brand_name);
+    });
+    return Array.from(set).filter(Boolean);
+  }, [localProducts]);
+
   const absoluteMin = useMemo(() => {
     if (!localProducts.length) return 0;
     return Math.min(...localProducts.map((p) => p.price));
@@ -54,28 +52,36 @@ const initialSearch =
   }, [localProducts]);
   const [priceRange, setPriceRange] = useState([absoluteMin, absoluteMax]);
 
-  // Sync range if products change
   useEffect(() => {
     setPriceRange([absoluteMin, absoluteMax]);
   }, [absoluteMin, absoluteMax]);
 
-  // Sync search box if a new search comes in from the navbar while already on this page
   useEffect(() => {
     if (initialSearch !== undefined) setSearch(initialSearch);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSearch]);
 
-  // Filter & Sort products locally
+  // ✅ FIX v2: فیلتر برند با تطبیق دقیق + نرمال‌سازی اعداد فارسی/انگلیسی
+  const normalize = (s: string) => {
+    if (!s) return "";
+    return s
+      .replace(/۰/g, "0").replace(/۱/g, "1").replace(/۲/g, "2").replace(/۳/g, "3").replace(/۴/g, "4")
+      .replace(/۵/g, "5").replace(/۶/g, "6").replace(/۷/g, "7").replace(/۸/g, "8").replace(/۹/g, "9")
+      .trim();
+  };
+
   const filteredProducts = useMemo(() => {
     let result = localProducts.filter((p) => {
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const matchCat = selectedCategory ? p.category === selectedCategory : true;
+      // تطبیق برند با نرمال‌سازی برای جلوگیری از مشکل ۲۰۲ vs 202
+      const pBrand = normalize(p.brand || (p as any).brand_name || "");
+      const selBrand = normalize(selectedBrand || "");
+      const matchBrand = selectedBrand ? pBrand === selBrand : true;
       const matchPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
       const matchStock = showOnlyAvailable ? p.available === true : true;
-      return matchSearch && matchCat && matchPrice && matchStock;
+      return matchSearch && matchCat && matchBrand && matchPrice && matchStock;
     });
 
-    // Apply Sorting
     switch (sortBy) {
       case "newest":
         result = [...result].reverse();
@@ -94,9 +100,8 @@ const initialSearch =
     }
 
     return result;
-  }, [localProducts, search, selectedCategory, priceRange, showOnlyAvailable, sortBy]);
+  }, [localProducts, search, selectedCategory, selectedBrand, priceRange, showOnlyAvailable, sortBy]);
 
-  // Load Categories
   useEffect(() => {
     apiService.fetchCategories()
       .then(setCategories)
@@ -139,17 +144,15 @@ const initialSearch =
             </h2>
             <div className="mt-4 sm:mt-0 flex items-center gap-2 rounded-2xl bg-white px-4 py-2 border border-stone-100 shadow-sm">
               <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-bold text-stone-600">وضعیت انبار: بروز</span>
+              <span className="text-xs font-bold text-stone-600">وضعیت انبار: بروز • {filteredProducts.length} محصول</span>
             </div>
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
           
-          {/* SIDEBAR */}
           <aside className="w-full lg:w-72 space-y-6 shrink-0 order-1 lg:order-2">
             
-            {/* Search */}
             <div className="bg-white p-5 rounded-[2rem] border border-stone-200 shadow-sm">
               <h3 className="text-sm font-bold text-stone-800 mb-4 flex items-center gap-2">
                 <span>🔍</span> جستجوی هوشمند
@@ -165,7 +168,6 @@ const initialSearch =
               </div>
             </div>
 
-            {/* Categories */}
             <div className="bg-white p-5 rounded-[2rem] border border-stone-200 shadow-sm">
               <h3 className="text-sm font-bold text-stone-800 mb-4 flex items-center gap-2">
                 <span>📁</span> دسته‌بندی‌ها
@@ -189,7 +191,6 @@ const initialSearch =
               </div>
             </div>
 
-            {/* Availability */}
             <div className="bg-white p-5 rounded-[2rem] border border-stone-200 shadow-sm">
               <h3 className="text-sm font-bold text-stone-800 mb-4 flex items-center gap-2">
                 <span>📦</span> وضعیت موجودی
@@ -208,13 +209,11 @@ const initialSearch =
               </label>
             </div>
 
-            {/* Filters Section */}
             <div className="bg-white p-6 rounded-[2rem] border border-stone-200 shadow-sm space-y-8">
               <h3 className="text-lg font-display font-bold text-paprika-700 border-b border-stone-100 pb-3">
                 فیلتر محصولات
               </h3>
 
-              {/* Price Filter */}
               <div>
                 <h4 className="text-sm font-bold text-stone-800 mb-4 flex items-center gap-2">
                   <span>💰</span> محدوده قیمت
@@ -260,7 +259,6 @@ const initialSearch =
                 </div>
               </div>
 
-              {/* Brand Filter */}
               <div className="pt-4 border-t border-stone-50">
                 <h4 className="text-sm font-bold text-stone-800 mb-4 flex items-center gap-2">
                   <span>🏢</span> برند کالا
@@ -276,43 +274,48 @@ const initialSearch =
                   >
                     همه برندها
                   </button>
-                  {["فرآورده های گوشتی گلچین", "۲۰۲", "آلاله بناب", "سس ۸۸", "شامیرانی"].map((b) => (
+                  {/* ✅ برندهای واقعی از محصولات */}
+                  {uniqueBrands.map((b) => (
                     <button
                       key={b}
                       onClick={() => setSelectedBrand(b)}
                       className={`flex items-center justify-between w-full px-3 py-2 text-xs font-bold transition rounded-lg ${
-                        selectedBrand === b
+                        normalize(b) === normalize(selectedBrand || "")
                           ? "bg-paprika-50 text-paprika-700"
                           : "text-stone-500 hover:bg-stone-50"
                       }`}
                     >
-                      {b.replace("فرآورده های گوشتی ", "")}
+                      <span>{b.replace("فرآورده های گوشتی ", "")}</span>
+                      <span className="text-[10px] bg-stone-100 px-2 py-0.5 rounded-full">{localProducts.filter(p => normalize(p.brand || (p as any).brand_name || "") === normalize(b)).length}</span>
                     </button>
                   ))}
                 </div>
+                {selectedBrand && (
+                  <div className="mt-3 text-[11px] text-paprika-600 bg-paprika-50 p-2 rounded-lg flex justify-between items-center">
+                    <span>✓ فیلتر برند: {selectedBrand}</span>
+                    <button onClick={() => setSelectedBrand(null)} className="text-[10px] underline">حذف</button>
+                  </div>
+                )}
               </div>
             </div>
           </aside>
 
-          {/* MAIN CONTENT */}
           <div className="flex-1 order-2 lg:order-1">
             
-            {/* Sort Bar */}
             <div className="bg-white p-2 rounded-2xl border border-stone-200 shadow-sm flex items-center overflow-x-auto scrollbar-hide mb-8">
               <div className="flex items-center gap-2 px-4 shrink-0 text-stone-400 text-sm">
                 <span>⚖️</span>
                 <span className="font-bold">مرتب‌سازی:</span>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => setSortBy("relevant")} className={sortTabClass(sortBy === "relevant")}>مرتبط‌ترین</button>
-                <button onClick={() => setSortBy("newest")} className={sortTabClass(sortBy === "newest")}>جدیدترین</button>
-                <button onClick={() => setSortBy("bestselling")} className={sortTabClass(sortBy === "bestselling")}>پرفروش‌ترین</button>
-                <button onClick={() => setSortBy("price-asc")} className={sortTabClass(sortBy === "price-asc")}>ارزان‌ترین</button>
-                <button onClick={() => setSortBy("price-desc")} className={sortTabClass(sortBy === "price-desc")}>گران‌ترین</button>
+                <button onClick={() => setSortBy("relevant")} className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${sortBy === "relevant" ? "border-paprika-600 text-paprika-700" : "border-transparent text-stone-500 hover:text-stone-800"}`}>مرتبط‌ترین</button>
+                <button onClick={() => setSortBy("newest")} className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${sortBy === "newest" ? "border-paprika-600 text-paprika-700" : "border-transparent text-stone-500 hover:text-stone-800"}`}>جدیدترین</button>
+                <button onClick={() => setSortBy("bestselling")} className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${sortBy === "bestselling" ? "border-paprika-600 text-paprika-700" : "border-transparent text-stone-500 hover:text-stone-800"}`}>پرفروش‌ترین</button>
+                <button onClick={() => setSortBy("price-asc")} className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${sortBy === "price-asc" ? "border-paprika-600 text-paprika-700" : "border-transparent text-stone-500 hover:text-stone-800"}`}>ارزان‌ترین</button>
+                <button onClick={() => setSortBy("price-desc")} className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${sortBy === "price-desc" ? "border-paprika-600 text-paprika-700" : "border-transparent text-stone-500 hover:text-stone-800"}`}>گران‌ترین</button>
               </div>
             </div>
 
-            {/* Grid */}
             {filteredProducts.length > 0 ? (
               <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {filteredProducts.map((p) => (
@@ -328,7 +331,8 @@ const initialSearch =
               <div className="mt-16 text-center py-20 rounded-[3rem] bg-white border border-stone-200 shadow-sm">
                 <div className="text-6xl mb-4">📦</div>
                 <p className="text-stone-500 font-bold text-lg">هیچ محصولی با این مشخصات یافت نشد.</p>
-                <button onClick={() => {setSearch(""); setSelectedCategory(null); setShowOnlyAvailable(false); setPriceRange([absoluteMin, absoluteMax])}} className="mt-4 text-paprika-600 font-bold text-sm underline underline-offset-4">پاک کردن تمام فیلترها</button>
+                <p className="text-xs text-stone-400 mt-2">فیلتر برند: {selectedBrand || "هیچ"} | دسته: {selectedCategory || "همه"}</p>
+                <button onClick={() => {setSearch(""); setSelectedCategory(null); setSelectedBrand(null); setShowOnlyAvailable(false); setPriceRange([absoluteMin, absoluteMax])}} className="mt-4 text-paprika-600 font-bold text-sm underline underline-offset-4">پاک کردن تمام فیلترها</button>
               </div>
             )}
           </div>

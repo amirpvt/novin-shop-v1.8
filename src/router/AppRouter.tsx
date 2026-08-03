@@ -12,6 +12,7 @@ import OrderSuccess from "../pages/OrderSuccess";
 import PaymentVerify from "../pages/PaymentVerify";
 import OrderTracking from "../pages/OrderTracking";
 import MyOrders from "../pages/MyOrders";
+import NotFound from "../pages/NotFound";
 
 export default function AppRouter({
   products,
@@ -47,6 +48,8 @@ export default function AppRouter({
       {/* 🆕 My Orders - داشبورد سفارشات من */}
       <Route path="/my-orders" element={<MyOrders />} />
       <Route path="/orders" element={<MyOrders />} />
+      {/* 🆕 صفحه Not found*/}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
