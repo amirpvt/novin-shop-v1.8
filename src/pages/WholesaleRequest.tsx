@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useWholesaleRequest } from "../context/WholesaleRequestContext";
-import { formatPrice, type Product } from "../data";
+import { formatPrice, type Product, getUnitLabel } from "../data";
 import { TrashIcon, ArrowRightIcon, CheckIcon, PackageIcon } from "../components/icons";
 
 type Props = {
@@ -36,7 +36,6 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
     onSubmit(form, wholesaleItems);
   };
 
-  // Step 1: فقط این صفحه 1 سانت (حدود 40px) بیشتر فاصله دارد - بقیه سایت بدون تغییر
   if (step === 1) {
     return (
       <div className="min-h-screen bg-cream-50 pb-20 pt-10 lg:pt-[60px] font-sans text-right" dir="rtl">
@@ -46,7 +45,7 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
               <h1 className="font-display text-3xl font-bold text-stone-800 sm:text-4xl">
                 کاتالوگ استعلام عمده (B2B)
               </h1>
-              <p className="text-stone-500 mt-2">محصولات مورد نظر را انتخاب و تعداد را مشخص کنید.</p>
+              <p className="text-stone-500 mt-2">محصولات مورد نظر را انتخاب و تعداد را با واحد عمده مشخص کنید.</p>
             </div>
             <div className="flex items-center gap-3">
               <button 
@@ -68,7 +67,10 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((p) => {
-              const inWholesale = wholesaleItems.find((item) => item.id === p.id);
+              const inWholesale = wholesaleItems.find((item: any) => String(item.id) === String(p.id));
+              const wholesaleUnit = (p as any).wholesale_unit || p.unit;
+              const wholesaleUnitLabel = (p as any).wholesale_unit_display || getUnitLabel(wholesaleUnit);
+              const minQty = (p as any).wholesale_min_quantity || 1;
               return (
                 <div 
                   key={p.id} 
@@ -83,6 +85,9 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                         <span className="bg-gold-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg">در لیست استعلام</span>
                       </div>
                     )}
+                    <div className="absolute top-3 right-3 bg-stone-900/80 backdrop-blur text-white px-3 py-1 rounded-full text-[10px] font-bold">
+                      حداقل: {minQty} {wholesaleUnitLabel}
+                    </div>
                   </div>
                   
                   <div className="p-5 flex-1 flex flex-col">
@@ -90,30 +95,41 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                       <h3 className="font-bold text-stone-800 text-lg">{p.name}</h3>
                       <span className="text-[10px] font-bold text-gold-600 bg-gold-50 px-2 py-1 rounded-md">{p.category}</span>
                     </div>
-                    <p className="text-xs text-stone-400 mb-4 line-clamp-1">{p.unit}</p>
+                    <div className="flex gap-2 text-[10px] text-stone-500 mb-2">
+                      <span className="bg-stone-50 px-2 py-1 rounded-full">جزئی: {getUnitLabel((p as any).retail_unit || p.unit)}</span>
+                      <span className="bg-gold-50 text-gold-700 px-2 py-1 rounded-full font-bold">عمده: {wholesaleUnitLabel}</span>
+                    </div>
+                    <p className="text-xs text-stone-400 mb-4 line-clamp-1">{p.unit} • حداقل عمده {minQty} {wholesaleUnitLabel}</p>
                     
                     <div className="mt-auto pt-4 border-t border-stone-50 flex items-center justify-between">
                       <div>
-                        <div className="text-[10px] text-stone-400 font-bold mb-0.5">قیمت پایه (تومان):</div>
+                        <div className="text-[10px] text-stone-400 font-bold mb-0.5">قیمت پایه:</div>
                         <div className="font-display text-lg font-bold text-stone-700">{formatPrice(p.price)}</div>
                       </div>
 
                       {inWholesale ? (
-                        <div className="flex items-center gap-2 bg-gold-50 p-1 rounded-xl">
-                          <button 
-                            onClick={() => updateWholesaleQuantity(p.id as any, inWholesale.quantity + 1)}
-                            className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-gold-700 font-bold hover:bg-gold-100 transition shadow-sm"
-                          >+</button>
-                          <input 
-                            type="number" 
-                            className="w-12 text-center bg-transparent border-none font-mono font-bold text-gold-900 outline-none"
-                            value={inWholesale.quantity}
-                            onChange={(e) => updateWholesaleQuantity(p.id as any, Number(e.target.value))}
-                          />
-                          <button 
-                            onClick={() => updateWholesaleQuantity(p.id as any, inWholesale.quantity - 1)}
-                            className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-gold-700 font-bold hover:bg-gold-100 transition shadow-sm"
-                          >-</button>
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="flex items-center gap-2 bg-gold-50 p-1 rounded-xl">
+                            <button 
+                              onClick={() => updateWholesaleQuantity(p.id as any, (inWholesale as any).quantity + 1)}
+                              className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-gold-700 font-bold hover:bg-gold-100 transition shadow-sm"
+                            >+</button>
+                            <div className="flex flex-col items-center">
+                              <input 
+                                type="number" 
+                                className="w-12 text-center bg-transparent border-none font-mono font-bold text-gold-900 outline-none"
+                                value={(inWholesale as any).quantity}
+                                onChange={(e) => updateWholesaleQuantity(p.id as any, Number(e.target.value))}
+                                min={minQty}
+                              />
+                              <span className="text-[9px] font-bold text-gold-700">{wholesaleUnitLabel}</span>
+                            </div>
+                            <button 
+                              onClick={() => updateWholesaleQuantity(p.id as any, Math.max(minQty, (inWholesale as any).quantity - 1))}
+                              className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-gold-700 font-bold hover:bg-gold-100 transition shadow-sm"
+                            >-</button>
+                          </div>
+                          <span className="text-[10px] text-amber-600">حداقل {minQty} {wholesaleUnitLabel}</span>
                         </div>
                       ) : (
                         <button 
@@ -121,7 +137,7 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                           className="bg-gold-50 text-gold-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gold-600 hover:text-white transition-all flex items-center gap-2"
                         >
                           <PackageIcon className="h-4 w-4" />
-                          افزودن به لیست
+                          افزودن
                         </button>
                       )}
                     </div>
@@ -143,7 +159,6 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
     );
   }
 
-  // Step 2: هم 1 سانت بیشتر
   return (
     <div className="min-h-screen bg-cream-50 pt-12 lg:pt-[72px] pb-20 font-sans text-right" dir="rtl">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
@@ -152,52 +167,63 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
           className="inline-flex items-center gap-1 text-sm font-bold text-stone-500 transition hover:text-gold-700 mb-6 mt-4"
         >
           <ArrowRightIcon className="h-4 w-4" />
-          بازگشت به کاتالوگ و ویرایش لیست
+          بازگشت به کاتالوگ
         </button>
 
         <div className="bg-white rounded-[2.5rem] border border-stone-200 shadow-xl overflow-hidden">
           <div className="bg-gold-700 p-8 text-white">
             <h2 className="text-2xl font-display font-bold">تکمیل اطلاعات متقاضی عمده</h2>
-            <p className="mt-2 text-gold-100/80 text-sm">لطفاً مشخصات شرکت یا فروشگاه خود را جهت صدور پیش‌فاکتور وارد کنید.</p>
+            <p className="mt-2 text-gold-100/80 text-sm">تعداد با واحد عمده نمایش داده می‌شود</p>
+          </div>
+
+          <div className="p-6 bg-stone-50 border-b">
+            <h4 className="text-sm font-black mb-3">لیست سفارش عمده:</h4>
+            <div className="space-y-2">
+              {wholesaleItems.map((item: any) => {
+                const prod = products.find(p => String(p.id) === String(item.id)) as any;
+                const unitLabel = prod ? (prod.wholesale_unit_display || getUnitLabel(prod.wholesale_unit || prod.unit)) : item.unit || "عدد";
+                return (
+                  <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-xl border">
+                    <span className="font-bold text-sm">{item.name}</span>
+                    <span className="text-sm font-mono bg-gold-50 text-gold-700 px-3 py-1 rounded-full font-bold">
+                      {item.quantity} {unitLabel}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <form onSubmit={handleFinalSubmit} className="p-8 space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-bold text-stone-500 mb-2">نام شرکت / فروشگاه / برند</label>
-                <input required value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} placeholder="مثلاً: رستوران زنجیره‌ای ایکس" className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600 focus:bg-white transition" />
+                <label className="block text-xs font-bold text-stone-500 mb-2">نام شرکت</label>
+                <input required value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} placeholder="مثلاً: رستوران ایکس" className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-stone-500 mb-2">نام و نام خانوادگی رابط</label>
-                <input required value={form.contactPerson} onChange={e => setForm({...form, contactPerson: e.target.value})} placeholder="مثلاً: علی محمدی" className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600 focus:bg-white transition" />
+                <label className="block text-xs font-bold text-stone-500 mb-2">نام رابط</label>
+                <input required value={form.contactPerson} onChange={e => setForm({...form, contactPerson: e.target.value})} placeholder="علی محمدی" className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600" />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-stone-500 mb-2">شماره تماس (ثابت یا همراه)</label>
-              <input required type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="۰۹۱۲۳۴۵۶۷۸۹" className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600 focus:bg-white transition text-left dir-ltr font-mono" />
+              <label className="block text-xs font-bold text-stone-500 mb-2">شماره تماس</label>
+              <input required type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="۰۹۱۲..." className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600" />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-stone-500 mb-2">آدرس دقیق جهت برآورد هزینه حمل</label>
-              <textarea required value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2} placeholder="استان، شهر، خیابان..." className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600 focus:bg-white transition resize-none" />
+              <label className="block text-xs font-bold text-stone-500 mb-2">آدرس</label>
+              <textarea required value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2} placeholder="آدرس..." className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600 resize-none" />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-stone-500 mb-2">توضیحات تکمیلی یا شرایط خاص</label>
-              <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={3} placeholder="نیاز به بسته‌بندی خاص، زمان تحویل ترجیحی و ..." className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600 focus:bg-white transition resize-none" />
+              <label className="block text-xs font-bold text-stone-500 mb-2">توضیحات</label>
+              <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={3} placeholder="توضیحات..." className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600 resize-none" />
             </div>
 
-            <div className="bg-gold-50 border border-gold-100 rounded-2xl p-4 flex gap-3 items-start">
-              <span className="text-xl">ℹ️</span>
-              <p className="text-[11px] text-gold-800 leading-relaxed font-medium">
-                پس از ثبت نهایی، لیست محصولات انتخابی شما به‌همراه اطلاعات تماس برای واحد فروش «نوین» ارسال می‌شود. کارشناسان ما حداکثر ظرف ۲ ساعت کاری جهت هماهنگی نهایی و ارسال پیش‌فاکتور با شما تماس خواهند گرفت.
-              </p>
-            </div>
-
-            <button type="submit" className="w-full bg-gold-700 text-white py-5 rounded-[1.5rem] font-bold text-lg shadow-lg shadow-gold-700/30 hover:bg-gold-800 transition active:scale-[0.98] flex items-center justify-center gap-3">
+            <button type="submit" className="w-full bg-gold-700 text-white py-5 rounded-[1.5rem] font-bold text-lg shadow-lg hover:bg-gold-800 transition flex items-center justify-center gap-3">
               <CheckIcon className="h-6 w-6" />
-              ثبت و ارسال درخواست استعلام قیمت
+              ثبت درخواست با نمایش واحد
             </button>
           </form>
         </div>

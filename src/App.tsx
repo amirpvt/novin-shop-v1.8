@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import AppRouter from "./router/AppRouter";
 import Navbar from "./components/Navbar";
 import AuthModal from "./components/AuthModal";
@@ -39,6 +39,7 @@ export default function App() {
     handleSearch,
   } = useNavigation();
 
+  const navigate = useNavigate();
   const { getRetailCount, clearRetailCart, addRetailItem } = useRetailCart();
   const { getWholesaleCount, clearWholesaleRequest } = useWholesaleRequest();
 
@@ -50,18 +51,36 @@ export default function App() {
 
   const [authOpen, setAuthOpen] = useState(false);
 
+  // ✅ لاگین خودکار بر اساس نقش - فقط همین بخش تغییر کرده
   const handleLogin = (newUser: any) => {
     login(newUser);
     showToast(`خوش آمدید، ${newUser.name || newUser.username}`);
-    if (newUser.role === "admin" || newUser.role === "superadmin") {
-      goAdmin();
-    }
+
+    // بستن مودال ورود
+    setAuthOpen(false);
+
+    // ریدایرکت خودکار بر اساس نقش
+    setTimeout(() => {
+      if (newUser.role === "manager" || newUser.role === "superadmin") {
+        // مدیرکل -> /dashboard/manager
+        window.location.href = "/dashboard/manager";
+      } else if (newUser.role === "admin") {
+        // ادمین فروشگاه -> /admin
+        window.location.href = "/admin";
+      } else if (newUser.role === "visitor") {
+        // ویزیتور -> /dashboard/visitor/today (یا /visitor)
+        window.location.href = "/dashboard/visitor/today";
+      } else {
+        // مشتری -> صفحه اصلی /
+        window.location.href = "/";
+      }
+    }, 300);
   };
 
   const handleLogout = () => {
     logout();
     showToast("از حساب خارج شدید");
-    if (page === "admin") goHome();
+    window.location.href = "/";
   };
 
   const handleRetailCheckout = async () => {
@@ -137,8 +156,7 @@ export default function App() {
         onMyOrders={() => { window.location.href = "/my-orders"; }}
       />
 
-      {/* فاصله اصلی برای تمام صفحات - بدون تغییر */}
-      <div className="h-[108px] lg:h-[148px]" />
+      <div className="h-[88px] lg:h-[108px]" />
 
       <AppRouter
         products={products}

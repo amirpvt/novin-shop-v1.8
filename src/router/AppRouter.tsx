@@ -13,6 +13,7 @@ import PaymentVerify from "../pages/PaymentVerify";
 import OrderTracking from "../pages/OrderTracking";
 import MyOrders from "../pages/MyOrders";
 import NotFound from "../pages/NotFound";
+import DashboardRoutes from "./dashboard_routes";
 
 export default function AppRouter({
   products,
@@ -50,6 +51,7 @@ export default function AppRouter({
       <Route path="/orders" element={<MyOrders />} />
       {/* 🆕 صفحه Not found*/}
       <Route path="*" element={<NotFound />} />
+      <Route path="/dashboard/*" element={<DashboardRoutes />} />
     </Routes>
   );
 }

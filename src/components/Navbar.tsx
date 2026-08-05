@@ -7,7 +7,6 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const [mobileSearchValue, setMobileSearchValue] = useState("");
   const submitSearch = (value: string) => { const q = value.trim(); if (!q) return; onSearch(q); };
   useEffect(() => { const handleScroll = () => setScrolled(window.scrollY > 20); window.addEventListener("scroll", handleScroll); return () => window.removeEventListener("scroll", handleScroll); }, []);
   const navLinks = [
@@ -17,17 +16,25 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
     { label: "درباره ما", onClick: onAbout, id: "about" },
     { label: "تماس با ما", onClick: onContact, id: "contact" },
   ];
-  const isAdmin = user && (user.role === "admin" || user.role === "superadmin");
+
+  const isManager = user && (user.role === "manager" || user.role === "superadmin");
+  const isAdmin = user && user.role === "admin";
+  const isVisitor = user && user.role === "visitor";
+  const isCustomer = user && user.role === "customer";
   const userDisplayName = user ? (user.name || user.username || "کاربر") : "";
+
+  // مسیرهای مخصوص هر نقش
+  const goManagerPanel = () => { window.location.href = "/dashboard/manager"; };
+  const goAdminPanel = () => { window.location.href = "/admin"; };
+  const goVisitorPanel = () => { window.location.href = "/dashboard/visitor/today"; };
   const goMyOrders = () => { if (onMyOrders) onMyOrders(); else window.location.href = "/my-orders"; };
 
   return (
     <header className="fixed inset-x-0 top-0 z-[100] w-full font-sans transition-all duration-300">
-      {/* Top bar - کوچک‌تر شده */}
       <div className={`hidden lg:block bg-stone-900 py-1.5 text-white transition-all duration-300 ${scrolled ? "-translate-y-full opacity-0 h-0 py-0" : "translate-y-0 opacity-100"}`}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 text-[10px] font-bold">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 text-gold-400"><TruckIcon className="h-3 w-3" /><span>ارسال سریع با ناوگان نوین</span></div>
+            <div className="flex items-center gap-1.5 text-gold-400"><TruckIcon className="h-3 w-3" /><span>ارسال سریع</span></div>
             <div className="flex items-center gap-1.5 text-emerald-400"><CheckIcon className="h-3 w-3" /><span>تضمین تازگی</span></div>
           </div>
           <div className="flex items-center gap-4">
@@ -37,7 +44,6 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
         </div>
       </div>
 
-      {/* Main header - خیلی جمع‌وجورتر */}
       <div className={`transition-all duration-300 ${scrolled ? "bg-white/95 backdrop-blur-xl shadow-lg py-1.5" : "bg-cream-50 py-2.5 lg:py-3"}`}>
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-6 lg:min-w-[180px]">
@@ -45,15 +51,15 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
               <img src="/images/logo.png" alt={siteName} className="h-9 w-9 lg:h-10 lg:w-10 rounded-lg object-cover shadow-md" />
               <div className="flex flex-col">
                 <span className="font-display text-lg font-black tracking-tight text-stone-800 sm:text-xl">{siteName.split(' ')[0]} <span className="text-paprika-600">{siteName.split(' ').slice(1).join(' ')}</span></span>
-                <span className="hidden lg:block text-[9px] font-bold text-stone-400">توزیع تخصصی فرآورده‌های گوشتی</span>
+                <span className="hidden lg:block text-[9px] font-bold text-stone-400">توزیع تخصصی</span>
               </div>
             </button>
           </div>
 
           <form onSubmit={(e) => { e.preventDefault(); submitSearch(searchValue); }} className="hidden lg:flex flex-1 max-w-md mx-6">
             <div className="group relative w-full">
-              <button type="submit" className="absolute inset-y-0 right-0 flex items-center pr-3 text-stone-400 group-focus-within:text-paprika-600"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></button>
-              <input type="text" value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="جستجوی سوسیس، کالباس..." className="w-full rounded-xl border-2 border-transparent bg-stone-100 py-2 pr-9 pl-3 text-xs font-bold text-stone-800 outline-none focus:border-paprika-600/20 focus:bg-white" />
+              <button type="submit" className="absolute inset-y-0 right-0 flex items-center pr-3 text-stone-400"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></button>
+              <input type="text" value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="جستجوی سوسیس، کالباس..." className="w-full rounded-xl border-2 border-transparent bg-stone-100 py-2 pr-9 pl-3 text-xs font-bold outline-none focus:border-paprika-600/20 focus:bg-white" />
             </div>
           </form>
 
@@ -61,19 +67,47 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
             <div className="hidden sm:flex items-center">
               {user ? (
                 <div className="flex items-center gap-1.5 ml-1">
-                  {isAdmin ? (
-                    <>
-                      <button onClick={onOpenAdmin} className="flex items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-2 text-[11px] font-bold text-gold-400 shadow"><CrownIcon className="h-3.5 w-3.5" /><span className="hidden lg:inline">پنل مدیریت</span></button>
-                      <button onClick={goMyOrders} className="rounded-lg bg-white border px-2.5 py-2 text-[11px] font-bold">سفارشات من</button>
-                      <div className="rounded-lg bg-white border px-2.5 py-2 text-[10px] font-bold max-w-[60px] truncate">{userDisplayName}</div>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={goMyOrders} className="flex items-center gap-1.5 rounded-lg bg-paprika-50 border border-paprika-200 px-3 py-2 text-[11px] font-bold text-paprika-700"><span>📦</span><span className="hidden lg:inline">سفارشات من</span></button>
-                      <div className="flex items-center gap-1.5 rounded-lg bg-white border px-3 py-2 text-[11px] font-bold"><UserIcon className="h-3.5 w-3.5 text-paprika-600" /><span className="max-w-[70px] truncate">{userDisplayName}</span></div>
-                    </>
+                  {/* ✅ مدیر کل: فقط دکمه مدیریت کل - حرفه‌ای طلایی */}
+                  {isManager && (
+                    <button onClick={goManagerPanel} className="group relative overflow-hidden flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-gold-500 to-amber-600 px-5 py-2.5 text-xs font-black text-stone-900 shadow-[0_4px_20px_rgba(245,158,11,0.4)] hover:shadow-[0_6px_30px_rgba(245,158,11,0.5)] transition-all">
+                      <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                      <CrownIcon className="h-4 w-4 relative" />
+                      <span className="relative">مدیریت کل</span>
+                    </button>
                   )}
-                  <button onClick={onLogout} className="flex h-8 w-8 items-center justify-center rounded-lg bg-paprika-50 text-paprika-600 hover:bg-paprika-600 hover:text-white"><LogOutIcon className="h-3.5 w-3.5" /></button>
+
+                  {/* ✅ ادمین: فقط دکمه پنل ادمین */}
+                  {isAdmin && (
+                    <button onClick={goAdminPanel} className="flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-bold text-white shadow-lg hover:bg-black transition">
+                      <CrownIcon className="h-4 w-4 text-gold-400" />
+                      <span>پنل ادمین</span>
+                    </button>
+                  )}
+
+                  {/* ✅ ویزیتور: فقط دکمه پنل ویزیتور */}
+                  {isVisitor && (
+                    <button onClick={goVisitorPanel} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition">
+                      <span>🧑‍💼</span>
+                      <span>پنل ویزیتور</span>
+                    </button>
+                  )}
+
+                  {/* ✅ مشتری: فقط سفارشات من */}
+                  {isCustomer && (
+                    <button onClick={goMyOrders} className="flex items-center gap-1.5 rounded-xl bg-paprika-50 border border-paprika-200 px-3 py-2 text-[11px] font-bold text-paprika-700 hover:bg-paprika-100">
+                      <span>📦</span>
+                      <span>سفارشات من</span>
+                    </button>
+                  )}
+
+                  {/* نام کاربر + خروج - برای همه نمایش داده می‌شود */}
+                  <div className="flex items-center gap-1.5">
+                    <div className={`rounded-lg px-2.5 py-2 text-[10px] font-bold max-w-[70px] truncate flex items-center gap-1 ${isManager ? "bg-stone-900 text-gold-400 border border-amber-500/30" : "bg-white border"}`}>
+                      {isManager && <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />}
+                      <span className="truncate">{userDisplayName}</span>
+                    </div>
+                    <button onClick={onLogout} className="flex h-8 w-8 items-center justify-center rounded-lg bg-paprika-50 text-paprika-600 hover:bg-paprika-600 hover:text-white"><LogOutIcon className="h-3.5 w-3.5" /></button>
+                  </div>
                 </div>
               ) : (
                 <button onClick={onOpenAuth} className="flex items-center gap-1.5 rounded-lg border bg-white px-4 py-2 text-[11px] font-bold hover:border-paprika-600"><UserIcon className="h-3.5 w-3.5" />ورود</button>
@@ -86,7 +120,6 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
           </div>
         </nav>
 
-        {/* Secondary nav - جمع‌وجورتر */}
         <div className="hidden lg:block border-t border-stone-200/50 mt-2 pt-1.5">
           <div className="mx-auto max-w-7xl flex items-center justify-center gap-1">
             {navLinks.map((l) => { const isActive = currentPage === l.id; return (<button key={l.id} onClick={l.onClick} className={`relative px-4 py-2 text-xs font-bold ${isActive ? "text-paprika-600" : "text-stone-600 hover:text-paprika-600"}`}>{l.label}{isActive && (<span className="absolute bottom-0 inset-x-3 h-0.5 rounded-full bg-paprika-600" />)}</button>); })}
@@ -94,7 +127,6 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
         </div>
       </div>
 
-      {/* Mobile Drawer */}
       <div className={`fixed inset-0 z-[110] lg:hidden ${mobileMenuOpen ? "visible" : "invisible pointer-events-none"}`}>
         <div className={`absolute inset-0 bg-stone-900/60 ${mobileMenuOpen ? "opacity-100" : "opacity-0"}`} onClick={() => setMobileMenuOpen(false)} />
         <div className={`absolute inset-y-0 right-0 w-80 max-w-[85vw] bg-white shadow-2xl ${mobileMenuOpen ? "translate-x-0" : "translate-x-full"}`}>
@@ -104,7 +136,15 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
               <div className="space-y-1">
                 {navLinks.map((l) => (<button key={l.id} onClick={() => { l.onClick(); setMobileMenuOpen(false); }} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-bold text-stone-700 hover:bg-stone-50">{l.label}</button>))}
               </div>
-              {user && (<div className="mt-6 space-y-2"><button onClick={() => { goMyOrders(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 border py-3 font-bold text-paprika-700">📦 سفارشات من</button>{isAdmin && (<button onClick={() => { onOpenAdmin(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-stone-900 py-3 text-gold-400 font-black">پنل مدیریت</button>)}<button onClick={() => { onLogout(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 py-3 text-paprika-600 font-bold">خروج</button></div>)}
+              {user && (
+                <div className="mt-6 space-y-2">
+                  {isManager && <button onClick={() => { goManagerPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-gold-600 py-3 text-stone-900 font-black shadow">👑 مدیریت کل</button>}
+                  {isAdmin && <button onClick={() => { goAdminPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-stone-900 py-3 text-white font-black">🛡️ پنل ادمین</button>}
+                  {isVisitor && <button onClick={() => { goVisitorPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-blue-600 py-3 text-white font-black">🧑‍💼 پنل ویزیتور</button>}
+                  {isCustomer && <button onClick={() => { goMyOrders(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 border py-3 font-bold text-paprika-700">📦 سفارشات من</button>}
+                  <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 py-3 text-paprika-600 font-bold">خروج</button>
+                </div>
+              )}
             </div>
           </div>
         </div>

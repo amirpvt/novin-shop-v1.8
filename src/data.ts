@@ -4,6 +4,7 @@ export const phone = "09300117977";
 export const phoneFixed = "02636640196";
 export const mobilePhone = "09300117977";
 export const address = "استان البرز، کرج، جاده ملارد، خیابان نیروگاه مپنا، شهرک ارم، بلوار ارم، روبروی آتشنشانی، خیابان پریسای شرقی، جنب حسینیه چهارده معصوم، پخش نوین";
+
 export const brands: { name: string; image: string }[] = [
   { name: "فرآورده های گوشتی گلچین", image: "/images/brands/golchin.jpg" },
   { name: "202", image: "/images/brands/202.jpg" },
@@ -11,7 +12,15 @@ export const brands: { name: string; image: string }[] = [
   { name: "سس 88", image: "/images/brands/sauce88.jpg" },
   { name: "شام ایرانی", image: "/images/brands/shamirani.jpg" },
 ];
+
 export const categories = ["سوسیس", "کالباس", "فرآورده های منجمد"] as const;
+
+export const UNIT_LABELS: Record<string, string> = {
+  kg: "کیلوگرم",
+  pack: "بسته",
+  piece: "عدد",
+  carton: "کارتن",
+};
 
 export type Product = {
   id: number;
@@ -21,6 +30,11 @@ export type Product = {
   discount_price?: number | null;
   discount_percent?: number;
   unit: string;
+  retail_unit?: string;
+  retail_unit_display?: string;
+  wholesale_unit?: string;
+  wholesale_unit_display?: string;
+  wholesale_min_quantity?: number;
   brand: string;
   tag?: string;
   category: string;
@@ -28,38 +42,38 @@ export type Product = {
   badge?: string;
   available: boolean;
   stock?: number;
-  is_featured?: boolean;
-  brand_name?: string;
-  category_name?: string;
 };
 
 export const products: Product[] = [
-  { id: 1, name: "سوسیس بلغاری گوشت", description: "۱۰۰٪ گوشت گوساله تازه", price: 89000, unit: "هر بسته ۵۰۰ گرم", brand: "گلچین", tag: "پرفروش‌ترین", category: "سوسیس", image: "/images/p1.jpg", badge: "گوشت تازه", available: true, stock: 150 },
-  { id: 2, name: "کالباس گوشت کلاسیک", description: "بافت نرم و طعم دلچسب", price: 76000, unit: "هر بسته ۴۰۰ گرم", brand: "گلچین", category: "کالباس", image: "/images/p2.jpg", badge: "کم‌چرب", available: true, stock: 80 },
-  { id: 3, name: "فرانکفورتر دودی", description: "سوسیس فرانکفورتر اصیل", price: 95000, unit: "هر بسته ۶ عددی", brand: "202", tag: "جدید", category: "سوسیس", image: "/images/p3.jpg", badge: "دودی", available: true, stock: 45 },
-  { id: 4, name: "سوسیس مرغ سفید", description: "سبک و کم‌چرب", price: 69000, unit: "هر بسته ۵۰۰ گرم", brand: "لاله بناب", category: "سوسیس", image: "/images/p4.jpg", badge: "رژیمی", available: true, stock: 120 },
-  { id: 5, name: "سوسیس کوکتل", description: "اندازه کوچک برای مهمانی", price: 82000, unit: "هر بسته ۳۰۰ گرم", brand: "سس 88", category: "فرآورده های منجمد", image: "/images/p5.jpg", badge: "مهمانی", available: true, stock: 200 },
-  { id: 6, name: "کالباس کم‌نمک", description: "ویژه سالمندان", price: 88000, unit: "هر بسته ۴۰۰ گرم", brand: "شام ایرانی", category: "کالباس", image: "/images/p6.jpg", badge: "کم‌نمک", available: false, stock: 0 },
-  { id: 7, name: "ناگت مرغ", description: "ناگت مرغ ترد", price: 79000, unit: "هر بسته ۴۰۰ گرم", brand: "شام ایرانی", category: "فرآورده های منجمد", image: "/images/p7.jpg", badge: "منجمد", available: true, stock: 60 },
-  { id: 8, name: "کتلت گوشت", description: "کتلت گوشت خانگی", price: 99000, unit: "بسته ۶ عددی", brand: "شام ایرانی", category: "فرآورده های منجمد", image: "/images/p8.jpg", badge: "منجمد", available: true, stock: 35 },
+  { id: 1, name: "سوسیس بلغاری گوشت", description: "۱۰۰٪ گوشت گوساله تازه", price: 89000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 10, brand: "گلچین", category: "سوسیس", image: "/images/p1.jpg", badge: "گوشت تازه", available: true, stock: 150 },
+  { id: 2, name: "کالباس گوشت کلاسیک", description: "بافت نرم", price: 76000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 5, brand: "گلچین", category: "کالباس", image: "/images/p2.jpg", available: true, stock: 80 },
+  { id: 3, name: "فرانکفورتر دودی", description: "اصیل", price: 95000, unit: "pack", retail_unit: "pack", wholesale_unit: "carton", wholesale_min_quantity: 2, brand: "202", category: "سوسیس", image: "/images/p3.jpg", available: true, stock: 45 },
+  { id: 4, name: "سوسیس مرغ سفید", description: "سبک", price: 69000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 10, brand: "لاله بناب", category: "سوسیس", image: "/images/p4.jpg", available: true, stock: 120 },
+  { id: 5, name: "سوسیس کوکتل", description: "مهمانی", price: 82000, unit: "pack", retail_unit: "pack", wholesale_unit: "carton", wholesale_min_quantity: 1, brand: "سس 88", category: "فرآورده های منجمد", image: "/images/p5.jpg", available: true, stock: 200 },
+  { id: 6, name: "کالباس کم‌نمک", description: "کم نمک", price: 88000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 5, brand: "شام ایرانی", category: "کالباس", image: "/images/p6.jpg", available: false, stock: 0 },
+  { id: 7, name: "ناگت مرغ", description: "ناگت", price: 79000, unit: "pack", retail_unit: "pack", wholesale_unit: "carton", wholesale_min_quantity: 2, brand: "شام ایرانی", category: "فرآورده های منجمد", image: "/images/p7.jpg", available: true, stock: 60 },
+  { id: 8, name: "کتلت گوشت", description: "کتلت", price: 99000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 10, brand: "شام ایرانی", category: "فرآورده های منجمد", image: "/images/p8.jpg", available: true, stock: 35 },
 ];
 
 export function formatPrice(n: number) {
   return n.toLocaleString("fa-IR") + " تومان";
 }
 
-// Mapper با تخفیف
+export function getUnitLabel(unit: string) {
+  return UNIT_LABELS[unit] || unit;
+}
+
 export function mapApiProduct(apiProduct: any): Product {
   const brandName = apiProduct.brand_name || (typeof apiProduct.brand === "string" ? apiProduct.brand : "") || "";
   const catName = apiProduct.category_name || (apiProduct.category ? String(apiProduct.category) : "") || "";
   let img = apiProduct.image || "/images/placeholder.jpg";
-  if (!img || img.includes("placeholder")) {
-    const id = apiProduct.id;
-    img = id && id <= 8 ? `/images/p${id}.jpg` : "/images/placeholder.jpg";
-  }
   if (img.startsWith("/media/")) {
     const base = (import.meta as any).env?.VITE_API_BASE_URL?.replace("/api", "") || "http://127.0.0.1:8000";
     img = `${base}${img}`;
+  }
+  if (!img || img.includes("placeholder")) {
+    const id = apiProduct.id;
+    img = id && id <= 8 ? `/images/p${id}.jpg` : "/images/placeholder.jpg";
   }
 
   const price = parseFloat(apiProduct.price) || 0;
@@ -70,19 +84,21 @@ export function mapApiProduct(apiProduct: any): Product {
     id: apiProduct.id,
     name: apiProduct.name,
     description: apiProduct.description || apiProduct.name,
-    price: price,
+    price,
     discount_price: discountPrice,
     discount_percent: discountPercent,
-    unit: apiProduct.unit || "بسته",
+    unit: apiProduct.unit || "pack",
+    retail_unit: apiProduct.retail_unit || apiProduct.unit || "pack",
+    retail_unit_display: apiProduct.retail_unit_display || UNIT_LABELS[apiProduct.retail_unit || apiProduct.unit] || apiProduct.unit,
+    wholesale_unit: apiProduct.wholesale_unit || "kg",
+    wholesale_unit_display: apiProduct.wholesale_unit_display || UNIT_LABELS[apiProduct.wholesale_unit] || "کیلوگرم",
+    wholesale_min_quantity: apiProduct.wholesale_min_quantity ?? 10,
     brand: brandName,
-    brand_name: brandName,
     tag: apiProduct.tag || undefined,
     category: catName,
-    category_name: catName,
     image: img,
     badge: apiProduct.badge || undefined,
     available: apiProduct.available,
     stock: apiProduct.stock ?? 0,
-    is_featured: apiProduct.is_featured ?? false,
   };
 }
