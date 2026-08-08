@@ -24,6 +24,9 @@ import CustomerDashboard from "../pages/CustomerDashboard";
 // برای گزارش بدهکاران و ویزیتورها از همان OwnerDashboard یا کامپوننت جدا استفاده می‌کنیم
 // فعلا از OwnerDashboard برای همه گزارش‌ها استفاده می‌کنیم - می‌توان جدا کرد
 
+import VisitorReportWithOrders from "../pages/OwnerVisitorReport";
+import CustomerOrdersPro from "../pages/CustomerOrdersPro";
+
 export default function DashboardRoutes() {
   return (
     <Routes>
@@ -186,7 +189,12 @@ export default function DashboardRoutes() {
           </RoleGuard>
         }
       />
-
+      <Route 
+        path="/dashboard/manager/visitors-report" 
+        element={<VisitorReportWithOrders />} />
+      <Route 
+        path="/customer-orders-pro" 
+        element={<CustomerOrdersPro />} />
       {/* ─── Customer ────────────────────────────────────────────────── */}
       <Route
         path="/customer/prices"

@@ -39,7 +39,7 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
           </div>
           <div className="flex items-center gap-4">
             <span className="text-stone-400">ساعات کاری: 9 تا 21</span>
-            <a href="tel:09300117977" className="flex items-center gap-1.5 hover:text-paprika-400"><PhoneIcon className="h-3 w-3 text-paprika-500" /><span dir="ltr">۰۹۳۰ ۰۱۱ ۷۹۷۷</span></a>
+            <a href="tel:09300117977" className="flex items-center gap-1.5 hover:text-paprika-400"><PhoneIcon className="h-3 w-3 text-paprika-500" /><span dir="ltr">09300117977</span></a>
           </div>
         </div>
       </div>

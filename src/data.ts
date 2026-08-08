@@ -15,13 +15,17 @@ export const brands: { name: string; image: string }[] = [
 
 export const categories = ["سوسیس", "کالباس", "فرآورده های منجمد"] as const;
 
+// ✅ واحدها به صورت درست فارسی - بسته بندی و کیلوگرم جدا
 export const UNIT_LABELS: Record<string, string> = {
   kg: "کیلوگرم",
-  pack: "بسته",
+  pack: "بسته بندی",
   piece: "عدد",
   carton: "کارتن",
+  box: "بسته بندی",
+  kilogram: "کیلوگرم",
 };
 
+// ✅ اعداد انگلیسی
 export type Product = {
   id: number;
   name: string;
@@ -55,8 +59,13 @@ export const products: Product[] = [
   { id: 8, name: "کتلت گوشت", description: "کتلت", price: 99000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 10, brand: "شام ایرانی", category: "فرآورده های منجمد", image: "/images/p8.jpg", available: true, stock: 35 },
 ];
 
+// ✅ اعداد انگلیسی - به جای fa-IR از en-US استفاده می‌کنیم
 export function formatPrice(n: number) {
-  return n.toLocaleString("fa-IR") + " تومان";
+  return n.toLocaleString("en-US") + " تومان";
+}
+
+export function formatNumber(n: number) {
+  return n.toLocaleString("en-US");
 }
 
 export function getUnitLabel(unit: string) {
@@ -89,7 +98,7 @@ export function mapApiProduct(apiProduct: any): Product {
     discount_percent: discountPercent,
     unit: apiProduct.unit || "pack",
     retail_unit: apiProduct.retail_unit || apiProduct.unit || "pack",
-    retail_unit_display: apiProduct.retail_unit_display || UNIT_LABELS[apiProduct.retail_unit || apiProduct.unit] || apiProduct.unit,
+    retail_unit_display: apiProduct.retail_unit_display || UNIT_LABELS[apiProduct.retail_unit || apiProduct.unit] || "بسته بندی",
     wholesale_unit: apiProduct.wholesale_unit || "kg",
     wholesale_unit_display: apiProduct.wholesale_unit_display || UNIT_LABELS[apiProduct.wholesale_unit] || "کیلوگرم",
     wholesale_min_quantity: apiProduct.wholesale_min_quantity ?? 10,

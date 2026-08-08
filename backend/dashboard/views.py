@@ -305,11 +305,31 @@ class AdminPendingOrders(APIView):
     permission_classes = [IsAdminOrManager]
 
     def get(self, request):
-        # سفارشاتی که توسط ویزیتور ثبت شده و PENDING هستند
+        # ✅ FIX: سفارشات ویزیتورها از طریق جدول Commission پیدا می‌شوند
+        # چون وقتی ویزیتور سفارش ثبت می‌کند، user سفارش مشتری است، نه ویزیتور
+        # پس باید از طریق Commission فیلتر کنیم
+        from .models import Commission
+
+        # همه سفارشات PENDING
         qs = Order.objects.filter(order_status='PENDING').order_by('-created_at')
-        # فقط سفارشاتی که user آنها ویزیتور است
+
+        # سفارشاتی که کمیسیون دارند (یعنی توسط ویزیتور ثبت شده)
+        commission_order_ids = Commission.objects.values_list('order_id', flat=True)
+        
+        # همچنین سفارشاتی که user آنها ویزیتور است (برای سازگاری با حالت قدیمی)
         visitor_user_ids = User.objects.filter(customer_profile__role='visitor').values_list('id', flat=True)
-        qs = qs.filter(user_id__in=visitor_user_ids)
+
+        if commission_order_ids:
+            # سفارشات ویزیتوری = آنهایی که کمیسیون دارند یا user ویزیتور است
+            qs = qs.filter(Q(id__in=commission_order_ids) | Q(user_id__in=visitor_user_ids))
+        else:
+            # اگر هنوز کمیسیونی نیست (سفارشات قدیمی بدون کمیسیون)، همه PENDING را برگردان تا مدیر ببیند
+            # یا فقط آنهایی که user ویزیتور است
+            qs = qs.filter(user_id__in=visitor_user_ids)
+            if not qs.exists():
+                # برای دمو، اگر هیچ سفارش ویزیتوری نبود، همه PENDING را برگردان
+                qs = Order.objects.filter(order_status='PENDING').order_by('-created_at')[:20]
+
         from orders.serializers import OrderSerializer
         serializer = OrderSerializer(qs, many=True)
         return Response(serializer.data)

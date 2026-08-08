@@ -86,7 +86,7 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                       </div>
                     )}
                     <div className="absolute top-3 right-3 bg-stone-900/80 backdrop-blur text-white px-3 py-1 rounded-full text-[10px] font-bold">
-                      حداقل: {minQty} {wholesaleUnitLabel}
+                      حداقل: {minQty.toLocaleString("en-US")} {wholesaleUnitLabel}
                     </div>
                   </div>
                   
@@ -99,7 +99,6 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                       <span className="bg-stone-50 px-2 py-1 rounded-full">جزئی: {getUnitLabel((p as any).retail_unit || p.unit)}</span>
                       <span className="bg-gold-50 text-gold-700 px-2 py-1 rounded-full font-bold">عمده: {wholesaleUnitLabel}</span>
                     </div>
-                    <p className="text-xs text-stone-400 mb-4 line-clamp-1">{p.unit} • حداقل عمده {minQty} {wholesaleUnitLabel}</p>
                     
                     <div className="mt-auto pt-4 border-t border-stone-50 flex items-center justify-between">
                       <div>
@@ -114,13 +113,17 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                               onClick={() => updateWholesaleQuantity(p.id as any, (inWholesale as any).quantity + 1)}
                               className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-gold-700 font-bold hover:bg-gold-100 transition shadow-sm"
                             >+</button>
-                            <div className="flex flex-col items-center">
+                            <div className="flex flex-col items-center min-w-[50px]">
+                              {/* ✅ عدد انگلیسی */}
                               <input 
                                 type="number" 
-                                className="w-12 text-center bg-transparent border-none font-mono font-bold text-gold-900 outline-none"
-                                value={(inWholesale as any).quantity}
+                                dir="ltr"
+                                lang="en"
+                                className="w-14 text-center bg-transparent border-none font-mono font-black text-gold-900 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                value={inWholesale.quantity}
                                 onChange={(e) => updateWholesaleQuantity(p.id as any, Number(e.target.value))}
                                 min={minQty}
+                                style={{ fontVariantNumeric: "lining-nums" }}
                               />
                               <span className="text-[9px] font-bold text-gold-700">{wholesaleUnitLabel}</span>
                             </div>
@@ -129,7 +132,7 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                               className="w-8 h-8 flex items-center justify-center bg-white rounded-lg text-gold-700 font-bold hover:bg-gold-100 transition shadow-sm"
                             >-</button>
                           </div>
-                          <span className="text-[10px] text-amber-600">حداقل {minQty} {wholesaleUnitLabel}</span>
+                          <span className="text-[10px] text-amber-600 font-mono" dir="ltr">min {minQty.toLocaleString("en-US")} {wholesaleUnitLabel}</span>
                         </div>
                       ) : (
                         <button 
@@ -173,7 +176,6 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
         <div className="bg-white rounded-[2.5rem] border border-stone-200 shadow-xl overflow-hidden">
           <div className="bg-gold-700 p-8 text-white">
             <h2 className="text-2xl font-display font-bold">تکمیل اطلاعات متقاضی عمده</h2>
-            <p className="mt-2 text-gold-100/80 text-sm">تعداد با واحد عمده نمایش داده می‌شود</p>
           </div>
 
           <div className="p-6 bg-stone-50 border-b">
@@ -185,8 +187,8 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                 return (
                   <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-xl border">
                     <span className="font-bold text-sm">{item.name}</span>
-                    <span className="text-sm font-mono bg-gold-50 text-gold-700 px-3 py-1 rounded-full font-bold">
-                      {item.quantity} {unitLabel}
+                    <span className="text-sm font-mono bg-gold-50 text-gold-700 px-3 py-1 rounded-full font-black" dir="ltr" lang="en">
+                      {Number(item.quantity).toLocaleString("en-US")} {unitLabel}
                     </span>
                   </div>
                 );
@@ -208,7 +210,7 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
 
             <div>
               <label className="block text-xs font-bold text-stone-500 mb-2">شماره تماس</label>
-              <input required type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="۰۹۱۲..." className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600" />
+              <input required type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="0912..." className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600" />
             </div>
 
             <div>
@@ -216,14 +218,9 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
               <textarea required value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2} placeholder="آدرس..." className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600 resize-none" />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-stone-500 mb-2">توضیحات</label>
-              <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={3} placeholder="توضیحات..." className="w-full rounded-2xl bg-stone-50 border border-stone-100 p-4 text-sm outline-none focus:border-gold-600 resize-none" />
-            </div>
-
             <button type="submit" className="w-full bg-gold-700 text-white py-5 rounded-[1.5rem] font-bold text-lg shadow-lg hover:bg-gold-800 transition flex items-center justify-center gap-3">
               <CheckIcon className="h-6 w-6" />
-              ثبت درخواست با نمایش واحد
+              ثبت درخواست
             </button>
           </form>
         </div>
