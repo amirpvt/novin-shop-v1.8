@@ -219,9 +219,9 @@ const initialSearch = searchParams.get("search") ?? "";
                   <span>💰</span> محدوده قیمت
                 </h4>
                 <div className="flex items-center justify-between text-[11px] font-mono font-bold text-paprika-700 mb-4">
-                  <span>{priceRange[0].toLocaleString("fa-IR")}</span>
+                  <span>{priceRange[0].toLocaleString("en-US")}</span>
                   <span className="text-stone-300">تا</span>
-                  <span>{priceRange[1].toLocaleString("fa-IR")}</span>
+                  <span>{priceRange[1].toLocaleString("en-US")}</span>
                 </div>
                 <div className="relative h-6 flex items-center px-2">
                   <div className="absolute left-2 right-2 h-1.5 bg-stone-100 rounded-full" />

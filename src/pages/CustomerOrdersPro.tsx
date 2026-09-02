@@ -2,7 +2,7 @@
 /**
  * CustomerOrdersPro - فقط سفارشات خود مشتری (نه ویزیتور)
  * دو قسمت عمده و جزئی حرفه‌ای
- * به بقیه سایت دست نمی‌زند
+ * فیکس: سفارش ویزیتور اینجا نمایش داده نمی‌شود - فقط خود مشتری
  */
 import { useEffect, useState } from "react";
 
@@ -26,27 +26,28 @@ export default function CustomerOrdersProSelfOnly() {
       const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access;
       const headers: any = token ? { Authorization: `Bearer ${token}` } : {};
 
-      // ✅ فقط سفارشات خود مشتری (بدون سفارشات ویزیتور)
+      // ✅ فقط سفارشات خود مشتری - بدون سفارشات ویزیتور
+      // از API جدید my-orders-self استفاده می‌کنیم که کمیسیون‌ها را حذف می‌کند
       const [retailRes, wholesaleRes] = await Promise.all([
         fetch(`${base}/dashboard/customer/my-orders-self/`, { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${base}/dashboard/customer/my-wholesale-self/`, { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
       ]);
 
-      // fallback به my-orders قدیمی اگر endpoint جدید نبود
+      // اگر API جدید نبود (404)، از my-orders قدیمی استفاده کن ولی کمیسیون‌ها را دستی فیلتر کن
       let retailData = retailRes;
       let wholesaleData = wholesaleRes;
-      
-      if (Array.isArray(retailRes) && retailRes.length === 0) {
-        // اگر endpoint جدید خالی بود، از my-orders بگیر و کمیسیون‌ها را فیلتر کن
+
+      if ((!Array.isArray(retailRes) || retailRes.length === 0) && !retailRes.results) {
+        // fallback: my-orders بگیر و کمیسیون‌ها را حذف کن
         try {
-          const myOrdersRes = await fetch(`${base}/orders/my-orders/`, { headers }).then(r => r.ok ? r.json() : []);
+          const [myOrdersRes, commissionRes] = await Promise.all([
+            fetch(`${base}/orders/my-orders/`, { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
+            fetch(`${base}/dashboard/visitor/commission/`, { headers }).then(r => r.ok ? r.json() : { commissions: [] }).catch(() => ({ commissions: [] })),
+          ]);
           const myOrders = myOrdersRes.results ?? myOrdersRes ?? [];
-          
-          // کمیسیون‌ها را بگیر تا سفارشات ویزیتور را حذف کنی
-          const commissionRes = await fetch(`${base}/dashboard/visitor/commission/`, { headers }).then(r => r.ok ? r.json() : { commissions: [] }).catch(() => ({ commissions: [] }));
-          const commissionOrderIds = new Set((commissionRes.commissions || []).map((c: any) => c.order));
-          
-          // فقط سفارشات بدون کمیسیون = خود مشتری
+          const commissions = (commissionRes as any).commissions ?? commissionRes ?? [];
+          const commissionOrderIds = new Set(commissions.map((c: any) => c.order));
+          // فقط آنهایی که کمیسیون ندارند = خود مشتری
           retailData = (myOrders as any[]).filter((o: any) => !commissionOrderIds.has(o.id));
         } catch {}
       }
@@ -74,8 +75,9 @@ export default function CustomerOrdersProSelfOnly() {
             <h1 className="text-3xl font-black">📦 سفارشات ثبت شده توسط خود شما</h1>
             <p className="text-stone-400 text-sm mt-2">این صفحه فقط سفارشات جزئی و عمده‌ای را نشان می‌دهد که خودتان ثبت کرده‌اید، نه سفارشات ویزیتورها</p>
             <div className="mt-4 inline-flex gap-2">
-              <span className="bg-white/10 border border-white/10 px-4 py-2 rounded-full text-xs font-bold">🛒 {retailOrders.length} جزئی</span>
-              <span className="bg-amber-500/20 border border-amber-500/20 px-4 py-2 rounded-full text-xs font-bold text-amber-300">🏢 {wholesaleOrders.length} عمده</span>
+              <span className="bg-white/10 border border-white/10 px-4 py-2 rounded-full text-xs font-bold">🛒 {retailOrders.length} جزئی (خود شما)</span>
+              <span className="bg-amber-500/20 border border-amber-500/20 px-4 py-2 rounded-full text-xs font-bold text-amber-300">🏢 {wholesaleOrders.length} عمده (خود شما)</span>
+              <span className="bg-emerald-500/20 border border-emerald-500/20 px-4 py-2 rounded-full text-xs font-bold text-emerald-200">✅ بدون سفارشات ویزیتور</span>
             </div>
           </div>
         </div>
@@ -83,10 +85,10 @@ export default function CustomerOrdersProSelfOnly() {
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <div className="inline-flex p-1.5 bg-stone-900 rounded-2xl border border-white/10 shadow-2xl">
             <button onClick={() => setActiveTab("retail")} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === "retail" ? "bg-white text-stone-900 shadow-lg" : "text-stone-400 hover:text-white"}`}>
-              🛒 جزئی ({retailOrders.length})
+              🛒 جزئی ({retailOrders.length}) - خود شما
             </button>
             <button onClick={() => setActiveTab("wholesale")} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === "wholesale" ? "bg-white text-stone-900 shadow-lg" : "text-stone-400 hover:text-white"}`}>
-              🏢 عمده ({wholesaleOrders.length})
+              🏢 عمده ({wholesaleOrders.length}) - خود شما
             </button>
           </div>
           <div className="flex gap-2 flex-1 max-w-md">
@@ -113,7 +115,7 @@ export default function CustomerOrdersProSelfOnly() {
                     <div className="flex flex-col lg:flex-row justify-between gap-5">
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
-                          <span className="inline-flex items-center gap-2 rounded-full bg-stone-900 text-white px-3 py-1 text-[11px] font-black"><span>🛒</span> جزئی - ثبت توسط خود شما</span>
+                          <span className="inline-flex items-center gap-2 rounded-full bg-stone-900 text-white px-3 py-1 text-[11px] font-black"><span>🛒</span> جزئی - خود شما</span>
                           <span className="font-mono font-black text-lg">{order.order_number}</span>
                         </div>
                         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -134,7 +136,7 @@ export default function CustomerOrdersProSelfOnly() {
             <div className="rounded-[2.5rem] bg-white border p-16 text-center shadow-sm">
               <div className="text-6xl mb-4">🏢</div>
               <h3 className="text-xl font-black">سفارش عمده‌ای که خودتان ثبت کرده باشید ندارید</h3>
-              <p className="text-sm text-stone-500 mt-2">سفارشات ویزیتورها اینجا نیست - فقط سفارشات عمده خودتان</p>
+              <p className="text-sm text-stone-500 mt-2">سفارشات ویزیتورها اینجا نیست - فقط خودتان</p>
             </div>
           ) : (
             <div className="grid gap-5">

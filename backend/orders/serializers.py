@@ -130,8 +130,10 @@ class WholesaleRequestSerializer(serializers.ModelSerializer):
     items = WholesaleRequestItemSerializer(many=True, read_only=True)
     class Meta:
         model = WholesaleRequest
-        fields = ["id", "request_number", "company_name", "contact_person", "phone", "address", "description", "status", "items", "created_at"]
-        read_only_fields = ["id", "request_number", "status", "created_at"]
+        # user اضافه شد تا مدیرکل بتواند درخواست‌های عمده‌ی هر ویزیتور را تفکیک کند
+        # total_amount اضافه شد تا مبلغ واقعی درخواست عمده در گزارش فروش لحاظ شود
+        fields = ["id", "request_number", "company_name", "contact_person", "phone", "address", "description", "status", "total_amount", "items", "created_at", "user"]
+        read_only_fields = ["id", "request_number", "status", "created_at", "user", "total_amount"]
 
 class WholesaleRequestTrackingSerializer(serializers.ModelSerializer):
     items = WholesaleRequestItemSerializer(many=True, read_only=True)

@@ -79,13 +79,13 @@ export default function CustomerDashboard() {
                 <div className="mt-4">
                   {isWholesaleApproved ? (
                     <>
-                      <p className="text-xs line-through text-stone-400">{parseInt(p.base_price).toLocaleString("fa-IR")} تومان (جزئی)</p>
-                      <p className="text-lg font-black text-emerald-600">{parseInt(p.price).toLocaleString("fa-IR")} تومان</p>
+                      <p className="text-xs line-through text-stone-400">{parseInt(p.base_price).toLocaleString("en-US")} تومان (جزئی)</p>
+                      <p className="text-lg font-black text-emerald-600">{parseInt(p.price).toLocaleString("en-US")} تومان</p>
                       <span className="inline-block mt-1 bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-[10px] font-black">قیمت عمده</span>
                     </>
                   ) : (
                     <>
-                      <p className="text-lg font-black">{parseInt(p.price).toLocaleString("fa-IR")} تومان</p>
+                      <p className="text-lg font-black">{parseInt(p.price).toLocaleString("en-US")} تومان</p>
                       <p className="text-[11px] text-stone-400 mt-1">برای قیمت عمده باید تایید شوید</p>
                     </>
                   )}

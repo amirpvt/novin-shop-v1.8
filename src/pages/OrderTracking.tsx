@@ -10,7 +10,7 @@ function CheckIcon({ className }: { className?: string }) {
 
 function formatPrice(n: number | string) {
   const num = typeof n === "string" ? parseFloat(n) : n;
-  return num.toLocaleString("fa-IR") + " تومان";
+  return num.toLocaleString("en-US") + " تومان";
 }
 
 export default function OrderTracking() {

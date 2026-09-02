@@ -215,15 +215,15 @@ export default function OwnerPricing() {
                       </div>
                     ) : (
                       <div className="flex justify-between items-center">
-                        <div><p className="text-[10px] text-stone-400 font-bold">پایه</p><p className="font-mono font-black">{pricing ? Number(pricing.base_price).toLocaleString("fa-IR") : Number(product.price).toLocaleString("fa-IR")}</p></div>
-                        <div className="text-left"><p className="text-[10px] text-emerald-600 font-bold">عمده</p><p className="font-mono font-black text-emerald-700">{pricing ? Number(pricing.wholesale_price).toLocaleString("fa-IR") : "—"}</p></div>
+                        <div><p className="text-[10px] text-stone-400 font-bold">پایه</p><p className="font-mono font-black">{pricing ? Number(pricing.base_price).toLocaleString("en-US") : Number(product.price).toLocaleString("en-US")}</p></div>
+                        <div className="text-left"><p className="text-[10px] text-emerald-600 font-bold">عمده</p><p className="font-mono font-black text-emerald-700">{pricing ? Number(pricing.wholesale_price).toLocaleString("en-US") : "—"}</p></div>
                       </div>
                     )}
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2">
                     <button onClick={() => handlePriceEdit(product)} className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 py-2 rounded-xl text-xs font-black">💰 قیمت</button>
                     <button onClick={() => handleEditProduct(product)} className="bg-stone-50 hover:bg-stone-100 border py-2 rounded-xl text-xs font-bold">✏️ ویرایش</button>
-                    <button onClick={() => { if(confirm("حذف؟")) { const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api"; const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access; fetch(`${base}/products/${product.id}/`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).then(() => loadAll()); } }} className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 py-2 rounded-xl text-xs font-bold">🗑️</button>
+                    <button onClick={() => { if(confirm("حذف؟")) { const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api"; const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access; fetch(`${base}/products/${product.id}/`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).then(() => loadAll()); } }} className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 py-2 rounded-xl text-xs font-bold">🗑️ حذف</button>
                   </div>
                 </div>
               </div>

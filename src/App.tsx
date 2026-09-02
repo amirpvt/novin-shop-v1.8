@@ -40,6 +40,11 @@ export default function App() {
   } = useNavigation();
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // پنل مدیر کل (/dashboard/manager/*): هدر اصلی سایت (Navbar) نمایش داده نمی‌شود
+  const isOwnerPanel = location.pathname.startsWith("/dashboard/manager");
+
   const { getRetailCount, clearRetailCart, addRetailItem } = useRetailCart();
   const { getWholesaleCount, clearWholesaleRequest } = useWholesaleRequest();
 
@@ -138,25 +143,28 @@ export default function App() {
   return (
     <div className="min-h-screen bg-cream-50 font-sans text-stone-800">
       <ScrollToTop />
-      <Navbar
-        siteName={siteName}
-        user={user as any}
-        currentPage={page}
-        cartCount={getRetailCount()}
-        onHome={goHome}
-        onShop={() => goShop(null)}
-        onOrder={goWholesaleRequest}
-        onAbout={goAbout}
-        onContact={scrollToContact}
-        onOpenAuth={() => setAuthOpen(true)}
-        onOpenAdmin={goAdmin}
-        onLogout={handleLogout}
-        onOpenCart={goRetailCart}
-        onSearch={handleSearch}
-        onMyOrders={() => { window.location.href = "/my-orders"; }}
-      />
+      {!isOwnerPanel && (
+        <Navbar
+          siteName={siteName}
+          user={user as any}
+          currentPage={page}
+          cartCount={getRetailCount()}
+          onHome={goHome}
+          onShop={() => goShop(null)}
+          onOrder={goWholesaleRequest}
+          onAbout={goAbout}
+          onContact={scrollToContact}
+          onOpenAuth={() => setAuthOpen(true)}
+          onOpenAdmin={goAdmin}
+          onLogout={handleLogout}
+          onOpenCart={goRetailCart}
+          onSearch={handleSearch}
+          onMyOrders={() => { window.location.href = "/my-orders"; }}
+        />
+      )}
 
-      <div className="h-[88px] lg:h-[108px]" />
+      {/* فضای خالی جبرانیِ نوبار ثابت - فقط وقتی نوبار هست */}
+      {!isOwnerPanel && <div className="h-[88px] lg:h-[108px]" />}
 
       <AppRouter
         products={products}

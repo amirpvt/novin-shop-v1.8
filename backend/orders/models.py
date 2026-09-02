@@ -116,6 +116,14 @@ class WholesaleRequest(models.Model):
     address = models.CharField("آدرس", max_length=500, blank=True)
     description = models.TextField("توضیحات تکمیلی", blank=True)
     status = models.CharField("وضعیت درخواست", max_length=20, choices=REQUEST_STATUS_CHOICES, default="NEW")
+    # مبلغ واقعی درخواست عمده - به صورت خودکار از مجموع اقلام محاسبه می‌شود
+    total_amount = models.DecimalField(
+        "مبلغ کل (تومان)",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        help_text="به صورت خودکار از مجموع اقلام (تعداد × قیمت عمده محصول) محاسبه می‌شود",
+    )
     created_at = models.DateTimeField("تاریخ ثبت", auto_now_add=True)
 
     class Meta:

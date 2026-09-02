@@ -4,6 +4,7 @@
  */
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { CloseIcon, MenuIcon } from "./icons";
 
 type Role = "manager" | "admin" | "visitor" | "customer";
 
@@ -47,10 +48,15 @@ const roleNames: Record<Role, string> = {
 };
 
 export default function DashboardLayout({ children, role }: Props) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // روی دسکتاپ (lg به بالا) پیش‌فرض باز است، روی موبایل بسته
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 1024
+  );
   const navigate = useNavigate();
   const location = useLocation();
   const menu = menuByRole[role] || menuByRole.customer;
+
+  const isDesktop = () => typeof window !== "undefined" && window.innerWidth >= 1024;
 
   const handleLogout = () => {
     localStorage.removeItem("novin_auth_tokens");
@@ -61,11 +67,15 @@ export default function DashboardLayout({ children, role }: Props) {
   return (
     <div className="min-h-screen bg-[#faf8f5] flex" dir="rtl">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 right-0 z-50 w-72 bg-stone-900 text-white transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}>
+      <aside className={`fixed inset-y-0 right-0 z-50 w-72 bg-stone-900 text-white transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "translate-x-full"}`}>
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-paprika-600 flex items-center justify-center font-black">N</div>
+              <img
+                src="/images/logo.png"
+                alt="پخش سوسیس و کالباس نوین"
+                className="h-10 w-10 shrink-0 rounded-xl bg-white object-contain p-0.5 ring-1 ring-inset ring-white/20"
+              />
               <div>
                 <p className="font-black text-sm">پنل {roleNames[role]}</p>
                 <p className="text-[11px] text-stone-400">نوین - داشبورد فروش</p>
@@ -80,7 +90,7 @@ export default function DashboardLayout({ children, role }: Props) {
                 <Link
                   key={item.path}
                   to={item.path}
-                  onClick={() => setSidebarOpen(false)}
+                  onClick={() => { if (!isDesktop()) setSidebarOpen(false); }}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition ${isActive ? "bg-white text-stone-900 shadow" : "text-stone-400 hover:bg-white/10 hover:text-white"}`}
                 >
                   <span className="text-lg">{item.icon}</span>
@@ -105,10 +115,17 @@ export default function DashboardLayout({ children, role }: Props) {
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Main */}
-      <div className="flex-1 lg:mr-72">
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-stone-200 lg:hidden">
+      <div className={`flex-1 transition-[margin] duration-300 ${sidebarOpen ? "lg:mr-72" : "lg:mr-0"}`}>
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-stone-200">
           <div className="flex items-center justify-between p-4">
-            <button onClick={() => setSidebarOpen(true)} className="h-10 w-10 rounded-xl bg-stone-900 text-white flex items-center justify-center">☰</button>
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              aria-label={sidebarOpen ? "بستن منو" : "باز کردن منو"}
+              title={sidebarOpen ? "بستن منو" : "باز کردن منو"}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-900 text-white transition hover:bg-stone-700"
+            >
+              {sidebarOpen ? <CloseIcon className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
+            </button>
             <span className="font-black text-sm">پنل {roleNames[role]}</span>
             <div className="h-10 w-10" />
           </div>
