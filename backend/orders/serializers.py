@@ -128,12 +128,31 @@ class WholesaleRequestItemInputSerializer(serializers.Serializer):
 
 class WholesaleRequestSerializer(serializers.ModelSerializer):
     items = WholesaleRequestItemSerializer(many=True, read_only=True)
+    total_amount = serializers.SerializerMethodField()
+
     class Meta:
         model = WholesaleRequest
         # user اضافه شد تا مدیرکل بتواند درخواست‌های عمده‌ی هر ویزیتور را تفکیک کند
         # total_amount اضافه شد تا مبلغ واقعی درخواست عمده در گزارش فروش لحاظ شود
         fields = ["id", "request_number", "company_name", "contact_person", "phone", "address", "description", "status", "total_amount", "items", "created_at", "user"]
         read_only_fields = ["id", "request_number", "status", "created_at", "user", "total_amount"]
+
+    def get_total_amount(self, obj):
+        stored_total = obj.__dict__.get("total_amount", None)
+        if stored_total and stored_total > 0:
+            return stored_total
+        total = 0
+        for item in obj.items.select_related("product"):
+            product = item.product
+            if not product:
+                continue
+            try:
+                pricing = product.dashboard_pricing
+                price = pricing.wholesale_price if pricing.is_active else product.price
+            except Exception:
+                price = product.price
+            total += price * item.quantity
+        return total
 
 class WholesaleRequestTrackingSerializer(serializers.ModelSerializer):
     items = WholesaleRequestItemSerializer(many=True, read_only=True)
@@ -157,10 +176,24 @@ class WholesaleRequestCreateSerializer(serializers.ModelSerializer):
         products_by_id = {p.id: p for p in products}
         req = WholesaleRequest.objects.create(**validated_data)
         bulk = []
+        total = 0
         for item in items_data:
             prod = products_by_id.get(item["product_id"])
-            bulk.append(WholesaleRequestItem(request=req, product=prod, product_name=prod.name if prod else f"Product {item['product_id']}", quantity=item["quantity"], notes=item.get("notes","")))
+            qty = item["quantity"]
+            if prod:
+                try:
+                    pricing = prod.dashboard_pricing
+                    unit_price = pricing.wholesale_price if pricing.is_active else prod.price
+                except Exception:
+                    unit_price = prod.price
+                total += unit_price * qty
+            bulk.append(WholesaleRequestItem(request=req, product=prod, product_name=prod.name if prod else f"Product {item['product_id']}", quantity=qty, notes=item.get("notes","")))
         WholesaleRequestItem.objects.bulk_create(bulk)
+        try:
+            req.total_amount = total
+            req.save(update_fields=["total_amount"])
+        except Exception:
+            pass
         return req
     def to_representation(self, instance):
         return WholesaleRequestSerializer(instance, context=self.context).data

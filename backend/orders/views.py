@@ -89,7 +89,7 @@ class MyWholesaleView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = WholesaleRequest.objects.filter(user=user)
+        qs = WholesaleRequest.objects.filter(user=user).defer("total_amount").prefetch_related("items__product")
         try:
             phone = user.customer_profile.phone if hasattr(user, 'customer_profile') else None
             if phone:
@@ -258,11 +258,32 @@ class WholesaleRequestCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
-        serializer.save(user=user)
+        req = serializer.save(user=user)
+
+        # اگر درخواست عمده توسط ویزیتور ثبت شود، برای فروش عمده هم پورسانت بساز
+        try:
+            from dashboard.permissions import get_user_role
+            from dashboard.models import Commission, CommissionRule
+            from dashboard.views import calculate_wholesale_request_total
+            if user and user.is_authenticated and get_user_role(user) == 'visitor':
+                rule, _ = CommissionRule.objects.get_or_create(visitor=user, defaults={'percentage': 5})
+                percentage = rule.percentage if rule.is_active else 0
+                total = calculate_wholesale_request_total(req)
+                Commission.objects.get_or_create(
+                    visitor=user,
+                    wholesale_request=req,
+                    defaults={
+                        'percentage': percentage,
+                        'amount': total * percentage / 100,
+                    }
+                )
+        except Exception:
+            # ثبت سفارش عمده نباید به خاطر خطای فرعی پورسانت متوقف شود
+            pass
 
 
 class WholesaleRequestTrackingView(generics.RetrieveAPIView):
-    queryset = WholesaleRequest.objects.all()
+    queryset = WholesaleRequest.objects.all().defer("total_amount").prefetch_related("items__product")
     serializer_class = WholesaleRequestTrackingSerializer
     lookup_field = "request_number"
 
@@ -272,7 +293,7 @@ class WholesaleRequestListView(generics.ListAPIView):
     permission_classes = [permissions.IsAdminUser]
 
     def get_queryset(self):
-        qs = WholesaleRequest.objects.all().order_by("-created_at")
+        qs = WholesaleRequest.objects.all().defer("total_amount").prefetch_related("items__product").order_by("-created_at")
         req_status = self.request.query_params.get("status")
         if req_status:
             qs = qs.filter(status=req_status)

@@ -15,6 +15,8 @@ urlpatterns = [
     path('owner/pricing/<int:product_id>/', views.OwnerPricingUpdate.as_view(), name='owner-pricing-update'),
     path('owner/users/', views.OwnerUserManagement.as_view(), name='owner-users'),
     path('owner/reports/', views.OwnerVisitorReport.as_view(), name='owner-reports'),
+    path('owner/wholesale/', views.OwnerWholesaleList.as_view(), name='owner-wholesale-list'),
+    path('owner/commissions/', views.OwnerCommissionManagement.as_view(), name='owner-commissions'),
     path('owner/debtors/', views.OwnerVisitorReport.as_view(), name='owner-debtors'),
 
     # ─── Admin Store ───────────────────────────────────────────────────

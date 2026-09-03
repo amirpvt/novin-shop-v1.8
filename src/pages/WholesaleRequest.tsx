@@ -70,6 +70,7 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
               const inWholesale = wholesaleItems.find((item: any) => String(item.id) === String(p.id));
               const wholesaleUnit = (p as any).wholesale_unit || p.unit;
               const wholesaleUnitLabel = (p as any).wholesale_unit_display || getUnitLabel(wholesaleUnit);
+              const wholesalePrice = Number((p as any).wholesale_price ?? p.price);
               const minQty = (p as any).wholesale_min_quantity || 1;
               return (
                 <div 
@@ -102,8 +103,8 @@ export default function WholesaleRequest({ products, onBack, onSubmit }: Props) 
                     
                     <div className="mt-auto pt-4 border-t border-stone-50 flex items-center justify-between">
                       <div>
-                        <div className="text-[10px] text-stone-400 font-bold mb-0.5">قیمت پایه:</div>
-                        <div className="font-display text-lg font-bold text-stone-700">{formatPrice(p.price)}</div>
+                        <div className="text-[10px] text-stone-400 font-bold mb-0.5">قیمت عمده:</div>
+                        <div className="font-display text-lg font-bold text-stone-700">{formatPrice(wholesalePrice)}</div>
                       </div>
 
                       {inWholesale ? (

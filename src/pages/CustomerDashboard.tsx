@@ -106,7 +106,7 @@ export default function CustomerDashboard() {
         <p className="text-sm text-stone-500">سبد خرید فعلی شما در سایت اصلی است. برای ثبت سفارش به فروشگاه بروید و پس از ثبت، وضعیت را اینجا یا در صفحه پیگیری ببینید.</p>
         <div className="mt-4 flex gap-2">
           <button onClick={() => (window.location.href = "/cart")} className="px-5 py-2.5 bg-stone-900 text-white rounded-xl text-sm font-bold">رفتن به سبد خرید</button>
-          <button onClick={() => (window.location.href = "/my-orders")} className="px-5 py-2.5 bg-white border rounded-xl text-sm font-bold">سفارشات من</button>
+          <button onClick={() => (window.location.href = "/dashboard/customer/orders")} className="px-5 py-2.5 bg-white border rounded-xl text-sm font-bold">سفارشات من و پیگیری زنده</button>
         </div>
       </div>
     </div>

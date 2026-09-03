@@ -122,6 +122,11 @@ export const dashboardApi = {
       }),
     visitorReport: () => authFetch<any[]>("/owner/reports/?type=visitors"),
     debtorsReport: () => authFetch<any[]>("/owner/reports/?type=debtors"),
+    commissions: (visitor_id?: number) => authFetch<any>(`/owner/commissions/${visitor_id ? `?visitor_id=${visitor_id}` : ""}`),
+    commissionRuleUpdate: (data: { visitor_id: number; percentage: number; apply_to_unpaid?: boolean; notes?: string }) =>
+      authFetch<any>("/owner/commissions/", { method: "PATCH", body: JSON.stringify(data) }),
+    commissionPay: (data: { visitor_id: number; commission_ids?: number[]; reference_number?: string; description?: string }) =>
+      authFetch<any>("/owner/commissions/", { method: "POST", body: JSON.stringify(data) }),
   },
 
   admin: {

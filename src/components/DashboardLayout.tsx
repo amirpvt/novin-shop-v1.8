@@ -17,6 +17,8 @@ const menuByRole: Record<Role, { label: string; path: string; icon: string }[]> 
   manager: [
     { label: "داشبورد", path: "/dashboard/manager", icon: "📊" },
     { label: "قیمت‌گذاری", path: "/dashboard/manager/pricing", icon: "💰" },
+    { label: "مدیریت سفارش‌ها", path: "/dashboard/manager/orders", icon: "📦" },
+    { label: "پورسانت‌ها", path: "/dashboard/manager/commissions", icon: "💎" },
     { label: "مدیریت کاربران", path: "/dashboard/manager/users", icon: "👥" },
     { label: "گزارش ویزیتورها", path: "/dashboard/manager/visitors", icon: "📈" },
     { label: "بدهکاران", path: "/dashboard/manager/debtors", icon: "💳" },

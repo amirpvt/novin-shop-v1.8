@@ -51,3 +51,29 @@ class ProductViewSet(viewsets.ModelViewSet):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
+
+    def _save_dashboard_pricing(self, product):
+        wholesale_price = self.request.data.get("wholesale_price")
+        if wholesale_price in (None, ""):
+            return
+        try:
+            from dashboard.models import ProductPricing
+            ProductPricing.objects.update_or_create(
+                product=product,
+                defaults={
+                    "base_price": self.request.data.get("price", product.price) or product.price,
+                    "wholesale_price": wholesale_price,
+                    "is_active": True,
+                    "updated_by": self.request.user if self.request.user.is_authenticated else None,
+                },
+            )
+        except Exception:
+            pass
+
+    def perform_create(self, serializer):
+        product = serializer.save()
+        self._save_dashboard_pricing(product)
+
+    def perform_update(self, serializer):
+        product = serializer.save()
+        self._save_dashboard_pricing(product)

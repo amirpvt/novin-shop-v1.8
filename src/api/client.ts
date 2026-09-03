@@ -35,7 +35,7 @@ function get<T>(endpoint: string, params?: Record<string, any>, auth = false): P
 }
 
 // Types
-export interface ApiProduct { id: number; name: string; slug: string; description: string; price: string; unit: string; brand?: number; brand_name?: string; tag: string | null; badge: string | null; image: string; stock: number; available: boolean; order: number; category: number | null; category_name?: string; }
+export interface ApiProduct { id: number; name: string; slug: string; description: string; price: string; base_price?: string; wholesale_price?: string; unit: string; brand?: number; brand_name?: string; tag: string | null; badge: string | null; image: string; stock: number; available: boolean; order: number; category: number | null; category_name?: string; }
 export interface PaginatedResponse<T> { count: number; next: string | null; previous: string | null; results: T[]; }
 export interface OrderItem { id: number; product: number | null; product_name: string; price: string; quantity: number; subtotal: string; }
 export interface Order { id: number; order_number: string; name: string; phone: string; address: string; message: string; order_status: string; total_amount: string; items: OrderItem[]; created_at: string; }
@@ -59,6 +59,7 @@ export const ordersApi = {
   list: (params?: any) => get<any>("/orders/list/", params, true),
   myOrders: () => get<any>("/orders/my-orders/", undefined, true),
   stats: () => get<any>("/orders/stats/", undefined, true),
+  updateStatus: (id: number, order_status: string) => request<Order>(`/orders/${id}/status/`, { method: "PATCH", body: JSON.stringify({ order_status }) }, true),
 };
 
 export const wholesaleApi = {

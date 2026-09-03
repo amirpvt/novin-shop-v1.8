@@ -7,6 +7,43 @@
 import { useEffect, useState } from "react";
 import { dashboardApi } from "../services/dashboardApi";
 
+
+const retailStatuses = [
+  { value: "PENDING", label: "در انتظار بررسی", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  { value: "CONFIRMED", label: "تایید شده", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  { value: "PREPARING", label: "در حال آماده‌سازی", color: "bg-violet-50 text-violet-700 border-violet-200" },
+  { value: "SHIPPED", label: "ارسال شده", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  { value: "DELIVERED", label: "تحویل شده", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { value: "CANCELLED", label: "لغو شده", color: "bg-red-50 text-red-700 border-red-200" },
+];
+const wholesaleStatuses = [
+  { value: "NEW", label: "درخواست جدید", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  { value: "QUOTED", label: "پیش‌فاکتور صادر شده", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  { value: "CONVERTED", label: "تبدیل به سفارش شده", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { value: "REJECTED", label: "رد شده", color: "bg-red-50 text-red-700 border-red-200" },
+];
+function statusMeta(type: "retail" | "wholesale", status: string) {
+  const list = type === "wholesale" ? wholesaleStatuses : retailStatuses;
+  return list.find(s => s.value === status) || { value: status, label: status || "نامشخص", color: "bg-stone-50 text-stone-700 border-stone-200" };
+}
+function StatusTimeline({ type, status }: { type: "retail" | "wholesale"; status: string }) {
+  const list = type === "wholesale" ? wholesaleStatuses : retailStatuses;
+  const currentIndex = Math.max(0, list.findIndex(s => s.value === status));
+  const isBad = ["CANCELLED", "REJECTED"].includes(status);
+  return (
+    <div className="mt-4 rounded-2xl border bg-white/70 p-4">
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {list.map((s, idx) => {
+          const active = s.value === status;
+          const done = !isBad && idx <= currentIndex;
+          return <div key={s.value} className={`min-w-[110px] rounded-2xl border p-3 text-center ${active ? s.color : done ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-stone-100 bg-stone-50 text-stone-400"}`}><p className="text-[10px] font-black">{done ? "✓" : idx + 1}</p><p className="mt-1 text-[10px] font-black leading-5">{s.label}</p></div>;
+        })}
+      </div>
+      <p className="mt-3 text-[10px] font-bold text-stone-500">وضعیت این سفارش همان وضعیت ثبت‌شده در پنل مدیرکل است.</p>
+    </div>
+  );
+}
+
 function formatPrice(n: number | string) {
   const num = typeof n === "string" ? parseFloat(n) : n;
   return num.toLocaleString("en-US") + " تومان";
@@ -53,24 +90,43 @@ export default function VisitorOrdersPro() {
             const orderId = comm.order || comm.order_number;
             if (!orderId) return null;
             
-            // سعی کن از طریق track بگیری اگر order_number داری
+            // وضعیت را مستقیم از همان API پیگیری بخوان تا با پنل مدیرکل یکی باشد
+            const isWholesale = comm.sale_type === "wholesale" || String(comm.order_number || "").startsWith("WHS-");
             if (comm.order_number) {
-              const res = await fetch(`${base}/orders/track/${comm.order_number}/`);
-              if (res.ok) return await res.json();
+              const trackUrl = isWholesale ? `${base}/orders/wholesale/track/${comm.order_number}/` : `${base}/orders/track/${comm.order_number}/`;
+              const res = await fetch(trackUrl, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+              if (res.ok) {
+                const tracked = await res.json();
+                return {
+                  ...tracked,
+                  id: comm.order || comm.wholesale_request || comm.id,
+                  order_number: tracked.order_number || tracked.request_number || comm.order_number,
+                  name: isWholesale ? (tracked.company_name || tracked.contact_person || `درخواست عمده ${comm.order_number}`) : tracked.name,
+                  phone: tracked.phone || "-",
+                  address: tracked.address || "",
+                  order_status: isWholesale ? tracked.status : tracked.order_status,
+                  total_amount: tracked.total_amount || comm.order_total || 0,
+                  items: tracked.items || [],
+                  created_at: tracked.created_at || comm.created_at,
+                  commission: comm,
+                  sale_type: isWholesale ? "wholesale" : "retail",
+                };
+              }
             }
             
             // اگر نشد، از خود commission استفاده کن به عنوان fallback
             return {
-              id: comm.order,
+              id: comm.order || comm.wholesale_request,
               order_number: comm.order_number || `ORD-${comm.order}`,
-              name: `سفارش ${comm.order_number}`,
+              name: comm.sale_type === "wholesale" ? `درخواست عمده ${comm.order_number}` : `سفارش ${comm.order_number}`,
               phone: "-",
               address: "",
-              order_status: "CONFIRMED",
+              order_status: comm.sale_type === "wholesale" ? "NEW" : "CONFIRMED",
               total_amount: comm.order_total || 0,
               items: [],
               created_at: comm.created_at,
               commission: comm,
+              sale_type: comm.sale_type || "retail",
             };
           } catch {
             return null;
@@ -101,9 +157,9 @@ export default function VisitorOrdersPro() {
 
       setStats({
         total,
-        pending: commissionData.unpaid_commission ? 1 : 0,
-        confirmed: total,
-        delivered: 0,
+        pending: validOrders.filter((o: any) => ["PENDING", "NEW"].includes(o.order_status)).length,
+        confirmed: validOrders.filter((o: any) => ["CONFIRMED", "QUOTED", "PREPARING", "SHIPPED", "CONVERTED"].includes(o.order_status)).length,
+        delivered: validOrders.filter((o: any) => ["DELIVERED", "CONVERTED"].includes(o.order_status)).length,
         totalSales,
         totalCommission,
       });
@@ -115,12 +171,16 @@ export default function VisitorOrdersPro() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(load, 30000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const filteredOrders = orders.filter((o: any) => {
-    if (filter === "pending" && o.order_status !== "PENDING") return false;
-    if (filter === "confirmed" && o.order_status !== "CONFIRMED") return false;
-    if (filter === "delivered" && o.order_status !== "DELIVERED") return false;
+    if (filter === "pending" && !["PENDING", "NEW"].includes(o.order_status)) return false;
+    if (filter === "confirmed" && !["CONFIRMED", "QUOTED", "PREPARING", "SHIPPED", "CONVERTED"].includes(o.order_status)) return false;
+    if (filter === "delivered" && !["DELIVERED", "CONVERTED"].includes(o.order_status)) return false;
     if (search && !o.order_number?.toLowerCase().includes(search.toLowerCase()) && !o.name?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -220,7 +280,8 @@ export default function VisitorOrdersPro() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <span className="font-mono font-black text-lg">{order.order_number}</span>
-                        <span className={`px-3 py-1 rounded-full text-[11px] font-black border ${order.order_status === "PENDING" ? "bg-amber-50 text-amber-700 border-amber-200" : order.order_status === "CONFIRMED" ? "bg-blue-50 text-blue-700 border-blue-200" : order.order_status === "DELIVERED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-stone-50"}`}>{order.order_status === "PENDING" ? "در انتظار تایید ادمین" : order.order_status}</span>
+                        <span className={`px-3 py-1 rounded-full text-[11px] font-black border ${statusMeta(order.sale_type === "wholesale" ? "wholesale" : "retail", order.order_status).color}`}>{statusMeta(order.sale_type === "wholesale" ? "wholesale" : "retail", order.order_status).label}</span>
+                        <span className={`px-3 py-1 rounded-full text-[11px] font-black border ${order.sale_type === "wholesale" ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-sky-50 text-sky-700 border-sky-200"}`}>{order.sale_type === "wholesale" ? "عمده" : "خرده"}</span>
                         {order.commission && <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black">💰 پورسانت: {formatPrice(order.commission.amount || 0)}</span>}
                       </div>
                       
@@ -240,6 +301,8 @@ export default function VisitorOrdersPro() {
                           <p className="text-[11px] text-stone-500 mt-1">{order.created_at ? new Date(order.created_at).toLocaleDateString("fa-IR") : ""}</p>
                         </div>
                       </div>
+
+                      <StatusTimeline type={order.sale_type === "wholesale" ? "wholesale" : "retail"} status={order.order_status} />
 
                       {order.message && (
                         <div className="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-4">

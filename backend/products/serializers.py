@@ -23,18 +23,36 @@ class ProductSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
     retail_unit_display = serializers.CharField(source="get_retail_unit_display", read_only=True)
     wholesale_unit_display = serializers.CharField(source="get_wholesale_unit_display", read_only=True)
+    base_price = serializers.SerializerMethodField()
+    wholesale_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             "id", "category", "category_name", "brand", "brand_name",
             "name", "slug", "description", "price", "discount_price",
+            "base_price", "wholesale_price",
             "unit", "retail_unit", "retail_unit_display",
             "wholesale_unit", "wholesale_unit_display",
             "wholesale_min_quantity",
             "tag", "badge", "image", "stock", "weight", "available", "order", "is_featured", "status", "sku", "barcode",
         ]
-        read_only_fields = ["id", "slug", "retail_unit_display", "wholesale_unit_display"]
+        read_only_fields = ["id", "slug", "retail_unit_display", "wholesale_unit_display", "base_price", "wholesale_price"]
+
+    def _get_dashboard_pricing(self, obj):
+        try:
+            pricing = obj.dashboard_pricing
+            return pricing if pricing.is_active else None
+        except Exception:
+            return None
+
+    def get_base_price(self, obj):
+        pricing = self._get_dashboard_pricing(obj)
+        return pricing.base_price if pricing else obj.price
+
+    def get_wholesale_price(self, obj):
+        pricing = self._get_dashboard_pricing(obj)
+        return pricing.wholesale_price if pricing else obj.price
 
     def to_internal_value(self, data):
         brand_input = data.get("brand")
@@ -79,6 +97,9 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from django.utils.text import slugify
+        from django.db import IntegrityError
+        import time
+
         name = validated_data.get("name", "")
         base_slug = slugify(name, allow_unicode=True) or f"product-{Product.objects.count()+1}"
         slug = base_slug
@@ -92,7 +113,12 @@ class ProductSerializer(serializers.ModelSerializer):
         # اگر retail_unit خالی بود، از unit قدیمی بگیر
         if not validated_data.get("retail_unit"):
             validated_data["retail_unit"] = validated_data.get("unit", "pack")
-        return super().create(validated_data)
+        try:
+            return super().create(validated_data)
+        except IntegrityError:
+            # جلوگیری از خطای نام/اسلاگ تکراری وقتی درخواست ایجاد محصول دوبار پشت سر هم ارسال شود
+            validated_data["slug"] = f"{base_slug}-{int(time.time() * 1000)}"
+            return super().create(validated_data)
 
     def update(self, instance, validated_data):
         if "name" in validated_data and validated_data["name"] != instance.name:

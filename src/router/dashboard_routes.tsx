@@ -10,6 +10,8 @@ import DashboardLayout from "../components/DashboardLayout";
 // Owner pages
 import OwnerDashboard from "../pages/OwnerDashboard";
 import OwnerPricing from "../pages/OwnerPricing";
+import OwnerCommissions from "../pages/OwnerCommissions";
+import OwnerOrdersManagement from "../pages/OwnerOrdersManagement";
 import OwnerUsers from "../pages/OwnerUsers";
 
 // Admin pages
@@ -20,6 +22,7 @@ import VisitorDashboard from "../pages/VisitorDashboard";
 
 // Customer pages
 import CustomerDashboard from "../pages/CustomerDashboard";
+import MyOrders from "../pages/MyOrders";
 
 // برای گزارش بدهکاران و ویزیتورها از همان OwnerDashboard یا کامپوننت جدا استفاده می‌کنیم
 // فعلا از OwnerDashboard برای همه گزارش‌ها استفاده می‌کنیم - می‌توان جدا کرد
@@ -60,6 +63,26 @@ export default function DashboardRoutes() {
           <RoleGuard allowedRoles={["manager"]}>
             <DashboardLayout role="manager">
               <OwnerPricing />
+            </DashboardLayout>
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/manager/orders"
+        element={
+          <RoleGuard allowedRoles={["manager"]}>
+            <DashboardLayout role="manager">
+              <OwnerOrdersManagement />
+            </DashboardLayout>
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/manager/commissions"
+        element={
+          <RoleGuard allowedRoles={["manager"]}>
+            <DashboardLayout role="manager">
+              <OwnerCommissions />
             </DashboardLayout>
           </RoleGuard>
         }
@@ -211,7 +234,7 @@ export default function DashboardRoutes() {
         element={
           <RoleGuard allowedRoles={["customer"]}>
             <DashboardLayout role="customer">
-              <CustomerDashboard />
+              <MyOrders />
             </DashboardLayout>
           </RoleGuard>
         }
@@ -221,7 +244,7 @@ export default function DashboardRoutes() {
         element={
           <RoleGuard allowedRoles={["customer"]}>
             <DashboardLayout role="customer">
-              <CustomerDashboard />
+              <MyOrders />
             </DashboardLayout>
           </RoleGuard>
         }

@@ -157,7 +157,7 @@ class CashCollection(models.Model):
 
 class Commission(models.Model):
     """
-    پورسانت ویزیتور به ازای هر سفارش
+    پورسانت ویزیتور به ازای سفارش خرده یا درخواست عمده
     """
     visitor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -165,14 +165,38 @@ class Commission(models.Model):
         related_name='commissions',
         verbose_name="ویزیتور"
     )
+
     order = models.OneToOneField(
         'orders.Order',
         on_delete=models.CASCADE,
         related_name='commission',
-        verbose_name="سفارش"
+        verbose_name="سفارش خرده",
+        null=True,
+        blank=True
     )
-    percentage = models.DecimalField("درصد پورسانت", max_digits=5, decimal_places=2, default=5.00, validators=[MinValueValidator(0)])
-    amount = models.DecimalField("مبلغ پورسانت", max_digits=12, decimal_places=0, validators=[MinValueValidator(0)])
+
+    wholesale_request = models.OneToOneField(
+        'orders.WholesaleRequest',
+        on_delete=models.CASCADE,
+        related_name='commission',
+        verbose_name="درخواست عمده",
+        null=True,
+        blank=True
+    )
+
+    percentage = models.DecimalField(
+        "درصد پورسانت",
+        max_digits=5,
+        decimal_places=2,
+        default=5.00,
+        validators=[MinValueValidator(0)]
+    )
+    amount = models.DecimalField(
+        "مبلغ پورسانت",
+        max_digits=12,
+        decimal_places=0,
+        validators=[MinValueValidator(0)]
+    )
     is_paid = models.BooleanField("پرداخت شده؟", default=False)
     paid_at = models.DateTimeField("تاریخ پرداخت پورسانت", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -183,13 +207,84 @@ class Commission(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.visitor.username} - {self.amount} برای {self.order.order_number}"
+        source_number = self.order.order_number if self.order else (
+            self.wholesale_request.request_number if self.wholesale_request else "بدون سند"
+        )
+        return f"{self.visitor.username} - {self.amount} برای {source_number}"
 
     def save(self, *args, **kwargs):
-        # اگر مبلغ وارد نشده، از درصد و مبلغ سفارش محاسبه کن
-        if not self.amount and self.order and self.percentage:
-            self.amount = (self.order.total_amount * self.percentage / 100)
+        # اگر مبلغ وارد نشده، از درصد و مبلغ سفارش/درخواست عمده محاسبه کن
+        if not self.amount and self.percentage:
+            if self.order:
+                self.amount = (self.order.total_amount * self.percentage / 100)
+            elif self.wholesale_request:
+                self.amount = (self.wholesale_request.total_amount * self.percentage / 100)
         super().save(*args, **kwargs)
+
+
+class CommissionRule(models.Model):
+    """قانون پورسانت هر ویزیتور برای سفارش‌های جدید و تسویه‌های بعدی"""
+    visitor = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='commission_rule',
+        verbose_name="ویزیتور",
+        limit_choices_to={'customer_profile__role': 'visitor'}
+    )
+    percentage = models.DecimalField("درصد پورسانت", max_digits=5, decimal_places=2, default=5.00, validators=[MinValueValidator(0)])
+    is_active = models.BooleanField("فعال", default=True)
+    notes = models.TextField("یادداشت", blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='commission_rule_updates',
+        verbose_name="آخرین ویرایش توسط"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "قانون پورسانت"
+        verbose_name_plural = "قوانین پورسانت"
+        ordering = ["visitor__username"]
+
+    def __str__(self):
+        return f"{self.visitor.username} - {self.percentage}%"
+
+
+class CommissionPayment(models.Model):
+    """رسید پرداخت گروهی پورسانت به ویزیتور"""
+    visitor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='commission_payments',
+        verbose_name="ویزیتور"
+    )
+    commissions = models.ManyToManyField(Commission, related_name='payment_batches', blank=True, verbose_name="پورسانت‌ها")
+    amount = models.DecimalField("مبلغ پرداختی", max_digits=12, decimal_places=0, validators=[MinValueValidator(0)])
+    commission_count = models.PositiveIntegerField("تعداد پورسانت", default=0)
+    reference_number = models.CharField("شماره رسید / پیگیری", max_length=80, blank=True)
+    description = models.TextField("توضیحات", blank=True)
+    paid_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='commission_payments_done',
+        verbose_name="پرداخت کننده"
+    )
+    paid_at = models.DateTimeField("تاریخ پرداخت", default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "پرداخت پورسانت"
+        verbose_name_plural = "پرداخت‌های پورسانت"
+        ordering = ["-paid_at"]
+
+    def __str__(self):
+        return f"{self.visitor.username} - {self.amount}"
 
 
 class CustomerDebt(models.Model):

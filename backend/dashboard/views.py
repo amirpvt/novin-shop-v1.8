@@ -5,11 +5,12 @@ from rest_framework import generics, status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Sum, Count, Q
+from django.db.utils import OperationalError
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 
-from .models import ProductPricing, VisitSchedule, CashCollection, Commission, CustomerDebt
+from .models import ProductPricing, VisitSchedule, CashCollection, Commission, CustomerDebt, CommissionRule, CommissionPayment
 from .serializers import (
     ProductPricingSerializer, ProductPricingUpdateSerializer,
     VisitScheduleSerializer, VisitScheduleCreateSerializer,
@@ -18,10 +19,68 @@ from .serializers import (
 )
 from .permissions import IsManager, IsAdminOrManager, IsVisitor, IsCustomer, IsWholesaleApproved, get_user_role
 from products.models import Product
-from orders.models import Order
+from orders.models import Order, WholesaleRequest
 from accounts.models import Customer
 
 User = get_user_model()
+
+
+def calculate_wholesale_request_total(req):
+    """محاسبه مبلغ واقعی درخواست عمده از روی اقلام و قیمت عمده محصول"""
+    stored_total = getattr(req, 'total_amount', 0) or 0
+    if stored_total and stored_total > 0:
+        return stored_total
+
+    total = 0
+    items_qs = req.items.select_related('product')
+    for item in items_qs:
+        product = item.product
+        if not product:
+            continue
+        try:
+            pricing = product.dashboard_pricing
+            price = pricing.wholesale_price if pricing.is_active else product.price
+        except Exception:
+            price = product.price
+        total += price * item.quantity
+
+    if total and not stored_total:
+        try:
+            req.total_amount = total
+            req.save(update_fields=['total_amount'])
+        except Exception:
+            pass
+    return total
+
+
+def ensure_wholesale_commissions_for_visitor(visitor):
+    """برای درخواست‌های عمده قدیمی/جدید ویزیتور که پورسانت ندارند، پورسانت بساز"""
+    role = get_user_role(visitor)
+    if role != 'visitor':
+        return 0
+
+    rule, _ = CommissionRule.objects.get_or_create(visitor=visitor, defaults={'percentage': 5})
+    percentage = rule.percentage if rule.is_active else 0
+    requests = (
+        WholesaleRequest.objects
+        .filter(user=visitor)
+        .exclude(status='REJECTED')
+        .filter(commission__isnull=True)
+        .prefetch_related('items__product')
+    )
+
+    created_count = 0
+    for req in requests:
+        total = calculate_wholesale_request_total(req)
+        Commission.objects.create(
+            visitor=visitor,
+            wholesale_request=req,
+            percentage=percentage,
+            amount=total * percentage / 100,
+        )
+        created_count += 1
+    return created_count
+
 
 # ─── Owner (Manager) ───────────────────────────────────────────────────
 
@@ -194,10 +253,30 @@ class OwnerVisitorReport(APIView):
         visitors = User.objects.filter(customer_profile__role='visitor')
         report = []
         for visitor in visitors:
-            orders = Order.objects.filter(user=visitor) if hasattr(Order, 'user') else Order.objects.none()
-            # اگر Order.user ندارید، از VisitSchedule استفاده کنید
+            # سفارش‌های خرده ویزیتور از روی کمیسیون مشخص می‌شوند؛ چون user سفارش، مشتری است.
+            retail_orders = Order.objects.filter(Q(commission__visitor=visitor) | Q(user=visitor)).distinct()
+            wholesale_requests = WholesaleRequest.objects.filter(user=visitor).defer('total_amount').prefetch_related('items__product')
             visits = VisitSchedule.objects.filter(visitor=visitor)
-            total_sales = orders.aggregate(s=Sum('total_amount'))['s'] or 0
+
+            retail_sales = retail_orders.aggregate(s=Sum('total_amount'))['s'] or 0
+            wholesale_sales = 0
+            for req in wholesale_requests:
+                stored_total = req.__dict__.get('total_amount', None)
+                if stored_total and stored_total > 0:
+                    wholesale_sales += stored_total
+                    continue
+                for item in req.items.all():
+                    product = item.product
+                    if not product:
+                        continue
+                    try:
+                        pricing = product.dashboard_pricing
+                        price = pricing.wholesale_price if pricing.is_active else product.price
+                    except Exception:
+                        price = product.price
+                    wholesale_sales += price * item.quantity
+
+            total_sales = retail_sales + wholesale_sales
             commissions = Commission.objects.filter(visitor=visitor).aggregate(s=Sum('amount'))['s'] or 0
 
             report.append({
@@ -206,16 +285,183 @@ class OwnerVisitorReport(APIView):
                 'visitor_name': visitor.get_full_name() or visitor.username,
                 'total_visits': visits.count(),
                 'completed_visits': visits.filter(status__in=['visited', 'ordered']).count(),
-                'total_orders': orders.count(),
+                'total_orders': retail_orders.count() + wholesale_requests.count(),
                 'total_sales': total_sales,
                 'total_commission': commissions,
                 'pending_visits': visits.filter(status='pending').count(),
+                'retail_orders': retail_orders.count(),
+                'retail_sales': retail_sales,
+                'wholesale_orders': wholesale_requests.count(),
+                'wholesale_sales': wholesale_sales,
             })
 
         return Response(sorted(report, key=lambda x: x['total_sales'], reverse=True))
 
 
 # ─── Admin Store ───────────────────────────────────────────────────────
+
+
+
+class OwnerCommissionManagement(APIView):
+    """سیستم تعیین و پرداخت پورسانت ویزیتورها برای مدیرکل"""
+    permission_classes = [IsManager]
+
+    def _serialize_commission(self, c):
+        is_wholesale = bool(c.wholesale_request_id)
+        source = c.wholesale_request if is_wholesale else c.order
+        return {
+            'id': c.id,
+            'visitor': c.visitor_id,
+            'visitor_name': c.visitor.get_full_name() or c.visitor.username,
+            'order': c.order_id,
+            'wholesale_request': c.wholesale_request_id,
+            'sale_type': 'wholesale' if is_wholesale else 'retail',
+            'order_number': source.request_number if is_wholesale and source else (source.order_number if source else ''),
+            'order_total': source.total_amount if source else 0,
+            'percentage': c.percentage,
+            'amount': c.amount,
+            'is_paid': c.is_paid,
+            'paid_at': c.paid_at,
+            'created_at': c.created_at,
+        }
+
+    def get(self, request):
+        visitor_id = request.query_params.get('visitor_id')
+        visitors = User.objects.filter(customer_profile__role='visitor').select_related('customer_profile').order_by('first_name', 'last_name', 'username')
+        if visitor_id:
+            visitors = visitors.filter(id=visitor_id)
+
+        result = []
+        for visitor in visitors:
+            # بک‌فیل خودکار: اگر درخواست عمده‌ای قبلاً برای ویزیتور ثبت شده ولی پورسانت نداشته باشد، همین‌جا ساخته می‌شود
+            ensure_wholesale_commissions_for_visitor(visitor)
+            rule, _ = CommissionRule.objects.get_or_create(visitor=visitor, defaults={'percentage': 5})
+            qs = Commission.objects.filter(visitor=visitor).select_related('order', 'wholesale_request', 'visitor').order_by('-created_at')
+            total = qs.aggregate(s=Sum('amount'))['s'] or 0
+            unpaid = qs.filter(is_paid=False).aggregate(s=Sum('amount'))['s'] or 0
+            paid = qs.filter(is_paid=True).aggregate(s=Sum('amount'))['s'] or 0
+            payments = CommissionPayment.objects.filter(visitor=visitor).order_by('-paid_at')[:10]
+            result.append({
+                'visitor_id': visitor.id,
+                'visitor_username': visitor.username,
+                'visitor_name': visitor.get_full_name() or visitor.username,
+                'visitor_phone': getattr(getattr(visitor, 'customer_profile', None), 'phone', ''),
+                'percentage': rule.percentage,
+                'rule_active': rule.is_active,
+                'total_commission': total,
+                'unpaid_commission': unpaid,
+                'paid_commission': paid,
+                'commission_count': qs.count(),
+                'unpaid_count': qs.filter(is_paid=False).count(),
+                'paid_count': qs.filter(is_paid=True).count(),
+                'commissions': [self._serialize_commission(c) for c in qs[:100]],
+                'payments': [{
+                    'id': p.id,
+                    'amount': p.amount,
+                    'commission_count': p.commission_count,
+                    'reference_number': p.reference_number,
+                    'description': p.description,
+                    'paid_at': p.paid_at,
+                } for p in payments],
+            })
+
+        return Response(result[0] if visitor_id and result else result)
+
+    def patch(self, request):
+        from decimal import Decimal
+        visitor_id = request.data.get('visitor_id')
+        percentage = request.data.get('percentage')
+        apply_to_unpaid = request.data.get('apply_to_unpaid', True)
+        notes = request.data.get('notes', '')
+
+        if not visitor_id or percentage in (None, ''):
+            return Response({'error': 'visitor_id و percentage الزامی است'}, status=400)
+        try:
+            visitor = User.objects.get(id=visitor_id, customer_profile__role='visitor')
+        except User.DoesNotExist:
+            return Response({'error': 'ویزیتور یافت نشد'}, status=404)
+
+        pct = Decimal(str(percentage))
+        if pct < 0 or pct > 100:
+            return Response({'error': 'درصد پورسانت باید بین 0 تا 100 باشد'}, status=400)
+
+        rule, _ = CommissionRule.objects.update_or_create(
+            visitor=visitor,
+            defaults={'percentage': pct, 'is_active': True, 'notes': notes, 'updated_by': request.user}
+        )
+
+        updated_count = 0
+        if apply_to_unpaid:
+            unpaid = Commission.objects.filter(visitor=visitor, is_paid=False).select_related('order', 'wholesale_request')
+            for c in unpaid:
+                c.percentage = pct
+                source_total = 0
+                if c.order_id and c.order:
+                    source_total = c.order.total_amount
+                elif c.wholesale_request_id and c.wholesale_request:
+                    source_total = c.wholesale_request.total_amount
+                c.amount = source_total * pct / 100
+                c.save(update_fields=['percentage', 'amount'])
+                updated_count += 1
+
+        return Response({'detail': 'درصد پورسانت ذخیره شد', 'percentage': rule.percentage, 'updated_unpaid_count': updated_count})
+
+    def post(self, request):
+        visitor_id = request.data.get('visitor_id')
+        commission_ids = request.data.get('commission_ids') or []
+        reference_number = request.data.get('reference_number', '')
+        description = request.data.get('description', '')
+
+        if not visitor_id:
+            return Response({'error': 'visitor_id الزامی است'}, status=400)
+        try:
+            visitor = User.objects.get(id=visitor_id, customer_profile__role='visitor')
+        except User.DoesNotExist:
+            return Response({'error': 'ویزیتور یافت نشد'}, status=404)
+
+        qs = Commission.objects.filter(visitor=visitor, is_paid=False)
+        if commission_ids:
+            qs = qs.filter(id__in=commission_ids)
+        qs = qs.select_related('order')
+
+        commissions = list(qs)
+        if not commissions:
+            return Response({'error': 'پورسانت پرداخت‌نشده‌ای برای تسویه وجود ندارد'}, status=400)
+
+        total = sum((c.amount for c in commissions), 0)
+        now = timezone.now()
+        payment = CommissionPayment.objects.create(
+            visitor=visitor,
+            amount=total,
+            commission_count=len(commissions),
+            reference_number=reference_number,
+            description=description,
+            paid_by=request.user,
+            paid_at=now,
+        )
+        payment.commissions.set(commissions)
+
+        Commission.objects.filter(id__in=[c.id for c in commissions]).update(is_paid=True, paid_at=now)
+
+        return Response({
+            'detail': 'پرداخت پورسانت ثبت شد',
+            'payment_id': payment.id,
+            'amount': total,
+            'commission_count': len(commissions),
+            'paid_at': now,
+        })
+
+
+class OwnerWholesaleList(APIView):
+    """لیست فروش/درخواست‌های عمده برای پنل مدیرکل"""
+    permission_classes = [IsManager]
+
+    def get(self, request):
+        from orders.serializers import WholesaleRequestSerializer
+        qs = WholesaleRequest.objects.all().defer('total_amount').order_by('-created_at').prefetch_related('items__product')
+        serializer = WholesaleRequestSerializer(qs, many=True, context={'request': request})
+        return Response(serializer.data)
+
 
 class AdminOrderCreate(APIView):
     """
@@ -484,12 +730,14 @@ class VisitorOrderCreateWithWeight(APIView):
                 quantity=qty
             )
 
-        # ایجاد کمیسیون خودکار 5%
+        # ایجاد کمیسیون خودکار بر اساس قانون پورسانت ویزیتور
+        rule, _ = CommissionRule.objects.get_or_create(visitor=request.user, defaults={'percentage': 5})
+        percentage = rule.percentage if rule.is_active else 0
         Commission.objects.create(
             visitor=request.user,
             order=order,
-            percentage=5.00,
-            amount=total * 0.05
+            percentage=percentage,
+            amount=total * percentage / 100
         )
 
         # آپدیت برنامه بازدید به ordered
@@ -544,15 +792,21 @@ class VisitorCommissionView(APIView):
         visitor_id = request.query_params.get('visitor_id')
         if visitor_id and (role == 'manager' or request.user.is_superuser):
             # مدیرکل می‌تواند پورسانت هر ویزیتور را ببیند
+            try:
+                visitor = User.objects.get(id=visitor_id)
+                ensure_wholesale_commissions_for_visitor(visitor)
+            except User.DoesNotExist:
+                pass
             qs = Commission.objects.filter(visitor_id=visitor_id)
         else:
+            ensure_wholesale_commissions_for_visitor(request.user)
             qs = Commission.objects.filter(visitor=request.user)
 
         total = qs.aggregate(s=Sum('amount'))['s'] or 0
         unpaid = qs.filter(is_paid=False).aggregate(s=Sum('amount'))['s'] or 0
         paid = qs.filter(is_paid=True).aggregate(s=Sum('amount'))['s'] or 0
 
-        serializer = CommissionSerializer(qs.order_by('-created_at')[:50], many=True)
+        serializer = CommissionSerializer(qs.select_related('order', 'wholesale_request', 'visitor').order_by('-created_at')[:50], many=True)
         return Response({
             'total_commission': total,
             'unpaid_commission': unpaid,

@@ -29,6 +29,7 @@ export default function OwnerPricing() {
     name: "",
     description: "",
     price: "",
+    wholesale_price: "",
     discount_price: "",
     stock: 10,
     unit: "pack",
@@ -95,7 +96,7 @@ export default function OwnerPricing() {
   };
 
   const handleAddProduct = () => {
-    setProductForm({ name: "", description: "", price: "", discount_price: "", stock: 10, unit: "pack", category: categories[0]?.id || 1, brand: "", sku: "", tag: "", badge: "", is_featured: false, status: "published", weight: 1000 });
+    setProductForm({ name: "", description: "", price: "", wholesale_price: "", discount_price: "", stock: 10, unit: "pack", category: categories[0]?.id || 1, brand: "", sku: "", tag: "", badge: "", is_featured: false, status: "published", weight: 1000 });
     setEditingProduct(null);
     setImageFile(null);
     setImagePreview(null);
@@ -109,6 +110,7 @@ export default function OwnerPricing() {
       name: p.name,
       description: p.description || "",
       price: p.price,
+      wholesale_price: pricings[p.id]?.wholesale_price || p.wholesale_price || "",
       discount_price: p.discount_price || "",
       stock: p.stock ?? 10,
       unit: p.unit || "pack",
@@ -152,6 +154,7 @@ export default function OwnerPricing() {
       fd.append("status", productForm.status);
       fd.append("weight", String(productForm.weight));
       fd.append("available", productForm.stock > 0 ? "true" : "false");
+      if (productForm.wholesale_price) fd.append("wholesale_price", String(productForm.wholesale_price));
       if (hasDiscount && productForm.discount_price) fd.append("discount_price", String(productForm.discount_price));
       if (imageFile) fd.append("image", imageFile);
       const url = editingProduct ? `${base}/products/${editingProduct.id}/` : `${base}/products/`;
@@ -322,10 +325,14 @@ export default function OwnerPricing() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-xs font-black mb-1.5">قیمت اصلی *</label>
                   <input required type="number" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) })} className="w-full rounded-xl border-2 bg-stone-50 px-4 py-3 text-sm font-mono font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black mb-1.5">قیمت عمده</label>
+                  <input type="number" value={productForm.wholesale_price} onChange={(e) => setProductForm({ ...productForm, wholesale_price: e.target.value })} className="w-full rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-mono font-bold text-emerald-700" />
                 </div>
                 <div>
                   <label className="block text-xs font-black mb-1.5">موجودی *</label>

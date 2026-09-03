@@ -33,6 +33,8 @@ export type Product = {
   price: number;
   discount_price?: number | null;
   discount_percent?: number;
+  base_price?: number;
+  wholesale_price?: number;
   unit: string;
   retail_unit?: string;
   retail_unit_display?: string;
@@ -86,6 +88,8 @@ export function mapApiProduct(apiProduct: any): Product {
   }
 
   const price = parseFloat(apiProduct.price) || 0;
+  const basePrice = apiProduct.base_price != null ? parseFloat(apiProduct.base_price) : price;
+  const wholesalePrice = apiProduct.wholesale_price != null ? parseFloat(apiProduct.wholesale_price) : price;
   const discountPrice = apiProduct.discount_price ? parseFloat(apiProduct.discount_price) : null;
   const discountPercent = discountPrice && price > 0 ? Math.round(((price - discountPrice) / price) * 100) : 0;
 
@@ -96,6 +100,8 @@ export function mapApiProduct(apiProduct: any): Product {
     price,
     discount_price: discountPrice,
     discount_percent: discountPercent,
+    base_price: basePrice,
+    wholesale_price: wholesalePrice,
     unit: apiProduct.unit || "pack",
     retail_unit: apiProduct.retail_unit || apiProduct.unit || "pack",
     retail_unit_display: apiProduct.retail_unit_display || UNIT_LABELS[apiProduct.retail_unit || apiProduct.unit] || "بسته بندی",

@@ -32,7 +32,7 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
   const [brands, setBrands] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [form, setForm] = useState<any>({
-    name: "", description: "", price: 0, discount_price: "", stock: 10, unit: "pack", category: 1, brand: "", sku: "", tag: "", badge: "", is_featured: false,
+    name: "", description: "", price: 0, wholesale_price: "", discount_price: "", stock: 10, unit: "pack", category: 1, brand: "", sku: "", tag: "", badge: "", is_featured: false,
   });
 
   // ادمین جدید - فقط برای مدیر کل
@@ -90,13 +90,13 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
   useEffect(() => { if (tab === "orders" || tab === "sales") loadOrders(); if (tab === "wholesale") loadWholesale(); if (tab === "dashboard") loadStats(); if (tab === "admins") loadAdmins(); }, [tab, statusFilter]);
 
   const resetForm = () => {
-    setForm({ name: "", description: "", price: 0, discount_price: "", stock: 10, unit: "pack", category: categories[0]?.id || 1, brand: "", sku: "", tag: "", badge: "", is_featured: false });
+    setForm({ name: "", description: "", price: 0, wholesale_price: "", discount_price: "", stock: 10, unit: "pack", category: categories[0]?.id || 1, brand: "", sku: "", tag: "", badge: "", is_featured: false });
     setImageFile(null); setImagePreview(null); setHasDiscount(false);
   };
   const openAdd = () => { resetForm(); setEditing(null); setIsAdding(true); };
   const openEdit = (p: any) => {
     setEditing(p);
-    setForm({ name: p.name, description: p.description || "", price: parseFloat(p.price) || 0, discount_price: p.discount_price ? parseFloat(p.discount_price) : "", stock: p.stock ?? 10, unit: p.unit || "pack", category: p.category || categories[0]?.id || 1, brand: p.brand_name || p.brand || "", sku: p.sku || "", tag: p.tag || "", badge: p.badge || "", is_featured: p.is_featured || false });
+    setForm({ name: p.name, description: p.description || "", price: parseFloat(p.price) || 0, wholesale_price: p.wholesale_price ? parseFloat(p.wholesale_price) : "", discount_price: p.discount_price ? parseFloat(p.discount_price) : "", stock: p.stock ?? 10, unit: p.unit || "pack", category: p.category || categories[0]?.id || 1, brand: p.brand_name || p.brand || "", sku: p.sku || "", tag: p.tag || "", badge: p.badge || "", is_featured: p.is_featured || false });
     setHasDiscount(!!p.discount_price);
     setImagePreview(p.image || null);
     setImageFile(null);
@@ -119,6 +119,7 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
       if (form.badge) fd.append("badge", form.badge);
       fd.append("is_featured", form.is_featured ? "true" : "false");
       fd.append("available", form.stock > 0 ? "true" : "false");
+      if (form.wholesale_price) fd.append("wholesale_price", String(form.wholesale_price));
       if (hasDiscount && form.discount_price) fd.append("discount_price", String(form.discount_price));
       if (imageFile) fd.append("image", imageFile);
       const url = isAdding ? `${base}/products/` : `${base}/products/${editing.id}/`;
@@ -266,7 +267,7 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
               {products.map((p: any) => (
                 <div key={p.id} className="rounded-3xl bg-white border overflow-hidden">
                   <div className="aspect-[4/3] bg-stone-100"><img src={p.image || `/images/p${p.id}.jpg`} alt={p.name} className="h-full w-full object-cover" /></div>
-                  <div className="p-4"><h4 className="font-bold">{p.name}</h4><p className="text-xs text-stone-500 mt-1">{p.stock} موجود • {formatPrice(p.price)}</p><div className="flex gap-2 mt-3"><button onClick={() => { setEditing(p); setForm({ name: p.name, description: p.description || "", price: p.price, discount_price: p.discount_price || "", stock: p.stock ?? 10, unit: p.unit || "pack", category: p.category || 1, brand: p.brand_name || p.brand || "", sku: p.sku || "", tag: p.tag || "", badge: p.badge || "", is_featured: p.is_featured || false }); setImagePreview(p.image); setIsAdding(false); }} className="flex-1 bg-amber-50 text-amber-700 py-2 rounded-xl text-xs font-bold">ویرایش</button><button onClick={() => handleDelete(p.id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-xs font-bold">حذف</button></div></div>
+                  <div className="p-4"><h4 className="font-bold">{p.name}</h4><p className="text-xs text-stone-500 mt-1">{p.stock} موجود • {formatPrice(p.price)}</p><div className="flex gap-2 mt-3"><button onClick={() => { setEditing(p); setForm({ name: p.name, description: p.description || "", price: p.price, wholesale_price: p.wholesale_price || "", discount_price: p.discount_price || "", stock: p.stock ?? 10, unit: p.unit || "pack", category: p.category || 1, brand: p.brand_name || p.brand || "", sku: p.sku || "", tag: p.tag || "", badge: p.badge || "", is_featured: p.is_featured || false }); setImagePreview(p.image); setIsAdding(false); }} className="flex-1 bg-amber-50 text-amber-700 py-2 rounded-xl text-xs font-bold">ویرایش</button><button onClick={() => handleDelete(p.id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-xs font-bold">حذف</button></div></div>
                 </div>
               ))}
             </div>
@@ -299,9 +300,10 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
                   <input type="file" accept="image/*" onChange={handleImageChange} className="mt-4 block w-full text-sm" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="نام *" className="rounded-xl border px-4 py-3 text-sm" />
                 <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} placeholder="قیمت *" className="rounded-xl border px-4 py-3 text-sm" />
+                <input type="number" value={form.wholesale_price} onChange={(e) => setForm({ ...form, wholesale_price: e.target.value })} placeholder="قیمت عمده" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} placeholder="موجودی" className="rounded-xl border px-4 py-3 text-sm" />
