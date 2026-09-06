@@ -83,7 +83,7 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     """
     ثبت‌نام کاربر جدید.
-    فیلدها: username, email, password, password2, first_name, last_name, phone
+    فیلدها: username, email, password, password2, first_name, last_name, phone, address
     """
 
     password = serializers.CharField(
@@ -91,6 +91,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     )
     password2 = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
     phone = serializers.CharField(required=True, max_length=20, write_only=True)
+    address = serializers.CharField(required=True, allow_blank=False, write_only=True)
 
     class Meta:
         model = User
@@ -102,6 +103,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "phone",
+            "address",
         ]
         extra_kwargs = {
             "email": {"required": False},
@@ -132,6 +134,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # 🐛 FIX: قبلاً password2 را اشتباه استفاده می‌کرد و password در validated_data می‌ماند
         phone = validated_data.pop("phone")
+        address = validated_data.pop("address")
         password = validated_data.pop("password")
         validated_data.pop("password2", None)  # حذف فیلد تکراری
 
@@ -146,7 +149,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         # ساخت پروفایل Customer
         try:
-            Customer.objects.create(user=user, phone=phone)
+            Customer.objects.create(user=user, phone=phone, address=address)
         except Exception as e:
             # اگر به هر دلیلی پروفایل ساخته نشد، کاربر را پاک کن تا دیتابیس کثیف نشود
             user.delete()

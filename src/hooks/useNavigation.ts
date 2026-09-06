@@ -8,6 +8,7 @@ export type Page =
   | "wholesale-request"
   | "admin"
   | "about"
+  | "contact"
   | "order-success"
   | "product-details";
 
@@ -24,6 +25,7 @@ export function useNavigation() {
     if (path === "/wholesale") return "wholesale-request";
     if (path === "/admin") return "admin";
     if (path === "/about") return "about";
+    if (path === "/contact") return "contact";
     if (path === "/success") return "order-success";
     if (path.startsWith("/product/")) return "product-details";
     if (path.startsWith("/my-orders")) return "home";
@@ -50,6 +52,7 @@ export function useNavigation() {
 
   const goAdmin = useCallback(() => { navigate("/admin"); }, [navigate]);
   const goAbout = useCallback(() => { navigate("/about"); }, [navigate]);
+  const goContact = useCallback(() => { navigate("/contact"); }, [navigate]);
   const goRetailCart = useCallback(() => { navigate("/cart"); }, [navigate]);
   const goWholesaleRequest = useCallback(() => { navigate("/wholesale"); }, [navigate]);
 
@@ -89,11 +92,12 @@ export function useNavigation() {
         case "wholesale-request": goWholesaleRequest(); break;
         case "admin": goAdmin(); break;
         case "about": goAbout(); break;
+        case "contact": goContact(); break;
         case "order-success": goOrderSuccess(lastOrderNumber || "ORD-00000000"); break;
         default: goHome();
       }
     },
-    [goHome, goShop, goRetailCart, goWholesaleRequest, goAdmin, goAbout, goOrderSuccess, lastOrderNumber]
+    [goHome, goShop, goRetailCart, goWholesaleRequest, goAdmin, goAbout, goContact, goOrderSuccess, lastOrderNumber]
   );
 
   return {
@@ -107,6 +111,7 @@ export function useNavigation() {
     goShop,
     goAdmin,
     goAbout,
+    goContact,
     goRetailCart,
     goWholesaleRequest,
     goProductDetails,

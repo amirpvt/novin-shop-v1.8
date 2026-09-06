@@ -38,11 +38,17 @@ type VisitorRow = {
 
 type RetailOrder = {
   id: number;
+  user?: number | null;
   order_number: string;
   name: string;
+  phone?: string;
+  address?: string;
+  message?: string;
   total_amount: number | string;
   order_status: string;
   created_at: string;
+  items?: VisitorOrderItem[];
+  commission?: { visitor?: number; amount: number | string; percentage: number | string; is_paid: boolean } | null;
 };
 
 type WholesaleReqItem = {
@@ -530,14 +536,60 @@ export default function OwnerDashboard() {
         unpaid: Number(data?.unpaid_commission ?? 0),
       });
 
+      const localRetailOrders = retail
+        .filter((o: any) => Number(o.commission?.visitor || 0) === Number(visitor.visitor_id) || Number(o.user || 0) === Number(visitor.visitor_id))
+        .map((o: any) => ({
+          ...o,
+          commission: o.commission
+            ? {
+                amount: o.commission.amount ?? 0,
+                percentage: o.commission.percentage ?? 0,
+                is_paid: !!o.commission.is_paid,
+              }
+            : undefined,
+        } as VisitorOrder));
+
+      const retailCommissions = commissions.filter((c: any) => {
+        const saleType = String(c.sale_type || "").toLowerCase();
+        const orderNumber = String(c.order_number || "").toUpperCase();
+        // سفارش خرده را با چند حالت تشخیص می‌دهیم تا با داده‌های قدیمی هم سازگار باشد:
+        // 1) commission.order دارد  2) شماره ORD دارد  3) صراحتاً عمده نیست
+        return Boolean(c.order) || orderNumber.startsWith("ORD-") || (saleType !== "wholesale" && !Boolean(c.wholesale_request) && !orderNumber.startsWith("WHS-"));
+      });
+
       const detailed = await Promise.all(
-        commissions.map(async (c: any) => {
+        retailCommissions.map(async (c: any) => {
           const meta = {
             amount: c.amount ?? 0,
             percentage: c.percentage ?? 0,
             is_paid: !!c.is_paid,
           };
-          // تلاش برای دریافت جزئیات کامل سفارش (شامل تصویر محصولات)
+          // اول از لیست کامل سفارش‌های مدیرکل استفاده کن تا اقلام سفارش حتماً نمایش داده شود
+          const localOrder = retail.find((o: any) =>
+            Number(o.id) === Number(c.order) || String(o.order_number) === String(c.order_number)
+          );
+          if (localOrder) {
+            return {
+              ...localOrder,
+              commission: meta,
+              created_at: localOrder.created_at || c.created_at || "",
+            } as VisitorOrder;
+          }
+
+          // سپس از خود API پورسانت استفاده کن، چون حالا اقلام سفارش را هم برمی‌گرداند
+          if (Array.isArray(c.items) && c.items.length > 0) {
+            return {
+              order_number: c.order_number ?? "—",
+              name: "سفارش ویزیتوری",
+              total_amount: c.order_total ?? 0,
+              order_status: "CONFIRMED",
+              created_at: c.created_at ?? "",
+              items: c.items,
+              commission: meta,
+            } as VisitorOrder;
+          }
+
+          // تلاش نهایی برای دریافت جزئیات کامل سفارش از پیگیری عمومی
           try {
             const res = await fetch(`${API_BASE}/orders/track/${c.order_number ?? c.order}/`);
             if (res.ok) {
@@ -565,8 +617,18 @@ export default function OwnerDashboard() {
         })
       );
 
-      detailed.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      setVisitorOrders(detailed);
+      const mergedByOrderNumber = new Map<string, VisitorOrder>();
+      [...localRetailOrders, ...detailed].forEach((order) => {
+        const key = String(order.order_number || order.id || Math.random());
+        const existing = mergedByOrderNumber.get(key);
+        // نسخه‌ای که اقلام بیشتری دارد نگه داشته شود
+        if (!existing || (order.items?.length || 0) > (existing.items?.length || 0)) {
+          mergedByOrderNumber.set(key, order);
+        }
+      });
+      const merged = Array.from(mergedByOrderNumber.values());
+      merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setVisitorOrders(merged);
     } catch {
       setVisitorOrders([]);
     } finally {
@@ -602,6 +664,33 @@ export default function OwnerDashboard() {
       .slice()
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [wholesale, selected]);
+
+  const visitorItemSummary = useMemo(() => {
+    const map = new Map<string, { name: string; image?: string; retailQty: number; wholesaleQty: number; amount: number }>();
+
+    visitorOrders.forEach((order) => {
+      (order.items || []).forEach((item) => {
+        const key = item.product_name || String(item.product || item.id);
+        const current = map.get(key) || { name: item.product_name || "محصول", image: item.product_image, retailQty: 0, wholesaleQty: 0, amount: 0 };
+        current.image = current.image || item.product_image;
+        current.retailQty += Number(item.quantity || 0);
+        current.amount += Number(item.subtotal || 0);
+        map.set(key, current);
+      });
+    });
+
+    visitorWholesale.forEach((request) => {
+      (request.items || []).forEach((item) => {
+        const key = item.product_name || String(item.id);
+        const current = map.get(key) || { name: item.product_name || "محصول", image: item.product_image, retailQty: 0, wholesaleQty: 0, amount: 0 };
+        current.image = current.image || item.product_image;
+        current.wholesaleQty += Number(item.quantity || 0);
+        map.set(key, current);
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => (b.retailQty + b.wholesaleQty) - (a.retailQty + a.wholesaleQty));
+  }, [visitorOrders, visitorWholesale]);
 
   const visitSegments = [
     { label: "در انتظار", value: visits.pending || 0, color: "#f59e0b" },
@@ -672,11 +761,18 @@ export default function OwnerDashboard() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
-              <p className="text-[10px] font-bold text-stone-400">فروش امروز</p>
+              <p className="text-[10px] font-bold text-stone-400">فروش جزئی امروز</p>
               <p className="mt-1 text-xl font-black text-emerald-300">
-                {loading ? "…" : `${compact(stats.today_sales)}`}
+                {loading ? "…" : `${compact(todayRetailSales)}`}
+                <span className="mr-1 text-[10px] font-bold text-stone-400">تومان</span>
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
+              <p className="text-[10px] font-bold text-stone-400">فروش عمده امروز</p>
+              <p className="mt-1 text-xl font-black text-amber-300">
+                {loading ? "…" : `${compact(todayWholesaleSales)}`}
                 <span className="mr-1 text-[10px] font-bold text-stone-400">تومان</span>
               </p>
             </div>
@@ -693,17 +789,27 @@ export default function OwnerDashboard() {
       </div>
 
       {/* ─── KPI Grid ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-7">
         {loading ? (
-          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[132px]" />)
+          Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-[132px]" />)
         ) : (
           <>
             <KpiCard
-              title="فروش امروز"
-              value={compact(stats.today_sales)}
+              title="فروش جزئی امروز"
+              value={compact(todayRetailSales)}
               unit="تومان"
-              hint="برای مشاهده کلیک کنید"
+              hint={`${nf(todayRetailOrders.length)} سفارش · مشاهده`}
               tone="bg-emerald-50 text-emerald-600" glow="bg-emerald-300"
+              onClick={() => openDashboardModal("todaySales")}
+            >
+              <WalletIcon />
+            </KpiCard>
+            <KpiCard
+              title="فروش عمده امروز"
+              value={compact(todayWholesaleSales)}
+              unit="تومان"
+              hint={`${nf(todayWholesaleOrders.length)} درخواست · مشاهده`}
+              tone="bg-amber-50 text-amber-600" glow="bg-amber-300"
               onClick={() => openDashboardModal("todaySales")}
             >
               <WalletIcon />
@@ -1308,6 +1414,47 @@ export default function OwnerDashboard() {
               </div>
             </div>
 
+            {/* ── Visitor ordered items summary ── */}
+            <div className="border-b border-stone-200 bg-cream-50 px-5 py-4 sm:px-6">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black text-stone-900">جزئیات اقلام ثبت‌شده توسط ویزیتور</p>
+                  <p className="mt-1 text-[10px] font-bold text-stone-400">
+                    خلاصه محصولات سفارش‌های خرده و عمده این ویزیتور
+                  </p>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black text-stone-500 shadow-sm">
+                  {nf(visitorItemSummary.length)} قلم محصول
+                </span>
+              </div>
+              {ordersLoading ? (
+                <Skeleton className="h-20" />
+              ) : visitorItemSummary.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-stone-200 bg-white p-4 text-center text-[10px] font-bold text-stone-400">
+                  هنوز اقلامی برای سفارش‌های این ویزیتور ثبت نشده است
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {visitorItemSummary.slice(0, 8).map((item) => (
+                    <div key={item.name} className="flex items-center gap-3 rounded-2xl border border-stone-100 bg-white p-2.5 shadow-sm">
+                      <ProductThumb src={item.image} alt={item.name} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-black text-stone-900">{item.name}</p>
+                        <p className="mt-1 text-[10px] font-bold text-stone-500">
+                          خرده: {nf(item.retailQty)} · عمده: {nf(item.wholesaleQty)}
+                        </p>
+                      </div>
+                      {item.amount > 0 && (
+                        <span className="shrink-0 rounded-xl bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700">
+                          {compact(item.amount)} تومان
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* ── Tabs: خرده / عمده ── */}
             <div className="flex items-center gap-2 border-b border-stone-200 bg-white px-5 py-3 sm:px-6">
               <button
@@ -1356,19 +1503,22 @@ export default function OwnerDashboard() {
                       className="overflow-hidden rounded-3xl border border-stone-200 bg-white"
                     >
                       {/* order top */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 bg-stone-50/70 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 bg-gradient-to-l from-emerald-600 via-teal-600 to-sky-700 px-4 py-3 text-white">
                         <div className="flex items-center gap-2.5">
-                          <span className="rounded-xl bg-stone-900 px-3 py-1.5 font-mono text-[11px] font-black text-white">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-[11px] font-black text-emerald-700 ring-2 ring-white/40">
+                            {nf(i + 1)}
+                          </span>
+                          <span className="rounded-xl bg-white/15 px-3 py-1.5 font-mono text-[11px] font-black text-white ring-1 ring-white/20">
                             {o.order_number}
                           </span>
-                          <span className="text-[10px] font-bold text-stone-500">
+                          <span className="text-[10px] font-bold text-white/80">
                             {fmtDate(o.created_at)} · {relTime(o.created_at)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-black text-stone-900">
+                          <span className="text-sm font-black text-white">
                             {nf(o.total_amount)}
-                            <span className="mr-1 text-[9px] font-bold text-stone-400">تومان</span>
+                            <span className="mr-1 text-[9px] font-bold text-white/70">تومان</span>
                           </span>
                           <span
                             className={`rounded-full border px-2.5 py-1 text-[9px] font-black ${st.cls}`}
@@ -1450,7 +1600,7 @@ export default function OwnerDashboard() {
                   </p>
                 </div>
               ) : (
-                visitorWholesale.map((w) => {
+                visitorWholesale.map((w, i) => {
                   const st = WHOLESALE_STATUS[w.status] ?? {
                     label: w.status,
                     cls: "bg-stone-100 text-stone-700 border-stone-200",
@@ -1460,16 +1610,19 @@ export default function OwnerDashboard() {
                       key={w.id}
                       className="overflow-hidden rounded-3xl border border-stone-200 bg-white"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 bg-amber-50/60 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-gradient-to-l from-amber-500 via-orange-500 to-red-600 px-4 py-3 text-white">
                         <div className="flex items-center gap-2.5">
-                          <span className="rounded-xl bg-stone-900 px-3 py-1.5 font-mono text-[11px] font-black text-white">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-[11px] font-black text-orange-700 ring-2 ring-white/40">
+                            {nf(i + 1)}
+                          </span>
+                          <span className="rounded-xl bg-white/15 px-3 py-1.5 font-mono text-[11px] font-black text-white ring-1 ring-white/20">
                             {w.request_number}
                           </span>
-                          <span className="text-[10px] font-bold text-stone-500">
+                          <span className="text-[10px] font-bold text-white/80">
                             {fmtDate(w.created_at)} · {relTime(w.created_at)}
                           </span>
                           {Number(w.total_amount) > 0 && (
-                            <span className="rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700">
+                            <span className="rounded-lg border border-white/30 bg-white/15 px-2 py-1 text-[10px] font-black text-white">
                               {nf(Number(w.total_amount) || 0)} تومان
                             </span>
                           )}

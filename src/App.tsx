@@ -32,6 +32,7 @@ export default function App() {
     goShop,
     goAdmin,
     goAbout,
+    goContact,
     goRetailCart,
     goWholesaleRequest,
     goProductDetails,
@@ -55,6 +56,8 @@ export default function App() {
   const { user, login, logout } = useAuth();
 
   const [authOpen, setAuthOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState("login");
+  const [authCheckoutMode, setAuthCheckoutMode] = useState(false);
 
   // ✅ لاگین خودکار بر اساس نقش - فقط همین بخش تغییر کرده
   const handleLogin = (newUser: any) => {
@@ -76,8 +79,8 @@ export default function App() {
         // ویزیتور -> /dashboard/visitor/today (یا /visitor)
         window.location.href = "/dashboard/visitor/today";
       } else {
-        // مشتری -> صفحه اصلی /
-        window.location.href = "/";
+        // مشتری: اگر ثبت‌نام برای خرید بوده، بعد از ثبت‌نام به سبد خرید برگردد
+        window.location.href = authCheckoutMode ? "/cart" : "/";
       }
     }, 300);
   };
@@ -90,7 +93,9 @@ export default function App() {
 
   const handleRetailCheckout = async () => {
     if (!user) {
-      showToast("برای ثبت سفارش ابتدا وارد شوید");
+      showToast("برای ثبت سفارش ابتدا ثبت‌نام کنید و آدرس تحویل را وارد کنید");
+      setAuthInitialTab("register");
+      setAuthCheckoutMode(true);
       setAuthOpen(true);
       return;
     }
@@ -102,8 +107,10 @@ export default function App() {
       }
       const order = await createOrder({
         name: user?.name || user?.username || "مهمان",
-        phone: user?.phone || "09120000000",
-        items: cartItems.map((item: any) => ({
+        phone: user?.phone || user?.customer?.phone || "09120000000",
+        address: user?.customer?.address || "",
+        items: cartItems.map((item: any) => ({ 
+
           product_id: Number(item.id),
           quantity: item.qty,
         })),
@@ -118,7 +125,9 @@ export default function App() {
 
   const handleWholesaleSubmit = async (formData: any, items: any[]) => {
     if (!user) {
-      showToast("برای ثبت درخواست عمده ابتدا وارد شوید");
+      showToast("برای ثبت درخواست عمده ابتدا ثبت‌نام کنید و آدرس را وارد کنید");
+      setAuthInitialTab("register");
+      setAuthCheckoutMode(true);
       setAuthOpen(true);
       return;
     }
@@ -134,7 +143,6 @@ export default function App() {
 
   const handleUpdateProducts = () => { showToast("کاتالوگ بروز شد"); };
   const handleUpdateOrders = () => { showToast("وضعیت سفارش بروز شد"); };
-  const scrollToContact = () => { document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" }); };
 
   if (page === "admin") {
     return <AdminPanel products={products} orders={orders} onUpdateProducts={handleUpdateProducts as any} onUpdateOrders={handleUpdateOrders as any} onBack={goHome} />;
@@ -153,8 +161,8 @@ export default function App() {
           onShop={() => goShop(null)}
           onOrder={goWholesaleRequest}
           onAbout={goAbout}
-          onContact={scrollToContact}
-          onOpenAuth={() => setAuthOpen(true)}
+          onContact={goContact}
+          onOpenAuth={() => { setAuthInitialTab("login"); setAuthCheckoutMode(false); setAuthOpen(true); }}
           onOpenAdmin={goAdmin}
           onLogout={handleLogout}
           onOpenCart={goRetailCart}
@@ -181,9 +189,9 @@ export default function App() {
         handleWholesaleSubmit={handleWholesaleSubmit}
       />
 
-      <Footer id="contact" siteName={siteName} onOrder={goWholesaleRequest} onShop={() => goShop(null)} onAbout={goAbout} onContact={scrollToContact} />
+      <Footer id="contact" siteName={siteName} onOrder={goWholesaleRequest} onShop={() => goShop(null)} onAbout={goAbout} onContact={goContact} />
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onLogin={handleLogin} />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onLogin={handleLogin} initialTab={authInitialTab as any} checkoutMode={authCheckoutMode} />
 
       {toast && (
         <div className="fixed bottom-8 left-1/2 z-[150] -translate-x-1/2 rounded-2xl bg-stone-900 px-6 py-3.5 text-sm font-bold text-white shadow-2xl">

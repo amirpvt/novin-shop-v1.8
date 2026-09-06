@@ -154,13 +154,6 @@ export default function MyOrders() {
     });
   }, [unified, tab, search]);
 
-  const stats = useMemo(() => ({
-    total: unified.length,
-    retail: orders.length,
-    wholesale: wholesale.length,
-    active: unified.filter((o) => !["DELIVERED", "CANCELLED", "CONVERTED", "REJECTED"].includes(o.status)).length,
-    completed: unified.filter((o) => ["DELIVERED", "CONVERTED"].includes(o.status)).length,
-  }), [unified, orders, wholesale]);
 
   const doTracking = async () => {
     const code = trackingNumber.trim().toUpperCase();
@@ -201,14 +194,6 @@ export default function MyOrders() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Kpi title="کل سفارش‌ها" value={stats.total} />
-          <Kpi title="سفارش خرده" value={stats.retail} tone="blue" />
-          <Kpi title="درخواست عمده" value={stats.wholesale} tone="violet" />
-          <Kpi title="در جریان" value={stats.active} tone="amber" />
-          <Kpi title="تکمیل شده" value={stats.completed} tone="emerald" />
-        </div>
-
         <div className="rounded-[2rem] border border-stone-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex-1">
@@ -246,7 +231,6 @@ export default function MyOrders() {
               <button key={t.id} onClick={() => setTab(t.id)} className={`rounded-xl px-5 py-2.5 transition ${tab === t.id ? "bg-stone-900 text-white shadow" : "text-stone-500 hover:text-stone-900"}`}>{t.label}</button>
             ))}
           </div>
-          <p className="px-2 text-[11px] font-bold text-stone-400">بروزرسانی خودکار هر ۳۰ ثانیه</p>
         </div>
 
         {loading ? (
@@ -266,9 +250,68 @@ export default function MyOrders() {
   );
 }
 
-function Kpi({ title, value, tone = "stone" }: { title: string; value: number; tone?: string }) {
-  const map: any = { stone: "text-stone-900", blue: "text-blue-700", violet: "text-violet-700", amber: "text-amber-700", emerald: "text-emerald-700" };
-  return <div className="rounded-3xl border bg-white p-5 shadow-sm"><p className="text-[10px] font-black text-stone-400">{title}</p><p className={`mt-2 text-2xl font-black ${map[tone]}`}>{value.toLocaleString("en-US")}</p></div>;
+
+function TruckSvg() {
+  return (
+    <svg viewBox="0 0 170 86" className="h-20 w-44 drop-shadow-2xl" aria-hidden="true">
+      <defs>
+        <linearGradient id="redVanBody" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0" stopColor="#991b1b" />
+          <stop offset="0.48" stopColor="#dc2626" />
+          <stop offset="1" stopColor="#ef4444" />
+        </linearGradient>
+        <linearGradient id="redVanShine" x1="0" x2="1">
+          <stop offset="0" stopColor="#fecaca" />
+          <stop offset="1" stopColor="#f87171" />
+        </linearGradient>
+        <linearGradient id="exhaustFire" x1="0" x2="1">
+          <stop offset="0" stopColor="#fef3c7" />
+          <stop offset="0.45" stopColor="#fb923c" />
+          <stop offset="1" stopColor="#dc2626" />
+        </linearGradient>
+        <filter id="luxGlow" x="-50%" y="-50%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="2.2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* ون قرمز لوکس، سر خودرو به سمت چپ و پشت مستطیلی */}
+      <g>
+        <path d="M25 43c2-12 8-19 19-19h20v40H27c-6 0-9-5-7-11Z" fill="url(#redVanBody)" />
+        <rect x="62" y="25" width="60" height="39" rx="3" fill="url(#redVanBody)" />
+        <rect x="66" y="28" width="52" height="31" rx="7" fill="#ffffff" opacity=".98" />
+        <image href="/images/logo.png" x="68" y="30" width="48" height="27" preserveAspectRatio="xMidYMid meet" />
+        <path d="M68 30h48v6H68z" fill="#fecaca" opacity=".16" />
+        <path d="M38 30h19v14H30c1-7 4-12 8-14Z" fill="#bfdbfe" opacity=".92" />
+        <path d="M63 29h54" stroke="url(#redVanShine)" strokeWidth="2.5" strokeLinecap="round" opacity=".85" />
+        <path d="M25 55h94" stroke="#7f1d1d" strokeWidth="3" strokeLinecap="round" opacity=".45" />
+        <rect x="121" y="51" width="10" height="6" rx="2" fill="#451a03" />
+        <circle cx="44" cy="66" r="9" fill="#020617" />
+        <circle cx="99" cy="66" r="9" fill="#020617" />
+        <circle cx="44" cy="66" r="4" fill="#f8fafc" />
+        <circle cx="99" cy="66" r="4" fill="#f8fafc" />
+        <path d="M17 67h18M109 67h19" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" opacity=".36" />
+        <circle cx="27" cy="44" r="2.2" fill="#fde68a" filter="url(#luxGlow)" />
+        <path d="M23 48c-2 2-3 4-3 7" stroke="#f8fafc" strokeWidth="2" strokeLinecap="round" opacity=".75" />
+      </g>
+
+      {/* آتش اگزوز پشت ون */}
+      <g filter="url(#luxGlow)">
+        <path d="M131 54c12-9 23-7 34-1-8 3-15 8-21 13-3-6-8-9-13-12Z" fill="url(#exhaustFire)">
+          <animate attributeName="d" values="M131 54c12-9 23-7 34-1-8 3-15 8-21 13-3-6-8-9-13-12Z;M131 54c15-12 27-6 38-3-11 5-17 10-25 16-2-7-7-10-13-13Z;M131 54c12-9 23-7 34-1-8 3-15 8-21 13-3-6-8-9-13-12Z" dur=".55s" repeatCount="indefinite" />
+        </path>
+        <path d="M133 55c8-5 15-4 24-1-6 3-10 6-14 10-2-4-5-6-10-9Z" fill="#fef3c7" opacity=".95">
+          <animate attributeName="opacity" values=".95;.55;.95" dur=".45s" repeatCount="indefinite" />
+        </path>
+        <path d="M134 51c8-4 15-2 23 2" stroke="#fb923c" strokeWidth="4" strokeLinecap="round" opacity=".75">
+          <animate attributeName="opacity" values=".75;.35;.75" dur=".7s" repeatCount="indefinite" />
+        </path>
+      </g>
+    </svg>
+  );
 }
 
 function StatusTimeline({ type, status, compact = false }: { type: OrderType; status: string; compact?: boolean }) {
@@ -277,28 +320,64 @@ function StatusTimeline({ type, status, compact = false }: { type: OrderType; st
   const isBad = ["CANCELLED", "REJECTED"].includes(status);
   const current = statusMeta(type, status);
   return (
-    <div className={`${compact ? "mt-4" : "mt-5"} rounded-2xl border bg-stone-50 p-4`}>
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <div className={`${compact ? "mt-4" : "mt-5"} rounded-[1.5rem] border border-stone-200 bg-gradient-to-b from-white to-stone-50 p-4 shadow-sm`}>
+      <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black text-stone-400">وضعیت فعلی</p>
           <p className="mt-1 text-sm font-black text-stone-900">{current.label}</p>
         </div>
         <span className={`rounded-full border px-3 py-1 text-[10px] font-black ${current.color}`}>{type === "retail" ? "خرده" : "عمده"}</span>
       </div>
-      <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
+
+      <div className={`relative grid gap-0 overflow-visible ${compact ? "px-12 pt-24" : "px-14 pt-24"}`} style={{ gridTemplateColumns: `repeat(${list.length}, minmax(0, 1fr))` }}>
         {list.map((s, idx) => {
           const active = s.value === status;
           const done = !isBad && idx <= currentIndex;
+          const passedLine = !isBad && idx < currentIndex;
           return (
-            <div key={s.value} className={`min-w-[125px] flex-1 rounded-2xl border p-3 ${active ? s.color : done ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-stone-100 bg-white text-stone-400"}`}>
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-black text-white ${active ? s.dot : done ? "bg-emerald-500" : "bg-stone-300"}`}>{done ? "✓" : idx + 1}</div>
-              <p className="mt-3 text-[11px] font-black leading-5">{s.label}</p>
-              {!compact && <p className="mt-1 text-[10px] font-bold leading-5 opacity-70">{s.desc}</p>}
+            <div key={s.value} className="relative min-w-0 px-1 text-center">
+              {idx < list.length - 1 && (
+                <div className={`absolute right-1/2 top-[16px] h-1.5 w-full rounded-full ${passedLine ? "bg-emerald-400" : isBad && idx < currentIndex ? "bg-red-300" : "bg-stone-200"}`} />
+              )}
+              {active && (
+                <div className="absolute -top-24 left-1/2 z-20 -translate-x-1/2">
+                  <TruckSvg />
+                </div>
+              )}
+              <div className={`relative z-10 mx-auto flex h-9 w-9 items-center justify-center rounded-full border-4 bg-white shadow-md ${active ? "border-amber-500 ring-4 ring-amber-100" : done ? "border-emerald-500" : "border-stone-300"}`}>
+                <span className={`h-3 w-3 rounded-full ${active ? "bg-amber-500" : done ? "bg-emerald-500" : "bg-stone-300"}`} />
+              </div>
+              <div className={`mt-3 rounded-2xl border px-2 py-2 ${active ? s.color + " shadow-sm" : done ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-stone-100 bg-white text-stone-400"}`}>
+                <p className={`${compact ? "text-[9px]" : "text-[11px]"} font-black leading-5`}>{s.label}</p>
+                {!compact && <p className="mt-1 text-[10px] font-bold leading-5 opacity-70">{s.desc}</p>}
+              </div>
             </div>
           );
         })}
       </div>
-      <p className="mt-3 text-[11px] font-bold text-stone-500">این مسیر پیگیری مستقیماً از وضعیت ثبت‌شده در پنل مدیریت کل نمایش داده می‌شود.</p>
+    </div>
+  );
+}
+
+function ProductPreviewStrip({ items }: { items: any[] }) {
+  const preview = (items || []).slice(0, 4);
+  if (!preview.length) {
+    return <div className="mt-4 rounded-2xl border border-dashed bg-stone-50 p-4 text-center text-[11px] font-bold text-stone-400">تصویر محصولی برای این سفارش ثبت نشده است</div>;
+  }
+  return (
+    <div className="mt-4 rounded-2xl border bg-stone-50 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-[10px] font-black text-stone-400">تصاویر محصولات</p>
+        <p className="text-[10px] font-bold text-stone-400">{items.length.toLocaleString("en-US")} قلم</p>
+      </div>
+      <div className="flex items-center gap-2 overflow-hidden">
+        {preview.map((item: any, idx: number) => (
+          <div key={item.id || idx} className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border bg-white shadow-sm">
+            <img src={imgSrc(item.product_image)} alt={item.product_name || "محصول"} className="h-full w-full object-cover transition group-hover:scale-110" />
+          </div>
+        ))}
+        {items.length > preview.length && <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border bg-white text-xs font-black text-stone-500">+{items.length - preview.length}</div>}
+      </div>
     </div>
   );
 }
@@ -319,6 +398,7 @@ function OrderCard({ order, onOpen }: { order: UnifiedOrder; onOpen: () => void 
           </div>
           <div className="text-left"><p className="text-[10px] font-black text-stone-400">تاریخ ثبت</p><p className="mt-1 text-xs font-bold text-stone-700">{dateFa(order.created_at)}</p></div>
         </div>
+        <ProductPreviewStrip items={order.items} />
         <StatusTimeline type={order.type} status={order.status} compact />
         <div className="mt-4 flex items-center justify-between rounded-2xl bg-stone-50 p-3">
           <span className="text-xs font-bold text-stone-500">{order.items.length.toLocaleString("en-US")} قلم کالا</span>

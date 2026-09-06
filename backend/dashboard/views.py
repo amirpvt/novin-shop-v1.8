@@ -96,8 +96,23 @@ class OwnerDashboardStats(APIView):
         # فروش امروز
         today_sales = Order.objects.filter(created_at__date=today).aggregate(s=Sum('total_amount'))['s'] or 0
         today_orders = Order.objects.filter(created_at__date=today).count()
-        # ویزیتورهای فعال (کسانی که امروز برنامه بازدید دارند)
-        active_visitors = VisitSchedule.objects.filter(date=today).values('visitor').distinct().count()
+        # ویزیتورهای فعال: فقط برنامه بازدید نیست؛ سفارش‌های خرده/عمده امروز ویزیتورها هم فعالیت محسوب می‌شود
+        scheduled_visitor_ids = set(
+            VisitSchedule.objects.filter(date=today).values_list('visitor_id', flat=True)
+        )
+        retail_commission_visitor_ids = set(
+            Commission.objects.filter(order__created_at__date=today, order__isnull=False)
+            .values_list('visitor_id', flat=True)
+        )
+        retail_user_visitor_ids = set(
+            Order.objects.filter(created_at__date=today, user__customer_profile__role='visitor')
+            .values_list('user_id', flat=True)
+        )
+        wholesale_order_visitor_ids = set(
+            WholesaleRequest.objects.filter(created_at__date=today, user__customer_profile__role='visitor')
+            .values_list('user_id', flat=True)
+        )
+        active_visitors = len(scheduled_visitor_ids | retail_commission_visitor_ids | retail_user_visitor_ids | wholesale_order_visitor_ids)
         # هشدار موجودی
         low_stock = Product.objects.filter(stock__lte=20, stock__gt=0).count()
         out_of_stock = Product.objects.filter(stock=0).count()
@@ -105,12 +120,22 @@ class OwnerDashboardStats(APIView):
         debtors_count = CustomerDebt.objects.filter(total_debt__gt=0).count()
         total_debt = CustomerDebt.objects.aggregate(s=Sum('total_debt'))['s'] or 0
 
-        # وضعیت ویزیتورها امروز
+        # وضعیت بازدیدهای امروز
+        # اگر برای ویزیتور برنامه بازدید ثبت نشده باشد ولی همان روز سفارش خرده/عمده ثبت کرده باشد، در بخش «سفارش ثبت شد» دیده می‌شود.
         today_visits = VisitSchedule.objects.filter(date=today)
+        scheduled_ordered = today_visits.filter(status='ordered').count()
+        retail_orders_by_visitors = (
+            Order.objects
+            .filter(created_at__date=today)
+            .filter(Q(commission__visitor__customer_profile__role='visitor') | Q(user__customer_profile__role='visitor'))
+            .distinct()
+            .count()
+        )
+        wholesale_orders_by_visitors = WholesaleRequest.objects.filter(created_at__date=today, user__customer_profile__role='visitor').count()
         visits_status = {
             'pending': today_visits.filter(status='pending').count(),
-            'visited': today_visits.filter(status='visited').count(),
-            'ordered': today_visits.filter(status='ordered').count(),
+            'visited': today_visits.filter(status__in=['visited', 'no_order', 'postponed']).count(),
+            'ordered': max(scheduled_ordered, retail_orders_by_visitors + wholesale_orders_by_visitors),
         }
 
         return Response({
@@ -515,6 +540,9 @@ class AdminOrderCreate(APIView):
                     price = pricing.base_price if pricing.is_active else product.price
                 except ProductPricing.DoesNotExist:
                     price = product.price
+                discount = getattr(product, 'discount_price', None)
+                if discount and discount > 0 and discount < price:
+                    price = discount
 
             qty = item.get('quantity', 1)
             total += price * qty
@@ -698,18 +726,17 @@ class VisitorOrderCreateWithWeight(APIView):
             except:
                 return Response({"error": f"محصول {item['product_id']} یافت نشد"}, status=400)
             
-            # اگر وزن دقیق وارد شده، قیمت بر اساس وزن محاسبه می‌شود
-            # فرض: price بر حسب کیلوگرم است و weight به گرم یا کیلوگرم وارد می‌شود
+            # اگر محصول تخفیف معتبر دارد، قیمت نهایی خرده همان قیمت بعد از تخفیف است
             qty = item.get('quantity', 1)
             weight = item.get('weight')  # وزن دقیق به کیلوگرم
+            discount = getattr(product, 'discount_price', None)
+            price = discount if discount and discount > 0 and discount < product.price else product.price
             if weight:
-                # اگر وزن دارد، مقدار را بر اساس وزن حساب کن (مثلا 0.5 کیلو)
-                price = product.price  # قیمت هر کیلو
                 total += price * float(weight)
             else:
-                total += product.price * qty
+                total += price * qty
 
-            order_items_data.append((product, product.price, qty, weight))
+            order_items_data.append((product, price, qty, weight))
 
         from orders.models import Order, OrderItem
         order = Order.objects.create(
@@ -806,7 +833,13 @@ class VisitorCommissionView(APIView):
         unpaid = qs.filter(is_paid=False).aggregate(s=Sum('amount'))['s'] or 0
         paid = qs.filter(is_paid=True).aggregate(s=Sum('amount'))['s'] or 0
 
-        serializer = CommissionSerializer(qs.select_related('order', 'wholesale_request', 'visitor').order_by('-created_at')[:50], many=True)
+        serializer = CommissionSerializer(
+            qs.select_related('order', 'wholesale_request', 'visitor')
+              .prefetch_related('order__items__product', 'wholesale_request__items__product')
+              .order_by('-created_at')[:50],
+            many=True,
+            context={'request': request}
+        )
         return Response({
             'total_commission': total,
             'unpaid_commission': unpaid,
@@ -847,6 +880,11 @@ class CustomerPriceList(APIView):
                 base = p.price
                 wholesale = p.price * 0.9  # 10% تخفیف فرضی برای عمده
 
+            retail_price = base
+            discount = getattr(p, 'discount_price', None)
+            if discount and discount > 0 and discount < base:
+                retail_price = discount
+
             result.append({
                 'id': p.id,
                 'name': p.name,
@@ -854,7 +892,7 @@ class CustomerPriceList(APIView):
                 'category': p.category.name if p.category else "",
                 'image': p.image.url if p.image and hasattr(p.image, 'url') else f"/images/p{p.id}.jpg",
                 'stock': p.stock,
-                'price': str(base) if not is_wholesale_approved else str(wholesale),
+                'price': str(retail_price) if not is_wholesale_approved else str(wholesale),
                 'base_price': str(base),
                 'wholesale_price': str(wholesale),
                 'is_wholesale_price': is_wholesale_approved,

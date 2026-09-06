@@ -8,6 +8,14 @@ from products.models import Product
 from .models import Order, OrderItem, WholesaleRequest, WholesaleRequestItem
 
 
+def get_effective_retail_price(product):
+    """قیمت نهایی خرید خرده: اگر محصول تخفیف معتبر داشته باشد، قیمت تخفیفی حساب می‌شود."""
+    discount = getattr(product, "discount_price", None)
+    if discount and discount > 0 and discount < product.price:
+        return discount
+    return product.price
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
     subtotal = serializers.SerializerMethodField()
     product_image = serializers.SerializerMethodField()
@@ -48,10 +56,27 @@ class OrderItemInputSerializer(serializers.Serializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    commission = serializers.SerializerMethodField()
+
     class Meta:
         model = Order
-        fields = ["id", "order_number", "name", "phone", "address", "message", "order_status", "total_amount", "items", "created_at", "updated_at"]
-        read_only_fields = ["id", "order_number", "order_status", "total_amount", "created_at", "updated_at"]
+        fields = ["id", "user", "order_number", "name", "phone", "address", "message", "order_status", "total_amount", "items", "commission", "created_at", "updated_at"]
+        read_only_fields = ["id", "user", "order_number", "order_status", "total_amount", "commission", "created_at", "updated_at"]
+
+    def get_commission(self, obj):
+        try:
+            c = obj.commission
+            return {
+                "id": c.id,
+                "visitor": c.visitor_id,
+                "visitor_name": c.visitor.get_full_name() or c.visitor.username,
+                "percentage": c.percentage,
+                "amount": c.amount,
+                "is_paid": c.is_paid,
+                "paid_at": c.paid_at,
+            }
+        except Exception:
+            return None
 
 
 class OrderTrackingSerializer(serializers.ModelSerializer):
@@ -92,8 +117,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         for item in items_data:
             prod = products_by_id[item["product_id"]]
             qty = item["quantity"]
-            total += prod.price * qty
-            order_items.append(OrderItem(order=order, product=prod, product_name=prod.name, price=prod.price, quantity=qty))
+            unit_price = get_effective_retail_price(prod)
+            total += unit_price * qty
+            order_items.append(OrderItem(order=order, product=prod, product_name=prod.name, price=unit_price, quantity=qty))
         OrderItem.objects.bulk_create(order_items)
         order.total_amount = total
         order.save(update_fields=["total_amount"])

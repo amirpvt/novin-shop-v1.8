@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatPrice, type Product } from "../data";
 import { CartIcon } from "./icons";
 import { useRetailCart } from "../context/RetailCartContext";
@@ -10,8 +11,16 @@ type Props = {
 
 export default function ProductCard({ product, onClick, onWholesale }: Props) {
   const { addRetailItem } = useRetailCart();
+  const [added, setAdded] = useState(false);
   const isOutOfStock = product.available === false || (product.stock !== undefined && product.stock <= 0);
   const hasDiscount = product.discount_price && product.discount_price > 0 && product.discount_price < product.price;
+
+  const handleAddToCart = () => {
+    if (isOutOfStock) return;
+    addRetailItem(product);
+    setAdded(true);
+    window.setTimeout(() => setAdded(false), 900);
+  };
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-stone-200 bg-white shadow-sm transition-all duration-500 hover:-translate-y-2 hover:border-stone-400 hover:shadow-2xl">
@@ -82,14 +91,16 @@ export default function ProductCard({ product, onClick, onWholesale }: Props) {
           </div>
           
           <div className="grid grid-cols-5 gap-2">
-            {/* ✅ خرید تکی قرمز - قیمت مشکی می‌مونه */}
             <button
-              onClick={() => !isOutOfStock && addRetailItem(product)}
+              onClick={handleAddToCart}
               disabled={isOutOfStock}
-              className={`col-span-3 flex items-center justify-center gap-2 rounded-2xl py-3.5 text-[11px] font-black shadow-lg transition active:scale-95 ${isOutOfStock ? "bg-stone-200 text-stone-400 cursor-not-allowed shadow-none" : "bg-paprika-600 text-white shadow-paprika-600/20 hover:bg-paprika-700"}`}
+              className={`relative col-span-3 flex items-center justify-center gap-2 overflow-hidden rounded-2xl py-3.5 text-[11px] font-black shadow-lg transition active:scale-95 ${isOutOfStock ? "bg-stone-200 text-stone-400 cursor-not-allowed shadow-none" : added ? "bg-emerald-600 text-white shadow-emerald-600/25 scale-[1.02]" : "bg-paprika-600 text-white shadow-paprika-600/20 hover:bg-paprika-700"}`}
             >
-              <CartIcon className="h-4 w-4" />
-              {isOutOfStock ? "ناموجود" : "خرید تکی"}
+              {added && <span className="absolute inset-0 animate-ping rounded-2xl bg-emerald-400/30" />}
+              <span className={`relative flex items-center gap-2 transition ${added ? "-translate-y-0 scale-110" : ""}`}>
+                {added ? <span className="text-base">✓</span> : <CartIcon className="h-4 w-4" />}
+                {isOutOfStock ? "ناموجود" : added ? "به سبد اضافه شد" : "افزودن به سبد خرید"}
+              </span>
             </button>
             <button
               onClick={() => onWholesale(product)}

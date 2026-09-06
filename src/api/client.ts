@@ -71,7 +71,7 @@ export const wholesaleApi = {
 };
 
 export const authApi = {
-  register: (payload: any) => request<ApiAuthResponse>("/auth/register/", { method: "POST", body: JSON.stringify(payload) }),
+  register: (payload: any) => request<ApiAuthResponse>("/auth/register/", { method: "POST", body: JSON.stringify(payload) }).then((data: any) => { tokenStore.set({ access: data.access, refresh: data.refresh }); return data; }),
   login: (username: string, password: string) => request<ApiAuthResponse>("/auth/login/", { method: "POST", body: JSON.stringify({ username, password }) }).then((data: any) => { tokenStore.set({ access: data.access, refresh: data.refresh }); return data; }),
   logout: async () => { try { await request("/auth/logout/", { method: "POST" }, true); } catch {} tokenStore.clear(); },
   getProfile: () => get<ApiUser>("/auth/profile/", undefined, true),

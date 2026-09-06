@@ -5,6 +5,7 @@ import Brands from "../components/Brands";
 import Categories from "../components/Categories";
 import Shop from "../pages/Shop";
 import AboutPage from "../pages/AboutPage";
+import ContactPage from "../pages/ContactPage";
 import RetailCart from "../pages/RetailCart";
 import WholesaleRequest from "../pages/WholesaleRequest";
 import ProductDetails from "../pages/ProductDetails";
@@ -37,6 +38,7 @@ export default function AppRouter({
       <Route path="/cart" element={<RetailCart onCheckout={handleRetailCheckout} onBack={() => window.history.back()} />} />
       <Route path="/wholesale" element={<WholesaleRequest products={products} onBack={() => window.history.back()} onSubmit={handleWholesaleSubmit} />} />
       <Route path="/about" element={<AboutPage />} />
+      <Route path="/contact" element={<ContactPage />} />
       <Route path="/success" element={<OrderSuccess orderNumber={lastOrderNumber} onBack={() => window.history.back()} />} />
       <Route path="/order-success/:orderNumber" element={<OrderSuccess orderNumber={lastOrderNumber} onBack={() => window.history.back()} />} />
       {/* Payment */}

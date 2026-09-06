@@ -14,7 +14,10 @@ export type User = {
 export type CartItem = {
   id: number;
   name: string;
-  price: number;
+  price: number; // قیمت نهایی قابل پرداخت؛ اگر تخفیف داشته باشد همین قیمت تخفیفی است
+  original_price?: number;
+  discount_price?: number | null;
+  discount_percent?: number;
   image: string;
   unit: string;
   qty: number;

@@ -7,6 +7,12 @@ type Props = {
   onCheckout: () => void;
 };
 
+const getCartItemEffectivePrice = (item: any) => {
+  const discount = Number(item.discount_price || 0);
+  const price = Number(item.price || 0);
+  return discount > 0 && discount < price ? discount : price;
+};
+
 export default function RetailCart({ onBack, onCheckout }: Props) {
   const {
     retailCart,
@@ -61,7 +67,14 @@ export default function RetailCart({ onBack, onCheckout }: Props) {
                 <div className="flex-1 text-center sm:text-right">
                   <h3 className="text-lg font-bold text-stone-900">{item.name}</h3>
                   <p className="text-sm text-stone-400 mt-1">{item.unit}</p>
-                  <p className="text-paprika-700 font-display text-lg font-bold mt-2">{formatPrice(item.price)}</p>
+                  {getCartItemEffectivePrice(item) < Number(item.original_price || item.price) ? (
+                    <div className="mt-2">
+                      <p className="text-xs font-bold text-stone-400 line-through">{formatPrice(item.original_price || item.price)}</p>
+                      <p className="text-emerald-600 font-display text-lg font-bold">{formatPrice(getCartItemEffectivePrice(item))}</p>
+                    </div>
+                  ) : (
+                    <p className="text-paprika-700 font-display text-lg font-bold mt-2">{formatPrice(getCartItemEffectivePrice(item))}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 bg-stone-50 rounded-2xl p-2 border border-stone-100">
                   <button onClick={() => increaseRetailQuantity(item.id)} className="h-10 w-10 flex items-center justify-center bg-white rounded-xl shadow-sm font-bold text-xl hover:bg-paprika-50 hover:text-paprika-600 transition">+</button>
@@ -70,7 +83,7 @@ export default function RetailCart({ onBack, onCheckout }: Props) {
                 </div>
                 <div className="text-center sm:text-left min-w-[120px]">
                   <p className="text-stone-400 text-xs mb-1">جمع جزئی</p>
-                  <p className="font-display text-xl font-bold text-stone-800">{formatPrice(item.price * item.qty)}</p>
+                  <p className="font-display text-xl font-bold text-stone-800">{formatPrice(getCartItemEffectivePrice(item) * item.qty)}</p>
                 </div>
                 <button onClick={() => removeRetailItem(item.id)} className="p-3 text-stone-400 hover:text-paprika-600 transition"><TrashIcon className="h-6 w-6" /></button>
               </div>

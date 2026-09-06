@@ -16,11 +16,14 @@ export default function ProductDetails({ products: propProducts }: Props) {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [related, setRelated] = useState<Product[]>([]);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imageZoom, setImageZoom] = useState(1);
 
   const { addRetailItem } = useRetailCart();
   const { addWholesaleItem } = useWholesaleRequest();
 
   useEffect(() => {
+    setImagePreviewOpen(false);
     const load = async () => {
       setLoading(true);
       const found = propProducts.find((p) => String(p.id) === String(id));
@@ -50,6 +53,22 @@ export default function ProductDetails({ products: propProducts }: Props) {
     load();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [id, propProducts]);
+
+  useEffect(() => {
+    if (!imagePreviewOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setImagePreviewOpen(false);
+        setImageZoom(1);
+      }
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [imagePreviewOpen]);
 
   if (loading) {
     return (
@@ -81,6 +100,20 @@ export default function ProductDetails({ products: propProducts }: Props) {
   const isOutOfStock = !product.available || (product.stock !== undefined && product.stock <= 0);
   const hasDiscount = product.discount_price && product.discount_price > 0 && product.discount_price < product.price;
 
+  const openImagePreview = () => {
+    setImageZoom(1);
+    setImagePreviewOpen(true);
+  };
+
+  const closeImagePreview = () => {
+    setImagePreviewOpen(false);
+    setImageZoom(1);
+  };
+
+  const changeImageZoom = (amount: number) => {
+    setImageZoom((prev) => Math.min(3, Math.max(1, Number((prev + amount).toFixed(1)))));
+  };
+
   return (
     <div className="min-h-screen bg-cream-50 pt-10 lg:pt-6 pb-20 font-sans text-right" dir="rtl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -102,9 +135,17 @@ export default function ProductDetails({ products: propProducts }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 bg-white rounded-[3rem] border border-stone-200 shadow-xl overflow-hidden p-8 sm:p-12">
           <div className="relative group">
             <div className="absolute inset-0 bg-paprika-600/5 rounded-[2.5rem] blur-2xl group-hover:bg-paprika-600/10 transition-colors" />
-            <div className="relative aspect-square overflow-hidden rounded-[2.5rem] border border-stone-100 shadow-inner bg-stone-50">
+            <button
+              type="button"
+              onClick={openImagePreview}
+              className="relative aspect-square w-full overflow-hidden rounded-[2.5rem] border border-stone-100 shadow-inner bg-stone-50 cursor-zoom-in focus:outline-none focus:ring-4 focus:ring-paprika-500/25"
+              aria-label={`نمایش تصویر ${product.name}`}
+            >
               <img src={product.image} alt={product.name} className={`h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 ${isOutOfStock ? 'grayscale' : ''}`} />
-            </div>
+              <span className="absolute bottom-5 right-5 rounded-full bg-black/55 px-4 py-2 text-xs font-black text-white shadow-lg backdrop-blur-sm opacity-0 transition-opacity group-hover:opacity-100">
+                برای نمایش عکس کلیک کنید
+              </span>
+            </button>
             <div className="absolute top-6 right-6 flex flex-col gap-2">
               {hasDiscount ? (
                 <span className="bg-red-600 text-white px-5 py-2 rounded-full text-sm font-black shadow-lg animate-pulse">%{product.discount_percent} تخفیف</span>
@@ -192,6 +233,83 @@ export default function ProductDetails({ products: propProducts }: Props) {
           </div>
         )}
       </div>
+
+      {imagePreviewOpen && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+          onClick={closeImagePreview}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`تصویر محصول ${product.name}`}
+        >
+          <button
+            type="button"
+            onClick={closeImagePreview}
+            className="absolute left-4 top-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl font-black text-stone-900 shadow-xl transition hover:bg-stone-100 sm:left-8 sm:top-8"
+            aria-label="بستن تصویر"
+          >
+            ×
+          </button>
+
+          <div
+            className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/95 px-3 py-2 shadow-2xl backdrop-blur-sm sm:bottom-8"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => changeImageZoom(-0.2)}
+              disabled={imageZoom <= 1}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-xl font-black text-stone-800 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="کوچک‌نمایی عکس"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={() => setImageZoom(1)}
+              className="min-w-[74px] rounded-full bg-stone-900 px-4 py-2 text-xs font-black text-white transition hover:bg-stone-700"
+            >
+              %{Math.round(imageZoom * 100)}
+            </button>
+            <button
+              type="button"
+              onClick={() => changeImageZoom(0.2)}
+              disabled={imageZoom >= 3}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-xl font-black text-stone-800 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="بزرگ‌نمایی عکس"
+            >
+              +
+            </button>
+          </div>
+
+          <div
+            className="max-h-[86vh] w-full max-w-6xl overflow-auto rounded-[2rem] bg-white p-2 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+            onWheel={(event) => {
+              event.stopPropagation();
+              changeImageZoom(event.deltaY < 0 ? 0.2 : -0.2);
+            }}
+          >
+            <div className="flex min-h-[55vh] items-center justify-center">
+              <img
+                src={product.image}
+                alt={product.name}
+                onDoubleClick={() => setImageZoom((prev) => (prev > 1 ? 1 : 2))}
+                className="block rounded-[1.5rem] object-contain transition-all duration-200"
+                style={{
+                  maxHeight: imageZoom === 1 ? "82vh" : "none",
+                  width: imageZoom === 1 ? "auto" : `${imageZoom * 70}vw`,
+                  maxWidth: imageZoom === 1 ? "100%" : "none",
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="absolute right-4 top-4 rounded-full bg-black/45 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm sm:right-8 sm:top-8">
+            با دکمه‌ها، اسکرول موس یا دوبار کلیک زوم کنید
+          </div>
+        </div>
+      )}
     </div>
   );
 }

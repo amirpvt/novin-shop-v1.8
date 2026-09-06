@@ -115,13 +115,61 @@ class CashCollectionSerializer(serializers.ModelSerializer):
 
 class CommissionSerializer(serializers.ModelSerializer):
     visitor_name = serializers.CharField(source='visitor.username', read_only=True)
-    order_number = serializers.CharField(source='order.order_number', read_only=True)
-    order_total = serializers.DecimalField(source='order.total_amount', max_digits=12, decimal_places=0, read_only=True)
+    order_number = serializers.SerializerMethodField()
+    order_total = serializers.SerializerMethodField()
+    sale_type = serializers.SerializerMethodField()
+    items = serializers.SerializerMethodField()
 
     class Meta:
         model = Commission
-        fields = ['id', 'visitor', 'visitor_name', 'order', 'order_number', 'order_total', 'percentage', 'amount', 'is_paid', 'paid_at', 'created_at']
+        fields = ['id', 'visitor', 'visitor_name', 'order', 'wholesale_request', 'order_number', 'order_total', 'sale_type', 'items', 'percentage', 'amount', 'is_paid', 'paid_at', 'created_at']
         read_only_fields = ['id', 'created_at', 'amount']
+
+    def get_order_number(self, obj):
+        if obj.order_id and obj.order:
+            return obj.order.order_number
+        if obj.wholesale_request_id and obj.wholesale_request:
+            return obj.wholesale_request.request_number
+        return ""
+
+    def get_order_total(self, obj):
+        if obj.order_id and obj.order:
+            return obj.order.total_amount
+        if obj.wholesale_request_id and obj.wholesale_request:
+            return obj.wholesale_request.total_amount
+        return 0
+
+    def get_sale_type(self, obj):
+        return 'wholesale' if obj.wholesale_request_id else 'retail'
+
+    def get_items(self, obj):
+        request = self.context.get('request')
+        if obj.order_id and obj.order:
+            return [
+                {
+                    'id': item.id,
+                    'product': item.product_id,
+                    'product_name': item.product_name,
+                    'price': item.price,
+                    'quantity': item.quantity,
+                    'subtotal': item.subtotal,
+                    'product_image': request.build_absolute_uri(item.product.image.url) if request and item.product and item.product.image else (item.product.image.url if item.product and item.product.image else '/images/placeholder.jpg'),
+                }
+                for item in obj.order.items.select_related('product').all()
+            ]
+        if obj.wholesale_request_id and obj.wholesale_request:
+            return [
+                {
+                    'id': item.id,
+                    'product': item.product_id,
+                    'product_name': item.product_name,
+                    'quantity': item.quantity,
+                    'notes': item.notes,
+                    'product_image': request.build_absolute_uri(item.product.image.url) if request and item.product and item.product.image else (item.product.image.url if item.product and item.product.image else '/images/placeholder.jpg'),
+                }
+                for item in obj.wholesale_request.items.select_related('product').all()
+            ]
+        return []
 
 
 # --- CustomerDebt ---

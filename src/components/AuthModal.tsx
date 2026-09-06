@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 type Tab = "login" | "register";
@@ -7,9 +7,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onLogin?: (user: any) => void;
+  initialTab?: Tab;
+  checkoutMode?: boolean;
 }
 
-export default function AuthModal({ open, onClose, onLogin }: Props) {
+export default function AuthModal({ open, onClose, onLogin, initialTab = "login", checkoutMode = false }: Props) {
   const { login, register } = useAuth();
   const [tab, setTab] = useState<Tab>("login");
   const [loading, setLoading] = useState(false);
@@ -25,9 +27,17 @@ export default function AuthModal({ open, onClose, onLogin }: Props) {
     phone: "",
     email: "",
     username: "",
+    address: "",
     password: "",
     password2: "",
   });
+
+  useEffect(() => {
+    if (open) {
+      setTab(initialTab);
+      setErr(null);
+    }
+  }, [open, initialTab]);
 
   if (!open) return null;
 
@@ -35,7 +45,7 @@ export default function AuthModal({ open, onClose, onLogin }: Props) {
     setErr(null);
     setUsername("");
     setPassword("");
-    setR({ first_name: "", last_name: "", phone: "", email: "", username: "", password: "", password2: "" });
+    setR({ first_name: "", last_name: "", phone: "", email: "", username: "", address: "", password: "", password2: "" });
   };
 
   const switchTab = (t: Tab) => {
@@ -77,6 +87,10 @@ export default function AuthModal({ open, onClose, onLogin }: Props) {
       setErr("شماره موبایل باید با 09 شروع شود و 11 رقم باشد");
       return;
     }
+    if (!r.address.trim() || r.address.trim().length < 10) {
+      setErr("لطفاً آدرس کامل تحویل را وارد کنید");
+      return;
+    }
     setLoading(true);
     try {
       const u = await register(r);
@@ -90,6 +104,7 @@ export default function AuthModal({ open, onClose, onLogin }: Props) {
         if (parsed.username) msg = "این نام کاربری قبلاً گرفته شده";
         else if (parsed.phone) msg = "این شماره موبایل قبلاً ثبت شده";
         else if (parsed.email) msg = "این ایمیل قبلاً ثبت شده";
+        else if (parsed.address) msg = "وارد کردن آدرس کامل الزامی است";
         else if (typeof parsed === "object") msg = Object.values(parsed).flat().join(" - ") as string;
       } catch {}
       setErr(msg);
@@ -243,7 +258,7 @@ export default function AuthModal({ open, onClose, onLogin }: Props) {
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
                   <h3 className="text-2xl font-black">ایجاد حساب جدید</h3>
-                  <p className="text-sm text-stone-500 mt-1">ثبت‌نام کمتر از ۱ دقیقه</p>
+                  <p className="text-sm text-stone-500 mt-1">{checkoutMode ? "برای ثبت سفارش، ثبت‌نام و آدرس تحویل الزامی است" : "ثبت‌نام کمتر از ۱ دقیقه"}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -265,6 +280,11 @@ export default function AuthModal({ open, onClose, onLogin }: Props) {
                 <div>
                   <label className="text-[11px] font-bold text-stone-500">نام کاربری *</label>
                   <input required value={r.username} onChange={(e) => setR({ ...r, username: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="مثلا ali123" dir="ltr" />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-stone-500">آدرس کامل تحویل *</label>
+                  <textarea required rows={3} value={r.address} onChange={(e) => setR({ ...r, address: e.target.value })} className="mt-1 w-full resize-none rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="شهر، خیابان، پلاک، واحد و توضیحات لازم برای ارسال" />
                 </div>
 
                 <div>

@@ -14,7 +14,7 @@ export default function Banner({ onProducts, onOrder }: Props) {
         alt="پخش سوسیس و کالباس نوین"
         className="absolute inset-0 -z-20 h-full w-full object-cover"
       />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-l from-stone-950/90 via-stone-900/75 to-stone-950/55" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-l from-stone-950/55 via-stone-900/30 to-stone-950/15" />
 
       <div className="mx-auto flex max-w-7xl flex-col items-center px-4 py-20 text-center sm:px-6 sm:py-28 lg:py-32">
         {/* 🆕 لوگوی بزرگ روی بنر */}
@@ -36,11 +36,11 @@ export default function Banner({ onProducts, onOrder }: Props) {
           توزیع عمده سراسری
         </span>
 
-        <h1 className="mt-6 font-display text-4xl leading-tight text-white sm:text-5xl lg:text-6xl">
+        <h1 className="mt-6 font-display text-4xl leading-tight text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.75)] sm:text-5xl lg:text-6xl">
           {siteName}
         </h1>
 
-        <p className="mt-5 max-w-2xl text-base leading-relaxed text-stone-200 sm:text-lg">
+        <p className="mt-5 max-w-2xl text-base leading-relaxed text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.7)] sm:text-lg">
           {siteSlogan}
         </p>
 
