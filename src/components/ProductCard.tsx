@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatPrice, type Product } from "../data";
 import { CartIcon } from "./icons";
 import { useRetailCart } from "../context/RetailCartContext";
@@ -12,14 +12,24 @@ type Props = {
 export default function ProductCard({ product, onClick, onWholesale }: Props) {
   const { addRetailItem } = useRetailCart();
   const [added, setAdded] = useState(false);
+  const [addAnimationKey, setAddAnimationKey] = useState(0);
+  const addTimeoutRef = useRef<number | null>(null);
   const isOutOfStock = product.available === false || (product.stock !== undefined && product.stock <= 0);
   const hasDiscount = product.discount_price && product.discount_price > 0 && product.discount_price < product.price;
+
+  useEffect(() => {
+    return () => {
+      if (addTimeoutRef.current) window.clearTimeout(addTimeoutRef.current);
+    };
+  }, []);
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
     addRetailItem(product);
     setAdded(true);
-    window.setTimeout(() => setAdded(false), 900);
+    setAddAnimationKey((prev) => prev + 1);
+    if (addTimeoutRef.current) window.clearTimeout(addTimeoutRef.current);
+    addTimeoutRef.current = window.setTimeout(() => setAdded(false), 1200);
   };
 
   return (
@@ -91,17 +101,32 @@ export default function ProductCard({ product, onClick, onWholesale }: Props) {
           </div>
           
           <div className="grid grid-cols-5 gap-2">
-            <button
-              onClick={handleAddToCart}
-              disabled={isOutOfStock}
-              className={`relative col-span-3 flex items-center justify-center gap-2 overflow-hidden rounded-2xl py-3.5 text-[11px] font-black shadow-lg transition active:scale-95 ${isOutOfStock ? "bg-stone-200 text-stone-400 cursor-not-allowed shadow-none" : added ? "bg-emerald-600 text-white shadow-emerald-600/25 scale-[1.02]" : "bg-paprika-600 text-white shadow-paprika-600/20 hover:bg-paprika-700"}`}
-            >
-              {added && <span className="absolute inset-0 animate-ping rounded-2xl bg-emerald-400/30" />}
-              <span className={`relative flex items-center gap-2 transition ${added ? "-translate-y-0 scale-110" : ""}`}>
-                {added ? <span className="text-base">✓</span> : <CartIcon className="h-4 w-4" />}
-                {isOutOfStock ? "ناموجود" : added ? "به سبد اضافه شد" : "افزودن به سبد خرید"}
-              </span>
-            </button>
+            <div className="relative col-span-3">
+              {added && (
+                <div
+                  key={addAnimationKey}
+                  className="pointer-events-none absolute -top-12 left-1/2 z-20 flex -translate-x-1/2 animate-bounce items-center gap-2 whitespace-nowrap rounded-full border border-emerald-200 bg-white px-3.5 py-2 text-[11px] font-black text-emerald-700 shadow-2xl shadow-emerald-900/10"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-sm font-black text-white shadow-lg">+1</span>
+                  <span>۱ عدد به سبد خرید اضافه شد</span>
+                </div>
+              )}
+              <button
+                onClick={handleAddToCart}
+                disabled={isOutOfStock}
+                className={`relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-3.5 text-[11px] font-black shadow-lg transition active:scale-95 ${isOutOfStock ? "bg-stone-200 text-stone-400 cursor-not-allowed shadow-none" : added ? "bg-emerald-600 text-white shadow-emerald-600/25 scale-[1.02]" : "bg-paprika-600 text-white shadow-paprika-600/20 hover:bg-paprika-700"}`}
+              >
+                {added && <span className="absolute inset-0 animate-ping rounded-2xl bg-emerald-400/30" />}
+                <span className={`relative flex items-center gap-2 transition ${added ? "scale-110" : ""}`}>
+                  {added ? (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-black text-emerald-600">+1</span>
+                  ) : (
+                    <CartIcon className="h-4 w-4" />
+                  )}
+                  {isOutOfStock ? "ناموجود" : added ? "اضافه شد" : "افزودن به سبد خرید"}
+                </span>
+              </button>
+            </div>
             <button
               onClick={() => onWholesale(product)}
               disabled={isOutOfStock}

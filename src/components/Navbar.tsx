@@ -6,6 +6,7 @@ type Props = { siteName: string; user: any; cartCount: number; currentPage: stri
 export default function Navbar({ user, cartCount, currentPage, onHome, onShop, onOrder, onAbout, onContact, onOpenAuth, onOpenAdmin, onLogout, onOpenCart, onSearch, onMyOrders }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const submitSearch = (value: string) => { const q = value.trim(); if (!q) return; onSearch(q); };
   useEffect(() => { const handleScroll = () => setScrolled(window.scrollY > 20); window.addEventListener("scroll", handleScroll); return () => window.removeEventListener("scroll", handleScroll); }, []);
@@ -21,13 +22,25 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
   const isAdmin = user && user.role === "admin";
   const isVisitor = user && user.role === "visitor";
   const isCustomer = user && user.role === "customer";
-  const userDisplayName = user ? (user.name || user.username || "کاربر") : "";
+  const userDisplayName = user ? (user.name || [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username || "کاربر") : "";
+  const userPhone = user ? (user.phone || user.customer?.phone || user.mobile || "شماره ثبت نشده") : "";
+  const userInitial = userDisplayName.trim().charAt(0) || "ن";
+  const roleLabel = isManager ? "مدیر کل" : isAdmin ? "ادمین فروشگاه" : isVisitor ? "ویزیتور" : isCustomer ? "مشتری" : "کاربر";
+  const roleBadgeClass = isManager
+    ? "from-amber-400 via-gold-500 to-amber-600 text-stone-950"
+    : isAdmin
+      ? "from-stone-800 via-stone-900 to-black text-white"
+      : isVisitor
+        ? "from-blue-500 via-sky-500 to-cyan-500 text-white"
+        : "from-paprika-500 via-paprika-600 to-red-600 text-white";
 
   // مسیرهای مخصوص هر نقش
-  const goManagerPanel = () => { window.location.href = "/dashboard/manager"; };
-  const goAdminPanel = () => { window.location.href = "/admin"; };
-  const goVisitorPanel = () => { window.location.href = "/dashboard/visitor/today"; };
-  const goMyOrders = () => { if (onMyOrders) onMyOrders(); else window.location.href = "/my-orders"; };
+  const goManagerPanel = () => { setAccountMenuOpen(false); window.location.href = "/dashboard/manager"; };
+  const goAdminPanel = () => { setAccountMenuOpen(false); window.location.href = "/admin"; };
+  const goVisitorPanel = () => { setAccountMenuOpen(false); window.location.href = "/dashboard/visitor/today"; };
+  const goMyOrders = () => { setAccountMenuOpen(false); if (onMyOrders) onMyOrders(); else window.location.href = "/my-orders"; };
+  const goTrackOrders = () => { setAccountMenuOpen(false); window.location.href = "/track"; };
+  const handleAccountLogout = () => { setAccountMenuOpen(false); onLogout(); };
 
   return (
     <header className="fixed inset-x-0 top-0 z-[100] w-full font-sans transition-all duration-300">
@@ -66,51 +79,114 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
           <div className="flex items-center gap-2 lg:min-w-[300px] justify-end">
             <div className="hidden sm:flex items-center">
               {user ? (
-                <div className="flex items-center gap-1.5 ml-1">
-                  {/* ✅ مدیر کل: فقط دکمه مدیریت کل - حرفه‌ای طلایی */}
-                  {isManager && (
-                    <button onClick={goManagerPanel} className="group relative overflow-hidden flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-gold-500 to-amber-600 px-5 py-2.5 text-xs font-black text-stone-900 shadow-[0_4px_20px_rgba(245,158,11,0.4)] hover:shadow-[0_6px_30px_rgba(245,158,11,0.5)] transition-all">
-                      <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                      <CrownIcon className="h-4 w-4 relative" />
-                      <span className="relative">مدیریت کل</span>
-                    </button>
-                  )}
+                <div className="relative ml-1">
+                  <button
+                    type="button"
+                    onClick={() => setAccountMenuOpen((open) => !open)}
+                    className={`group flex items-center gap-2 rounded-2xl border bg-white px-2.5 py-2 shadow-sm transition hover:-translate-y-0.5 hover:border-paprika-200 hover:shadow-xl ${accountMenuOpen ? "border-paprika-200 shadow-xl" : "border-stone-200"}`}
+                  >
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br ${roleBadgeClass} text-sm font-black shadow-lg`}>
+                      {userInitial}
+                    </span>
+                    <span className="hidden min-w-0 flex-col items-start text-right lg:flex">
+                      <span className="max-w-[128px] truncate text-xs font-black text-stone-900">{userDisplayName}</span>
+                      <span className="mt-0.5 flex items-center gap-1 text-[10px] font-bold text-stone-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        حساب کاربری
+                      </span>
+                    </span>
+                    <span className={`text-xs text-stone-400 transition ${accountMenuOpen ? "rotate-180" : ""}`}>⌄</span>
+                  </button>
 
-                  {/* ✅ ادمین: فقط دکمه پنل ادمین */}
-                  {isAdmin && (
-                    <button onClick={goAdminPanel} className="flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-bold text-white shadow-lg hover:bg-black transition">
-                      <CrownIcon className="h-4 w-4 text-gold-400" />
-                      <span>پنل ادمین</span>
-                    </button>
-                  )}
+                  {accountMenuOpen && (
+                    <div className="absolute left-0 top-[calc(100%+12px)] z-[140] w-[330px] overflow-hidden rounded-[2rem] border border-stone-200 bg-white text-right shadow-2xl shadow-stone-900/15" dir="rtl">
+                      <div className={`relative overflow-hidden bg-gradient-to-br ${roleBadgeClass} p-5`}>
+                        <div className="absolute -left-10 -top-10 h-28 w-28 rounded-full bg-white/20 blur-2xl" />
+                        <div className="relative flex items-center gap-3">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/95 text-xl font-black text-stone-900 shadow-xl">
+                            {userInitial}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-black">{userDisplayName}</div>
+                            <div dir="ltr" className="mt-1 text-right font-mono text-xs font-bold opacity-90">{userPhone}</div>
+                            <div className="mt-2 inline-flex rounded-full bg-white/20 px-3 py-1 text-[10px] font-black backdrop-blur">
+                              {roleLabel}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
 
-                  {/* ✅ ویزیتور: فقط دکمه پنل ویزیتور */}
-                  {isVisitor && (
-                    <button onClick={goVisitorPanel} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition">
-                      <span>🧑‍💼</span>
-                      <span>پنل ویزیتور</span>
-                    </button>
-                  )}
+                      <div className="p-3">
+                        <div className="mb-3 rounded-2xl bg-stone-50 p-3">
+                          <div className="mb-1 text-[10px] font-black text-stone-400">اطلاعات حساب</div>
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            <div className="rounded-xl bg-white p-2">
+                              <span className="block text-stone-400">نام و نام خانوادگی</span>
+                              <span className="mt-1 block truncate font-black text-stone-800">{userDisplayName}</span>
+                            </div>
+                            <div className="rounded-xl bg-white p-2">
+                              <span className="block text-stone-400">شماره تماس</span>
+                              <span dir="ltr" className="mt-1 block truncate text-right font-mono font-black text-stone-800">{userPhone}</span>
+                            </div>
+                          </div>
+                        </div>
 
-                  {/* ✅ مشتری: فقط سفارشات من */}
-                  {isCustomer && (
-                    <button onClick={goMyOrders} className="flex items-center gap-1.5 rounded-xl bg-paprika-50 border border-paprika-200 px-3 py-2 text-[11px] font-bold text-paprika-700 hover:bg-paprika-100">
-                      <span>📦</span>
-                      <span>سفارشات من</span>
-                    </button>
-                  )}
+                        <div className="space-y-1.5">
+                          {isCustomer && (
+                            <button onClick={goMyOrders} className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs font-black text-stone-700 transition hover:bg-paprika-50 hover:text-paprika-700">
+                              <span className="flex items-center gap-2"><span>📦</span> سفارش‌های من</span>
+                              <span className="text-stone-300">←</span>
+                            </button>
+                          )}
+                          {isManager && (
+                            <button onClick={goManagerPanel} className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs font-black text-stone-700 transition hover:bg-amber-50 hover:text-amber-700">
+                              <span className="flex items-center gap-2"><CrownIcon className="h-4 w-4" /> مدیریت کل</span>
+                              <span className="text-stone-300">←</span>
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button onClick={goAdminPanel} className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs font-black text-stone-700 transition hover:bg-stone-100">
+                              <span className="flex items-center gap-2"><CrownIcon className="h-4 w-4" /> پنل ادمین</span>
+                              <span className="text-stone-300">←</span>
+                            </button>
+                          )}
+                          {isVisitor && (
+                            <button onClick={goVisitorPanel} className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs font-black text-stone-700 transition hover:bg-blue-50 hover:text-blue-700">
+                              <span className="flex items-center gap-2"><span>🧑‍💼</span> پنل ویزیتور</span>
+                              <span className="text-stone-300">←</span>
+                            </button>
+                          )}
+                          <button onClick={() => { setAccountMenuOpen(false); onOpenCart(); }} className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs font-black text-stone-700 transition hover:bg-emerald-50 hover:text-emerald-700">
+                            <span className="flex items-center gap-2"><span>🛒</span> سبد خرید</span>
+                            <span className="rounded-full bg-paprika-500 px-2 py-0.5 text-[10px] text-white">{cartCount}</span>
+                          </button>
+                          <button onClick={goTrackOrders} className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs font-black text-stone-700 transition hover:bg-stone-50">
+                            <span className="flex items-center gap-2"><TruckIcon className="h-4 w-4" /> پیگیری سفارش</span>
+                            <span className="text-stone-300">←</span>
+                          </button>
+                        </div>
 
-                  {/* نام کاربر + خروج - برای همه نمایش داده می‌شود */}
-                  <div className="flex items-center gap-1.5">
-                    <div className={`rounded-lg px-2.5 py-2 text-[10px] font-bold max-w-[70px] truncate flex items-center gap-1 ${isManager ? "bg-stone-900 text-gold-400 border border-amber-500/30" : "bg-white border"}`}>
-                      {isManager && <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />}
-                      <span className="truncate">{userDisplayName}</span>
+                        <div className="mt-3 border-t border-stone-100 pt-3">
+                          <button onClick={handleAccountLogout} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-paprika-50 px-4 py-3 text-xs font-black text-paprika-700 transition hover:bg-paprika-600 hover:text-white">
+                            <LogOutIcon className="h-4 w-4" />
+                            خروج از حساب کاربری
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <button onClick={onLogout} className="flex h-8 w-8 items-center justify-center rounded-lg bg-paprika-50 text-paprika-600 hover:bg-paprika-600 hover:text-white"><LogOutIcon className="h-3.5 w-3.5" /></button>
-                  </div>
+                  )}
                 </div>
               ) : (
-                <button onClick={onOpenAuth} className="flex items-center gap-1.5 rounded-lg border bg-white px-4 py-2 text-[11px] font-bold hover:border-paprika-600"><UserIcon className="h-3.5 w-3.5" />ورود</button>
+                <button onClick={onOpenAuth} className="group flex items-center gap-2 rounded-2xl border border-stone-200 bg-white px-3 py-2 shadow-sm transition hover:-translate-y-0.5 hover:border-paprika-200 hover:shadow-xl">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-stone-900 to-stone-700 text-white shadow-md transition group-hover:from-paprika-600 group-hover:to-red-600">
+                    <UserIcon className="h-4 w-4" />
+                  </span>
+                  <span className="hidden flex-col items-start text-right lg:flex">
+                    <span className="text-xs font-black text-stone-900">ورود / ثبت‌نام</span>
+                    <span className="text-[10px] font-bold text-stone-400">حساب کاربری</span>
+                  </span>
+                  <span className="text-xs text-stone-400">⌄</span>
+                </button>
               )}
             </div>
 
@@ -138,11 +214,23 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
               </div>
               {user && (
                 <div className="mt-6 space-y-2">
+                  <div className={`relative overflow-hidden rounded-[2rem] bg-gradient-to-br ${roleBadgeClass} p-4 shadow-xl`}>
+                    <div className="absolute -left-8 -top-8 h-24 w-24 rounded-full bg-white/20 blur-2xl" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-xl font-black text-stone-900 shadow-lg">{userInitial}</div>
+                      <div className="min-w-0 flex-1 text-white">
+                        <div className="truncate text-sm font-black">{userDisplayName}</div>
+                        <div dir="ltr" className="mt-1 text-right font-mono text-xs font-bold opacity-90">{userPhone}</div>
+                        <div className="mt-2 inline-flex rounded-full bg-white/20 px-3 py-1 text-[10px] font-black backdrop-blur">{roleLabel}</div>
+                      </div>
+                    </div>
+                  </div>
                   {isManager && <button onClick={() => { goManagerPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-gold-600 py-3 text-stone-900 font-black shadow">👑 مدیریت کل</button>}
                   {isAdmin && <button onClick={() => { goAdminPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-stone-900 py-3 text-white font-black">🛡️ پنل ادمین</button>}
                   {isVisitor && <button onClick={() => { goVisitorPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-blue-600 py-3 text-white font-black">🧑‍💼 پنل ویزیتور</button>}
                   {isCustomer && <button onClick={() => { goMyOrders(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 border py-3 font-bold text-paprika-700">📦 سفارشات من</button>}
-                  <button onClick={() => { onLogout(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 py-3 text-paprika-600 font-bold">خروج</button>
+                  <button onClick={() => { goTrackOrders(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-stone-50 py-3 font-bold text-stone-700">🚚 پیگیری سفارش</button>
+                  <button onClick={() => { handleAccountLogout(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 py-3 text-paprika-600 font-bold">خروج</button>
                 </div>
               )}
             </div>

@@ -231,6 +231,7 @@ export default function MyOrders() {
               <button key={t.id} onClick={() => setTab(t.id)} className={`rounded-xl px-5 py-2.5 transition ${tab === t.id ? "bg-stone-900 text-white shadow" : "text-stone-500 hover:text-stone-900"}`}>{t.label}</button>
             ))}
           </div>
+          <p className="px-2 text-[11px] font-bold text-stone-400">بروزرسانی خودکار هر ۳۰ ثانیه</p>
         </div>
 
         {loading ? (
@@ -251,7 +252,7 @@ export default function MyOrders() {
 }
 
 
-function TruckSvg() {
+function TruckSvg({ exhaustOn = true }: { exhaustOn?: boolean }) {
   return (
     <svg viewBox="0 0 170 86" className="h-20 w-44 drop-shadow-2xl" aria-hidden="true">
       <defs>
@@ -282,9 +283,9 @@ function TruckSvg() {
       <g>
         <path d="M25 43c2-12 8-19 19-19h20v40H27c-6 0-9-5-7-11Z" fill="url(#redVanBody)" />
         <rect x="62" y="25" width="60" height="39" rx="3" fill="url(#redVanBody)" />
-        <rect x="66" y="28" width="52" height="31" rx="7" fill="#ffffff" opacity=".98" />
-        <image href="/images/logo.png" x="68" y="30" width="48" height="27" preserveAspectRatio="xMidYMid meet" />
-        <path d="M68 30h48v6H68z" fill="#fecaca" opacity=".16" />
+        <rect x="63" y="26" width="58" height="36" rx="7" fill="#ffffff" opacity=".98" />
+        <image href="/images/logo.png" x="64" y="27" width="56" height="34" preserveAspectRatio="xMidYMid meet" />
+        <path d="M65 28h54v7H65z" fill="#fecaca" opacity=".16" />
         <path d="M38 30h19v14H30c1-7 4-12 8-14Z" fill="#bfdbfe" opacity=".92" />
         <path d="M63 29h54" stroke="url(#redVanShine)" strokeWidth="2.5" strokeLinecap="round" opacity=".85" />
         <path d="M25 55h94" stroke="#7f1d1d" strokeWidth="3" strokeLinecap="round" opacity=".45" />
@@ -298,18 +299,20 @@ function TruckSvg() {
         <path d="M23 48c-2 2-3 4-3 7" stroke="#f8fafc" strokeWidth="2" strokeLinecap="round" opacity=".75" />
       </g>
 
-      {/* آتش اگزوز پشت ون */}
-      <g filter="url(#luxGlow)">
-        <path d="M131 54c12-9 23-7 34-1-8 3-15 8-21 13-3-6-8-9-13-12Z" fill="url(#exhaustFire)">
-          <animate attributeName="d" values="M131 54c12-9 23-7 34-1-8 3-15 8-21 13-3-6-8-9-13-12Z;M131 54c15-12 27-6 38-3-11 5-17 10-25 16-2-7-7-10-13-13Z;M131 54c12-9 23-7 34-1-8 3-15 8-21 13-3-6-8-9-13-12Z" dur=".55s" repeatCount="indefinite" />
-        </path>
-        <path d="M133 55c8-5 15-4 24-1-6 3-10 6-14 10-2-4-5-6-10-9Z" fill="#fef3c7" opacity=".95">
-          <animate attributeName="opacity" values=".95;.55;.95" dur=".45s" repeatCount="indefinite" />
-        </path>
-        <path d="M134 51c8-4 15-2 23 2" stroke="#fb923c" strokeWidth="4" strokeLinecap="round" opacity=".75">
-          <animate attributeName="opacity" values=".75;.35;.75" dur=".7s" repeatCount="indefinite" />
-        </path>
-      </g>
+      {/* آتش اگزوز پشت ون - فقط قبل از تحویل شدن فعال است */}
+      {exhaustOn && (
+        <g filter="url(#luxGlow)">
+          <path d="M131 54c12-9 23-7 34-1-8 3-15 8-21 13-3-6-8-9-13-12Z" fill="url(#exhaustFire)">
+            <animate attributeName="d" values="M131 54c12-9 23-7 34-1-8 3-15 8-21 13-3-6-8-9-13-12Z;M131 54c15-12 27-6 38-3-11 5-17 10-25 16-2-7-7-10-13-13Z;M131 54c12-9 23-7 34-1-8 3-15 8-21 13-3-6-8-9-13-12Z" dur=".55s" repeatCount="indefinite" />
+          </path>
+          <path d="M133 55c8-5 15-4 24-1-6 3-10 6-14 10-2-4-5-6-10-9Z" fill="#fef3c7" opacity=".95">
+            <animate attributeName="opacity" values=".95;.55;.95" dur=".45s" repeatCount="indefinite" />
+          </path>
+          <path d="M134 51c8-4 15-2 23 2" stroke="#fb923c" strokeWidth="4" strokeLinecap="round" opacity=".75">
+            <animate attributeName="opacity" values=".75;.35;.75" dur=".7s" repeatCount="indefinite" />
+          </path>
+        </g>
+      )}
     </svg>
   );
 }
@@ -341,7 +344,7 @@ function StatusTimeline({ type, status, compact = false }: { type: OrderType; st
               )}
               {active && (
                 <div className="absolute -top-24 left-1/2 z-20 -translate-x-1/2">
-                  <TruckSvg />
+                  <TruckSvg exhaustOn={status !== "DELIVERED"} />
                 </div>
               )}
               <div className={`relative z-10 mx-auto flex h-9 w-9 items-center justify-center rounded-full border-4 bg-white shadow-md ${active ? "border-amber-500 ring-4 ring-amber-100" : done ? "border-emerald-500" : "border-stone-300"}`}>
@@ -355,6 +358,7 @@ function StatusTimeline({ type, status, compact = false }: { type: OrderType; st
           );
         })}
       </div>
+      <p className="mt-4 text-[11px] font-bold text-stone-500">کامیون ثابتاً روی مرحله فعلی قرار دارد؛ وقتی سفارش تحویل شده باشد اگزوز خاموش است و چیزی از آن خارج نمی‌شود.</p>
     </div>
   );
 }

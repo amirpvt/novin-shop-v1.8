@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatPrice, type Product, mapApiProduct } from "../data";
 import { ArrowRightIcon, TruckIcon, CheckIcon, PhoneIcon } from "../components/icons";
@@ -18,6 +18,9 @@ export default function ProductDetails({ products: propProducts }: Props) {
   const [related, setRelated] = useState<Product[]>([]);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [imageZoom, setImageZoom] = useState(1);
+  const [added, setAdded] = useState(false);
+  const [addAnimationKey, setAddAnimationKey] = useState(0);
+  const addTimeoutRef = useRef<number | null>(null);
 
   const { addRetailItem } = useRetailCart();
   const { addWholesaleItem } = useWholesaleRequest();
@@ -53,6 +56,12 @@ export default function ProductDetails({ products: propProducts }: Props) {
     load();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [id, propProducts]);
+
+  useEffect(() => {
+    return () => {
+      if (addTimeoutRef.current) window.clearTimeout(addTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!imagePreviewOpen) return;
@@ -112,6 +121,15 @@ export default function ProductDetails({ products: propProducts }: Props) {
 
   const changeImageZoom = (amount: number) => {
     setImageZoom((prev) => Math.min(3, Math.max(1, Number((prev + amount).toFixed(1)))));
+  };
+
+  const handleAddToCart = () => {
+    if (isOutOfStock) return;
+    addRetailItem(product);
+    setAdded(true);
+    setAddAnimationKey((prev) => prev + 1);
+    if (addTimeoutRef.current) window.clearTimeout(addTimeoutRef.current);
+    addTimeoutRef.current = window.setTimeout(() => setAdded(false), 1200);
   };
 
   return (
@@ -201,7 +219,32 @@ export default function ProductDetails({ products: propProducts }: Props) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button onClick={() => !isOutOfStock && addRetailItem(product)} disabled={isOutOfStock} className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-lg shadow-lg transition active:scale-95 ${isOutOfStock ? "bg-stone-200 text-stone-400 cursor-not-allowed" : "bg-paprika-600 text-white shadow-paprika-600/30 hover:bg-paprika-700"}`}>🛒 {isOutOfStock ? "ناموجود" : "افزودن به سبد"}</button>
+              <div className="relative">
+                {added && (
+                  <div
+                    key={addAnimationKey}
+                    className="pointer-events-none absolute -top-14 left-1/2 z-20 flex -translate-x-1/2 animate-bounce items-center gap-2 whitespace-nowrap rounded-full border border-emerald-200 bg-white px-4 py-2.5 text-xs font-black text-emerald-700 shadow-2xl shadow-emerald-900/10"
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-sm font-black text-white shadow-lg">+1</span>
+                    <span>۱ عدد به سبد خرید اضافه شد</span>
+                  </div>
+                )}
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isOutOfStock}
+                  className={`relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-4 font-black text-lg shadow-lg transition active:scale-95 ${isOutOfStock ? "bg-stone-200 text-stone-400 cursor-not-allowed shadow-none" : added ? "scale-[1.02] bg-emerald-600 text-white shadow-emerald-600/25" : "bg-paprika-600 text-white shadow-paprika-600/30 hover:bg-paprika-700"}`}
+                >
+                  {added && <span className="absolute inset-0 animate-ping rounded-2xl bg-emerald-400/30" />}
+                  <span className={`relative flex items-center gap-2 transition ${added ? "scale-110" : ""}`}>
+                    {added ? (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-black text-emerald-600">+1</span>
+                    ) : (
+                      <span>🛒</span>
+                    )}
+                    {isOutOfStock ? "ناموجود" : added ? "اضافه شد" : "افزودن به سبد"}
+                  </span>
+                </button>
+              </div>
               <button onClick={() => { addWholesaleItem(product); navigate("/wholesale"); }} disabled={isOutOfStock} className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg border-2 transition ${isOutOfStock ? "border-stone-100 bg-stone-50 text-stone-300" : "border-stone-200 bg-white text-stone-700 hover:border-paprika-600"}`}>📦 استعلام عمده</button>
             </div>
 
