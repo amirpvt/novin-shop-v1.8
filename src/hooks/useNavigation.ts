@@ -15,7 +15,7 @@ export type Page =
 export function useNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const page = useMemo<Page>(() => {
     const path = location.pathname;

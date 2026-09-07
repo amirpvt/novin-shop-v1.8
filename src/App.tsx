@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import AppRouter from "./router/AppRouter";
 import Navbar from "./components/Navbar";
 import AuthModal from "./components/AuthModal";
@@ -24,13 +23,9 @@ function ScrollToTop() {
 export default function App() {
   const {
     page,
-    category,
-    brand,
-    searchTerm,
     lastOrderNumber,
     goHome,
     goShop,
-    goAdmin,
     goAbout,
     goContact,
     goRetailCart,
@@ -40,17 +35,16 @@ export default function App() {
     handleSearch,
   } = useNavigation();
 
-  const navigate = useNavigate();
   const location = useLocation();
 
   // پنل مدیر کل (/dashboard/manager/*): هدر اصلی سایت (Navbar) نمایش داده نمی‌شود
   const isOwnerPanel = location.pathname.startsWith("/dashboard/manager");
 
   const { getRetailCount, clearRetailCart, addRetailItem } = useRetailCart();
-  const { getWholesaleCount, clearWholesaleRequest } = useWholesaleRequest();
+  const { clearWholesaleRequest } = useWholesaleRequest();
 
   const { products, loading: productsLoading } = useProducts();
-  const { orders, wholesaleRequests, createOrder, addWholesaleOrder } = useOrders();
+  const { orders, createOrder, addWholesaleOrder } = useOrders();
 
   const { toast, showToast } = useToast();
   const { user, login, logout } = useAuth();
@@ -163,7 +157,6 @@ export default function App() {
           onAbout={goAbout}
           onContact={goContact}
           onOpenAuth={() => { setAuthInitialTab("login"); setAuthCheckoutMode(false); setAuthOpen(true); }}
-          onOpenAdmin={goAdmin}
           onLogout={handleLogout}
           onOpenCart={goRetailCart}
           onSearch={handleSearch}

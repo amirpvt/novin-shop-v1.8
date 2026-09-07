@@ -68,15 +68,9 @@ class MyOrdersView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Order.objects.filter(user=user)
-        # اگر سفارشات قدیمی بدون user دارد، بر اساس شماره موبایل هم بیاور
-        try:
-            phone = user.customer_profile.phone if hasattr(user, 'customer_profile') else None
-            if phone:
-                qs = qs | Order.objects.filter(phone=phone)
-        except:
-            pass
-        return qs.distinct().order_by("-created_at")
+        # امنیت تحویل: هر مشتری فقط سفارش‌هایی را می‌بیند که مستقیماً به user خودش وصل شده‌اند.
+        # فیلتر بر اساس شماره موبایل حذف شد چون می‌تواند باعث نمایش سفارش کاربر دیگر با شماره مشابه/اشتباه شود.
+        return Order.objects.filter(user=user).order_by("-created_at")
 
 
 class MyWholesaleView(generics.ListAPIView):
@@ -89,14 +83,8 @@ class MyWholesaleView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = WholesaleRequest.objects.filter(user=user).defer("total_amount").prefetch_related("items__product")
-        try:
-            phone = user.customer_profile.phone if hasattr(user, 'customer_profile') else None
-            if phone:
-                qs = qs | WholesaleRequest.objects.filter(phone=phone)
-        except:
-            pass
-        return qs.distinct().order_by("-created_at")
+        # امنیت تحویل: هر مشتری فقط درخواست‌های عمده‌ای را می‌بیند که به user خودش وصل شده‌اند.
+        return WholesaleRequest.objects.filter(user=user).defer("total_amount").prefetch_related("items__product").order_by("-created_at")
 
 
 class OrderStatusSerializer(serializers.ModelSerializer):

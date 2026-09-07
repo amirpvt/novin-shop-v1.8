@@ -12,7 +12,7 @@ export const tokenStore = {
   clear() { localStorage.removeItem(TOKEN_KEY); },
 };
 
-async function request<T>(endpoint: string, options: RequestInit = {}, auth = false): Promise<T> {
+async function request<T>(endpoint: string, options: RequestInit = {}, _auth = false): Promise<T> {
   const tokens = tokenStore.get();
   const headers: Record<string, string> = { "Content-Type": "application/json", ...(options.headers as any) };
   // اگر auth=True یا توکن داریم، همیشه بفرست تا سفارش به کاربر وصل شود

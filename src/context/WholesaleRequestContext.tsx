@@ -2,7 +2,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 import { type Product } from '../data';
 
 export interface WholesaleItem {
-  id: string;
+  id: number;
   name: string;
   unit: string;
   image: string;
@@ -13,9 +13,9 @@ export interface WholesaleItem {
 interface WholesaleRequestContextType {
   wholesaleItems: WholesaleItem[];
   addWholesaleItem: (product: Product) => void;
-  removeWholesaleItem: (productId: string) => void;
-  updateWholesaleQuantity: (productId: string, qty: number) => void;
-  updateWholesaleNotes: (productId: string, notes: string) => void;
+  removeWholesaleItem: (productId: number) => void;
+  updateWholesaleQuantity: (productId: number, qty: number) => void;
+  updateWholesaleNotes: (productId: number, notes: string) => void;
   clearWholesaleRequest: () => void;
   getWholesaleCount: () => number;
 }
@@ -39,17 +39,17 @@ export function WholesaleRequestProvider({ children }: { children: ReactNode }) 
     });
   };
 
-  const removeWholesaleItem = (productId: string) => {
+  const removeWholesaleItem = (productId: number) => {
     setWholesaleItems((prev) => prev.filter((item) => item.id !== productId));
   };
 
-  const updateWholesaleQuantity = (productId: string, qty: number) => {
+  const updateWholesaleQuantity = (productId: number, qty: number) => {
     setWholesaleItems((prev) =>
       prev.map((item) => (item.id === productId ? { ...item, quantity: Math.max(1, qty) } : item))
     );
   };
 
-  const updateWholesaleNotes = (productId: string, notes: string) => {
+  const updateWholesaleNotes = (productId: number, notes: string) => {
     setWholesaleItems((prev) =>
       prev.map((item) => (item.id === productId ? { ...item, notes } : item))
     );

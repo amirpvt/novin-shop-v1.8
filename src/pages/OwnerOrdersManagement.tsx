@@ -186,7 +186,7 @@ export default function OwnerOrdersManagement() {
       مبلغ: o.total,
       تاریخ: dateFa(o.created_at),
     }));
-    const csv = [Object.keys(rows[0] || { نوع: "", شماره: "", مشتری: "", تلفن: "", وضعیت: "", مبلغ: "", تاریخ: "" }).join(","), ...rows.map((r: any) => Object.values(r).map((v) => `"${String(v).replaceAll('"', '""')}"`).join(","))].join("\n");
+    const csv = [Object.keys(rows[0] || { نوع: "", شماره: "", مشتری: "", تلفن: "", وضعیت: "", مبلغ: "", تاریخ: "" }).join(","), ...rows.map((r: any) => Object.values(r).map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))].join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -272,30 +272,182 @@ function Kpi({ title, value, tone, wide }: { title: string; value: string; tone:
   return <div className={`rounded-3xl border bg-white p-4 shadow-sm ${tones[tone]} ${wide ? "col-span-2" : ""}`}><p className="text-[10px] font-black text-stone-400">{title}</p><p className="mt-2 text-lg font-black">{value}</p></div>;
 }
 
+function statusLuxuryTone(status: string) {
+  const tones: Record<string, any> = {
+    PENDING: {
+      card: "border-amber-500 bg-gradient-to-br from-amber-700 via-orange-600 to-yellow-600 text-white shadow-2xl shadow-amber-900/25 ring-2 ring-amber-300/45",
+      statusBadge: "border-white/40 bg-white text-amber-800 shadow-lg shadow-amber-950/20",
+      dot: "bg-amber-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-amber-50",
+      label: "text-amber-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-amber-400/40 bg-amber-950/20",
+      select: "border-white/30 bg-white text-amber-800 shadow-lg focus:border-white",
+      message: "⏳ این سفارش در انتظار بررسی است",
+      modal: "bg-gradient-to-br from-amber-900 via-orange-700 to-yellow-600 shadow-inner",
+      ring: "ring-4 ring-amber-400/30",
+    },
+    NEW: {
+      card: "border-amber-500 bg-gradient-to-br from-amber-700 via-orange-600 to-yellow-600 text-white shadow-2xl shadow-amber-900/25 ring-2 ring-amber-300/45",
+      statusBadge: "border-white/40 bg-white text-amber-800 shadow-lg shadow-amber-950/20",
+      dot: "bg-amber-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-amber-50",
+      label: "text-amber-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-amber-400/40 bg-amber-950/20",
+      select: "border-white/30 bg-white text-amber-800 shadow-lg focus:border-white",
+      message: "⏳ این درخواست در انتظار بررسی است",
+      modal: "bg-gradient-to-br from-amber-900 via-orange-700 to-yellow-600 shadow-inner",
+      ring: "ring-4 ring-amber-400/30",
+    },
+    CONFIRMED: {
+      card: "border-blue-500 bg-gradient-to-br from-blue-800 via-blue-600 to-sky-500 text-white shadow-2xl shadow-blue-900/25 ring-2 ring-blue-300/45",
+      statusBadge: "border-white/40 bg-white text-blue-800 shadow-lg shadow-blue-950/20",
+      dot: "bg-blue-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-blue-50",
+      label: "text-blue-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-blue-400/40 bg-blue-950/20",
+      select: "border-white/30 bg-white text-blue-800 shadow-lg focus:border-white",
+      message: "✅ این سفارش تایید شده است",
+      modal: "bg-gradient-to-br from-blue-950 via-blue-700 to-sky-600 shadow-inner",
+      ring: "ring-4 ring-blue-400/30",
+    },
+    QUOTED: {
+      card: "border-blue-500 bg-gradient-to-br from-blue-800 via-blue-600 to-sky-500 text-white shadow-2xl shadow-blue-900/25 ring-2 ring-blue-300/45",
+      statusBadge: "border-white/40 bg-white text-blue-800 shadow-lg shadow-blue-950/20",
+      dot: "bg-blue-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-blue-50",
+      label: "text-blue-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-blue-400/40 bg-blue-950/20",
+      select: "border-white/30 bg-white text-blue-800 shadow-lg focus:border-white",
+      message: "📄 پیش‌فاکتور این درخواست صادر شده است",
+      modal: "bg-gradient-to-br from-blue-950 via-blue-700 to-sky-600 shadow-inner",
+      ring: "ring-4 ring-blue-400/30",
+    },
+    PREPARING: {
+      card: "border-violet-500 bg-gradient-to-br from-violet-900 via-purple-700 to-fuchsia-600 text-white shadow-2xl shadow-purple-900/25 ring-2 ring-violet-300/45",
+      statusBadge: "border-white/40 bg-white text-violet-800 shadow-lg shadow-violet-950/20",
+      dot: "bg-violet-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-violet-50",
+      label: "text-violet-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-violet-400/40 bg-violet-950/20",
+      select: "border-white/30 bg-white text-violet-800 shadow-lg focus:border-white",
+      message: "🧑‍🍳 این سفارش در حال آماده‌سازی است",
+      modal: "bg-gradient-to-br from-violet-950 via-purple-800 to-fuchsia-600 shadow-inner",
+      ring: "ring-4 ring-violet-400/30",
+    },
+    SHIPPED: {
+      card: "border-cyan-500 bg-gradient-to-br from-cyan-900 via-sky-700 to-teal-500 text-white shadow-2xl shadow-cyan-900/25 ring-2 ring-cyan-300/45",
+      statusBadge: "border-white/40 bg-white text-cyan-800 shadow-lg shadow-cyan-950/20",
+      dot: "bg-cyan-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-cyan-50",
+      label: "text-cyan-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-cyan-400/40 bg-cyan-950/20",
+      select: "border-white/30 bg-white text-cyan-800 shadow-lg focus:border-white",
+      message: "🚚 این سفارش ارسال شده و در مسیر تحویل است",
+      modal: "bg-gradient-to-br from-cyan-950 via-sky-800 to-teal-600 shadow-inner",
+      ring: "ring-4 ring-cyan-400/30",
+    },
+    DELIVERED: {
+      card: "border-emerald-500 bg-gradient-to-br from-emerald-700 via-emerald-600 to-green-700 text-white shadow-2xl shadow-emerald-900/30 ring-2 ring-emerald-300/50",
+      statusBadge: "border-white/40 bg-white text-emerald-800 shadow-lg shadow-emerald-950/20",
+      dot: "bg-emerald-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-emerald-50",
+      label: "text-emerald-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-emerald-400/40 bg-emerald-950/20",
+      select: "border-white/30 bg-white text-emerald-800 shadow-lg focus:border-white",
+      message: "✅ این سفارش با موفقیت تحویل شده است",
+      modal: "bg-gradient-to-br from-emerald-900 via-emerald-700 to-green-600 shadow-inner",
+      ring: "ring-4 ring-emerald-400/30",
+    },
+    CONVERTED: {
+      card: "border-emerald-500 bg-gradient-to-br from-emerald-700 via-emerald-600 to-green-700 text-white shadow-2xl shadow-emerald-900/30 ring-2 ring-emerald-300/50",
+      statusBadge: "border-white/40 bg-white text-emerald-800 shadow-lg shadow-emerald-950/20",
+      dot: "bg-emerald-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-emerald-50",
+      label: "text-emerald-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-emerald-400/40 bg-emerald-950/20",
+      select: "border-white/30 bg-white text-emerald-800 shadow-lg focus:border-white",
+      message: "✅ این درخواست با موفقیت تبدیل به سفارش شده است",
+      modal: "bg-gradient-to-br from-emerald-900 via-emerald-700 to-green-600 shadow-inner",
+      ring: "ring-4 ring-emerald-400/30",
+    },
+    CANCELLED: {
+      card: "border-red-500 bg-gradient-to-br from-red-950 via-rose-800 to-red-600 text-white shadow-2xl shadow-red-900/30 ring-2 ring-red-300/45",
+      statusBadge: "border-white/40 bg-white text-red-800 shadow-lg shadow-red-950/20",
+      dot: "bg-red-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-red-50",
+      label: "text-red-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-red-400/40 bg-red-950/25",
+      select: "border-white/30 bg-white text-red-800 shadow-lg focus:border-white",
+      message: "⛔ این سفارش لغو شده است",
+      modal: "bg-gradient-to-br from-red-950 via-rose-800 to-red-700 shadow-inner",
+      ring: "ring-4 ring-red-400/30",
+    },
+    REJECTED: {
+      card: "border-red-500 bg-gradient-to-br from-red-950 via-rose-800 to-red-600 text-white shadow-2xl shadow-red-900/30 ring-2 ring-red-300/45",
+      statusBadge: "border-white/40 bg-white text-red-800 shadow-lg shadow-red-950/20",
+      dot: "bg-red-600 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-red-50",
+      label: "text-red-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-red-400/40 bg-red-950/25",
+      select: "border-white/30 bg-white text-red-800 shadow-lg focus:border-white",
+      message: "⛔ این درخواست رد شده است",
+      modal: "bg-gradient-to-br from-red-950 via-rose-800 to-red-700 shadow-inner",
+      ring: "ring-4 ring-red-400/30",
+    },
+  };
+  return tones[status] || null;
+}
+
 function OrderCard({ order, onOpen, onStatus, saving }: { order: UnifiedOrder; onOpen: () => void; onStatus: (o: UnifiedOrder, s: string) => void; saving: boolean }) {
   const meta = getStatusMeta(order.type, order.status);
   const statuses = order.type === "retail" ? retailStatuses : wholesaleStatuses;
+  const tone = statusLuxuryTone(order.status);
   return (
-    <div className="overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+    <div className={`overflow-hidden rounded-[2rem] border shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${tone ? tone.card : "border-stone-200 bg-white"}`}>
       <button onClick={onOpen} className="block w-full p-5 text-right">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-full px-3 py-1 text-[10px] font-black ${order.type === "wholesale" ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>{order.type === "wholesale" ? "عمده" : "خرده"}</span>
-              <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black ${meta.color}`}><span className={`h-2 w-2 rounded-full ${meta.dot}`} />{meta.label}</span>
+              <span className={`rounded-full px-3 py-1 text-[10px] font-black ${tone ? "bg-white/20 text-white ring-1 ring-white/25 backdrop-blur" : order.type === "wholesale" ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>{order.type === "wholesale" ? "عمده" : "خرده"}</span>
+              <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black ${tone ? tone.statusBadge : meta.color}`}><span className={`h-2 w-2 rounded-full ${tone ? tone.dot : meta.dot}`} />{meta.label}</span>
             </div>
-            <h3 className="mt-3 font-mono text-lg font-black text-stone-900">{order.number}</h3>
-            <p className="mt-1 text-xs font-bold text-stone-500">{order.customerName} · {order.phone || "بدون شماره"}</p>
+            <h3 className={`mt-3 font-mono text-lg font-black ${tone ? tone.title : "text-stone-900"}`}>{order.number}</h3>
+            <p className={`mt-1 text-xs font-bold ${tone ? tone.sub : "text-stone-500"}`}>{order.customerName} · {order.phone || "بدون شماره"}</p>
           </div>
-          <div className="text-left"><p className="text-[10px] font-black text-stone-400">مبلغ</p><p className="mt-1 text-lg font-black text-stone-900">{money(order.total)}</p></div>
+          <div className="text-left"><p className={`text-[10px] font-black ${tone ? tone.label : "text-stone-400"}`}>مبلغ</p><p className={`mt-1 text-lg font-black ${tone ? tone.title : "text-stone-900"}`}>{money(order.total)}</p></div>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold text-stone-500">
-          <div className="rounded-2xl bg-stone-50 p-3">تاریخ: {dateFa(order.created_at)}</div>
-          <div className="rounded-2xl bg-stone-50 p-3">اقلام: {nf(order.items?.length || 0)}</div>
+        <div className={`mt-4 grid grid-cols-2 gap-2 text-xs font-bold ${tone ? "text-white" : "text-stone-500"}`}>
+          <div className={`rounded-2xl p-3 ${tone ? tone.box : "bg-stone-50"}`}>تاریخ: {dateFa(order.created_at)}</div>
+          <div className={`rounded-2xl p-3 ${tone ? tone.box : "bg-stone-50"}`}>اقلام: {nf(order.items?.length || 0)}</div>
         </div>
+        {tone?.message && (
+          <div className="mt-4 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 text-center text-xs font-black text-white shadow-inner backdrop-blur">
+            {tone.message}
+          </div>
+        )}
       </button>
-      <div className="border-t bg-stone-50/60 p-3">
-        <select disabled={saving} value={order.status} onChange={(e) => onStatus(order, e.target.value)} className="w-full rounded-2xl border bg-white px-4 py-3 text-xs font-black outline-none focus:border-stone-900 disabled:opacity-60">
+      <div className={`border-t p-3 ${tone ? tone.footer : "bg-stone-50/60"}`}>
+        <select disabled={saving} value={order.status} onChange={(e) => onStatus(order, e.target.value)} className={`w-full rounded-2xl border px-4 py-3 text-xs font-black outline-none disabled:opacity-60 ${tone ? tone.select : "bg-white focus:border-stone-900"}`}>
           {statuses.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
       </div>
@@ -303,13 +455,15 @@ function OrderCard({ order, onOpen, onStatus, saving }: { order: UnifiedOrder; o
   );
 }
 
+
 function OrderModal({ order, onClose, onStatus, saving }: { order: UnifiedOrder; onClose: () => void; onStatus: (o: UnifiedOrder, s: string) => void; saving: boolean }) {
   const statuses = order.type === "retail" ? retailStatuses : wholesaleStatuses;
   const meta = getStatusMeta(order.type, order.status);
+  const tone = statusLuxuryTone(order.status);
   return (
     <div className="fixed inset-0 z-[130] flex items-start justify-center overflow-y-auto bg-stone-950/75 p-4 backdrop-blur-sm lg:items-center" onClick={onClose}>
-      <div className="my-auto w-full max-w-6xl overflow-hidden rounded-[2.2rem] bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-gradient-to-br from-stone-950 via-stone-900 to-amber-950 p-6 text-white">
+      <div className={`my-auto w-full max-w-6xl overflow-hidden rounded-[2.2rem] bg-white shadow-2xl ${tone ? tone.ring : ""}`} onClick={(e) => e.stopPropagation()}>
+        <div className={`p-6 text-white ${tone ? tone.modal : "bg-gradient-to-br from-stone-950 via-stone-900 to-amber-950"}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex flex-wrap gap-2"><span className={`rounded-full px-3 py-1 text-[10px] font-black ${order.type === "wholesale" ? "bg-violet-400/20 text-violet-100" : "bg-blue-400/20 text-blue-100"}`}>{order.type === "wholesale" ? "سفارش عمده" : "سفارش خرده"}</span><span className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-black">{meta.label}</span></div>

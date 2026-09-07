@@ -5,11 +5,11 @@ import { TrashIcon, ArrowRightIcon, CheckIcon, PackageIcon } from "../components
 
 type Props = {
   products: Product[];
-  onBack: () => void;
+  onBack?: () => void;
   onSubmit: (formData: any, items: any[]) => void;
 };
 
-export default function WholesaleRequest({ products, onBack, onSubmit }: Props) {
+export default function WholesaleRequest({ products, onSubmit }: Props) {
   const {
     wholesaleItems,
     addWholesaleItem,

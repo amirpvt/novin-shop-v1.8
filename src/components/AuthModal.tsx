@@ -114,8 +114,8 @@ export default function AuthModal({ open, onClose, onLogin, initialTab = "login"
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-stone-900/70 p-4 backdrop-blur-md" onClick={onClose}>
-      <div className="w-full max-w-5xl overflow-hidden rounded-[2.5rem] bg-white shadow-[0_25px_80px_rgba(0,0,0,0.3)] grid grid-cols-1 lg:grid-cols-2" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-stone-900/70 p-3 backdrop-blur-md sm:p-4 lg:items-center" onClick={onClose}>
+      <div className="my-4 grid w-full max-w-5xl grid-cols-1 overflow-hidden rounded-[2rem] bg-white shadow-[0_25px_80px_rgba(0,0,0,0.3)] sm:rounded-[2.5rem] lg:grid-cols-2" onClick={(e) => e.stopPropagation()}>
         
         {/* Left - Branding */}
         <div className="relative hidden lg:flex flex-col justify-between bg-gradient-to-br from-stone-900 via-stone-800 to-paprika-900 p-10 text-white overflow-hidden">
@@ -261,7 +261,7 @@ export default function AuthModal({ open, onClose, onLogin, initialTab = "login"
                   <p className="text-sm text-stone-500 mt-1">{checkoutMode ? "برای ثبت سفارش، ثبت‌نام و آدرس تحویل الزامی است" : "ثبت‌نام کمتر از ۱ دقیقه"}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="text-[11px] font-bold text-stone-500">نام</label>
                     <input required value={r.first_name} onChange={(e) => setR({ ...r, first_name: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="علی" />
@@ -292,7 +292,7 @@ export default function AuthModal({ open, onClose, onLogin, initialTab = "login"
                   <input type="email" value={r.email} onChange={(e) => setR({ ...r, email: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="ali@email.com" dir="ltr" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="text-[11px] font-bold text-stone-500">رمز عبور *</label>
                     <input required type="password" minLength={8} value={r.password} onChange={(e) => setR({ ...r, password: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500" placeholder="حداقل 8 کاراکتر" />

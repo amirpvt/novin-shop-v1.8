@@ -119,13 +119,6 @@ const initialSearch = searchParams.get("search") ?? "";
         : "text-stone-600 hover:bg-stone-50"
     }`;
 
-  const sortTabClass = (active: boolean) =>
-    `px-4 py-2 text-sm font-bold transition-all border-b-2 ${
-      active
-        ? "border-paprika-600 text-paprika-700"
-        : "border-transparent text-stone-500 hover:text-stone-800"
-    }`;
-
   return (
     <section className="min-h-screen bg-cream-50 pt-24 pb-28 font-sans">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">

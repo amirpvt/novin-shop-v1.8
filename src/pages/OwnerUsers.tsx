@@ -135,7 +135,7 @@ export default function OwnerUsers() {
             </div>
 
             <div className="hidden lg:block">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl bg-white/5 backdrop-blur border border-white/10 p-4 text-center min-w-[90px]">
                   <p className="text-2xl font-black">{users.length}</p>
                   <p className="text-[10px] text-stone-400 mt-1 font-bold tracking-widest">کل کاربران</p>

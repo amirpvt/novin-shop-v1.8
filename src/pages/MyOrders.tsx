@@ -28,17 +28,28 @@ const retailStatuses = [
   { value: "PREPARING", label: "در حال آماده‌سازی", desc: "اقلام سفارش در حال آماده‌سازی هستند", color: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500" },
   { value: "SHIPPED", label: "ارسال شده", desc: "سفارش از انبار خارج شده و در مسیر ارسال است", color: "bg-cyan-50 text-cyan-700 border-cyan-200", dot: "bg-cyan-500" },
   { value: "DELIVERED", label: "تحویل شده", desc: "سفارش با موفقیت تحویل شده است", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  { value: "CANCELLED", label: "لغو شده", desc: "این سفارش لغو شده است", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
 ];
 
 const wholesaleStatuses = [
   { value: "NEW", label: "درخواست جدید", desc: "درخواست عمده ثبت شده و منتظر بررسی است", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
   { value: "QUOTED", label: "پیش‌فاکتور صادر شده", desc: "درخواست بررسی شده و پیش‌فاکتور آماده است", color: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
   { value: "CONVERTED", label: "تبدیل به سفارش شده", desc: "درخواست عمده تایید و تبدیل به سفارش شده است", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  { value: "REJECTED", label: "رد شده", desc: "این درخواست عمده رد شده است", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
 ];
 
+function isCancelledStatus(status: string) {
+  return ["CANCELLED", "REJECTED"].includes(status);
+}
+
 function statusMeta(type: OrderType, status: string) {
+  if (isCancelledStatus(status)) {
+    return {
+      value: status,
+      label: type === "retail" ? "لغو شده" : "رد شده",
+      desc: type === "retail" ? "این سفارش لغو شده است" : "این درخواست عمده رد شده است",
+      color: "bg-red-50 text-red-700 border-red-200",
+      dot: "bg-red-500",
+    };
+  }
   const list = type === "retail" ? retailStatuses : wholesaleStatuses;
   return list.find((s) => s.value === status) || { value: status, label: status || "نامشخص", desc: "وضعیت نامشخص", color: "bg-stone-50 text-stone-700 border-stone-200", dot: "bg-stone-400" };
 }
@@ -185,7 +196,6 @@ export default function MyOrders() {
             <div>
               <span className="inline-flex rounded-full border border-white/10 bg-white/10 px-4 py-1.5 text-[11px] font-black text-gold-200">پیگیری زنده سفارش</span>
               <h1 className="mt-4 text-3xl font-black">سفارش‌های من</h1>
-              <p className="mt-2 max-w-2xl text-sm font-bold leading-7 text-stone-400">وضعیت هر سفارش دقیقاً از همان بخش مدیریت کل خوانده می‌شود؛ با تغییر مدیرکل، این صفحه هم بروزرسانی می‌شود.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => navigate("/")} className="rounded-2xl bg-white/10 px-5 py-3 text-xs font-black transition hover:bg-white/20">بازگشت به فروشگاه</button>
@@ -319,8 +329,9 @@ function TruckSvg({ exhaustOn = true }: { exhaustOn?: boolean }) {
 
 function StatusTimeline({ type, status, compact = false }: { type: OrderType; status: string; compact?: boolean }) {
   const list = type === "retail" ? retailStatuses : wholesaleStatuses;
-  const currentIndex = Math.max(0, list.findIndex((s) => s.value === status));
-  const isBad = ["CANCELLED", "REJECTED"].includes(status);
+  const rawIndex = list.findIndex((s) => s.value === status);
+  const currentIndex = Math.max(0, rawIndex);
+  const isCancelled = isCancelledStatus(status);
   const current = statusMeta(type, status);
   return (
     <div className={`${compact ? "mt-4" : "mt-5"} rounded-[1.5rem] border border-stone-200 bg-gradient-to-b from-white to-stone-50 p-4 shadow-sm`}>
@@ -332,15 +343,16 @@ function StatusTimeline({ type, status, compact = false }: { type: OrderType; st
         <span className={`rounded-full border px-3 py-1 text-[10px] font-black ${current.color}`}>{type === "retail" ? "خرده" : "عمده"}</span>
       </div>
 
-      <div className={`relative grid gap-0 overflow-visible ${compact ? "px-12 pt-24" : "px-14 pt-24"}`} style={{ gridTemplateColumns: `repeat(${list.length}, minmax(0, 1fr))` }}>
+      <div className="overflow-x-auto pb-2">
+        <div className={`relative grid gap-0 overflow-visible ${compact ? "px-12 pt-24" : "px-14 pt-24"}`} style={{ gridTemplateColumns: `repeat(${list.length}, minmax(0, 1fr))`, minWidth: compact ? "560px" : "680px" }}>
         {list.map((s, idx) => {
-          const active = s.value === status;
-          const done = !isBad && idx <= currentIndex;
-          const passedLine = !isBad && idx < currentIndex;
+          const active = !isCancelled && s.value === status;
+          const done = !isCancelled && rawIndex >= 0 && idx <= currentIndex;
+          const passedLine = !isCancelled && rawIndex >= 0 && idx < currentIndex;
           return (
             <div key={s.value} className="relative min-w-0 px-1 text-center">
               {idx < list.length - 1 && (
-                <div className={`absolute right-1/2 top-[16px] h-1.5 w-full rounded-full ${passedLine ? "bg-emerald-400" : isBad && idx < currentIndex ? "bg-red-300" : "bg-stone-200"}`} />
+                <div className={`absolute right-1/2 top-[16px] h-1.5 w-full rounded-full ${passedLine ? "bg-emerald-400" : "bg-stone-200"}`} />
               )}
               {active && (
                 <div className="absolute -top-24 left-1/2 z-20 -translate-x-1/2">
@@ -357,8 +369,23 @@ function StatusTimeline({ type, status, compact = false }: { type: OrderType; st
             </div>
           );
         })}
+        </div>
       </div>
-      <p className="mt-4 text-[11px] font-bold text-stone-500">کامیون ثابتاً روی مرحله فعلی قرار دارد؛ وقتی سفارش تحویل شده باشد اگزوز خاموش است و چیزی از آن خارج نمی‌شود.</p>
+      {isCancelled ? (
+        <div className="mt-4 overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 via-white to-red-50 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-red-600 text-lg font-black text-white shadow-lg shadow-red-600/20">!</span>
+            <div>
+              <p className="text-sm font-black text-red-700">{type === "retail" ? "لغو شده" : "رد شده"}</p>
+              <p className="mt-1 text-xs font-bold leading-6 text-red-500">
+                {type === "retail" ? "این سفارش از چرخه ارسال خارج شده و دیگر در مراحل پیگیری نمایش داده نمی‌شود." : "این درخواست عمده رد شده و دیگر در مراحل پیگیری نمایش داده نمی‌شود."}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-4 text-[11px] font-bold text-stone-500">در موبایل می‌توانید مسیر وضعیت را افقی بکشید؛ کامیون روی مرحله فعلی قرار دارد و اگر تحویل شده باشد اگزوز خاموش است.</p>
+      )}
     </div>
   );
 }

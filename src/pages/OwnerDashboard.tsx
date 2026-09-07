@@ -113,6 +113,7 @@ type DebtorRow = {
 type DashboardModalType = "todaySales" | "todayOrders" | "activeVisitors" | "debtors";
 
 type VisitorOrder = {
+  id?: number | string;
   order_number: string;
   name: string;
   phone?: string;

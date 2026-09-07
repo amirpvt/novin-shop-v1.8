@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { MenuIcon, CloseIcon, PhoneIcon, UserIcon, LogOutIcon, CrownIcon, CheckIcon, TruckIcon, PackageIcon } from "./icons";
+import { MenuIcon, CloseIcon, PhoneIcon, UserIcon, LogOutIcon, CrownIcon, CheckIcon, TruckIcon } from "./icons";
 import { siteName } from "../data";
-type Props = { siteName: string; user: any; cartCount: number; currentPage: string; onHome: () => void; onShop: () => void; onOrder: () => void; onAbout: () => void; onContact: () => void; onOpenAuth: () => void; onOpenAdmin: () => void; onLogout: () => void; onOpenCart: () => void; onSearch: (query: string) => void; onMyOrders?: () => void; };
+type Props = { siteName: string; user: any; cartCount: number; currentPage: string; onHome: () => void; onShop: () => void; onOrder: () => void; onAbout: () => void; onContact: () => void; onOpenAuth: () => void; onLogout: () => void; onOpenCart: () => void; onSearch: (query: string) => void; onMyOrders?: () => void; };
 
-export default function Navbar({ user, cartCount, currentPage, onHome, onShop, onOrder, onAbout, onContact, onOpenAuth, onOpenAdmin, onLogout, onOpenCart, onSearch, onMyOrders }: Props) {
+export default function Navbar({ user, cartCount, currentPage, onHome, onShop, onOrder, onAbout, onContact, onOpenAuth, onLogout, onOpenCart, onSearch, onMyOrders }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -39,7 +39,6 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
   const goAdminPanel = () => { setAccountMenuOpen(false); window.location.href = "/admin"; };
   const goVisitorPanel = () => { setAccountMenuOpen(false); window.location.href = "/dashboard/visitor/today"; };
   const goMyOrders = () => { setAccountMenuOpen(false); if (onMyOrders) onMyOrders(); else window.location.href = "/my-orders"; };
-  const goTrackOrders = () => { setAccountMenuOpen(false); window.location.href = "/track"; };
   const handleAccountLogout = () => { setAccountMenuOpen(false); onLogout(); };
 
   return (
@@ -160,10 +159,6 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
                             <span className="flex items-center gap-2"><span>🛒</span> سبد خرید</span>
                             <span className="rounded-full bg-paprika-500 px-2 py-0.5 text-[10px] text-white">{cartCount}</span>
                           </button>
-                          <button onClick={goTrackOrders} className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs font-black text-stone-700 transition hover:bg-stone-50">
-                            <span className="flex items-center gap-2"><TruckIcon className="h-4 w-4" /> پیگیری سفارش</span>
-                            <span className="text-stone-300">←</span>
-                          </button>
                         </div>
 
                         <div className="mt-3 border-t border-stone-100 pt-3">
@@ -229,7 +224,6 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
                   {isAdmin && <button onClick={() => { goAdminPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-stone-900 py-3 text-white font-black">🛡️ پنل ادمین</button>}
                   {isVisitor && <button onClick={() => { goVisitorPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-blue-600 py-3 text-white font-black">🧑‍💼 پنل ویزیتور</button>}
                   {isCustomer && <button onClick={() => { goMyOrders(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 border py-3 font-bold text-paprika-700">📦 سفارشات من</button>}
-                  <button onClick={() => { goTrackOrders(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-stone-50 py-3 font-bold text-stone-700">🚚 پیگیری سفارش</button>
                   <button onClick={() => { handleAccountLogout(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 py-3 text-paprika-600 font-bold">خروج</button>
                 </div>
               )}

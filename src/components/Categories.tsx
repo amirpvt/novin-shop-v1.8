@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { productsApi, type Category as ApiCategory } from "../api/client";
+import { productsApi } from "../api/client";
 import { categories as fallbackCategories } from "../data";
 
 // ✅ عکس‌های دسته‌بندی از فضای خود پروژه - نه Pexels

@@ -4,6 +4,7 @@ models.py کامل با واحدهای جدا - کپی کن روی products/mode
 بقیه همان قبلی است
 """
 from django.db import models
+from django.db.models import Q
 
 class Category(models.Model):
     name = models.CharField("نام دسته", max_length=100, db_index=True,)
@@ -19,6 +20,10 @@ class Category(models.Model):
         verbose_name = "دسته بندی"
         verbose_name_plural = "دسته بندی ها"
         ordering = ["order", "name"]
+        indexes = [
+            models.Index(fields=["is_active", "order"], name="category_active_order_idx"),
+            models.Index(fields=["is_featured", "order"], name="category_featured_order_idx"),
+        ]
     def __str__(self): return self.name
 
 class Brand(models.Model):
@@ -35,6 +40,9 @@ class Brand(models.Model):
         ordering = ["order", "name"]
         verbose_name = "برند"
         verbose_name_plural = "برندها"
+        indexes = [
+            models.Index(fields=["is_active", "order"], name="brand_active_order_idx"),
+        ]
     def __str__(self): return self.name
 
 UNIT_CHOICES = [
@@ -117,6 +125,19 @@ class Product(models.Model):
         verbose_name = "محصول"
         verbose_name_plural = "محصولات"
         ordering = ["order", "name"]
+        indexes = [
+            models.Index(fields=["status", "available", "order"], name="product_public_list_idx"),
+            models.Index(fields=["category", "available", "order"], name="product_category_idx"),
+            models.Index(fields=["brand", "available", "order"], name="product_brand_idx"),
+            models.Index(fields=["is_featured", "available", "order"], name="product_featured_idx"),
+            models.Index(fields=["stock"], name="product_stock_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(price__gte=0), name="product_price_non_negative"),
+            models.CheckConstraint(condition=Q(discount_price__isnull=True) | Q(discount_price__gte=0), name="product_discount_non_negative"),
+            models.CheckConstraint(condition=Q(discount_price__isnull=True) | Q(discount_price__lt=models.F("price")), name="product_discount_lt_price"),
+            models.CheckConstraint(condition=Q(wholesale_min_quantity__gt=0), name="product_wholesale_min_positive"),
+        ]
 
     def __str__(self):
         return self.name

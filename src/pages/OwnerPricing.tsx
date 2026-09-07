@@ -6,7 +6,6 @@
 import { useEffect, useState } from "react";
 import { dashboardApi } from "../services/dashboardApi";
 import { productsApi } from "../api/client";
-import { formatPrice } from "../data";
 
 export default function OwnerPricing() {
   const [products, setProducts] = useState<any[]>([]);
@@ -168,8 +167,6 @@ export default function OwnerPricing() {
 
   const filtered = products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
 
-  const discountPercent = productForm.price && productForm.discount_price ? Math.round(((Number(productForm.price) - Number(productForm.discount_price)) / Number(productForm.price)) * 100) : 0;
-
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 p-8 text-white shadow-2xl">
@@ -213,7 +210,7 @@ export default function OwnerPricing() {
                     {isEditingThis ? (
                       <div className="space-y-2">
                         <input type="number" value={priceForm.base_price} onChange={(e) => setPriceForm({ ...priceForm, base_price: e.target.value })} placeholder="قیمت پایه" className="w-full rounded-xl border px-3 py-2 text-sm" />
-                        <input type="number" value={priceForm.wholesale_price} onChange={(e) => setForm({ ...priceForm, wholesale_price: e.target.value })} placeholder="قیمت عمده" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm" />
+                        <input type="number" value={priceForm.wholesale_price} onChange={(e) => setPriceForm({ ...priceForm, wholesale_price: e.target.value })} placeholder="قیمت عمده" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm" />
                         <div className="flex gap-2"><button onClick={() => handlePriceSave(product.id)} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-xs font-black">ذخیره</button><button onClick={() => setEditingPrice(null)} className="flex-1 bg-stone-200 py-2 rounded-xl text-xs">لغو</button></div>
                       </div>
                     ) : (
@@ -291,7 +288,7 @@ export default function OwnerPricing() {
                 </div>
                 <div>
                   <label className="block text-xs font-black mb-1.5">🎖️ نشان (Badge)</label>
-                  <select value={productForm.badge} onChange={(e) => setForm({ ...productForm, badge: e.target.value })} className="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-sm">
+                  <select value={productForm.badge} onChange={(e) => setProductForm({ ...productForm, badge: e.target.value })} className="w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-sm">
                     <option value="">بدون نشان</option>
                     <option value="fresh">تازه (fresh)</option>
                     <option value="hot">محبوب (hot)</option>
@@ -325,14 +322,10 @@ export default function OwnerPricing() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-black mb-1.5">قیمت اصلی *</label>
                   <input required type="number" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) })} className="w-full rounded-xl border-2 bg-stone-50 px-4 py-3 text-sm font-mono font-bold" />
-                </div>
-                <div>
-                  <label className="block text-xs font-black mb-1.5">قیمت عمده</label>
-                  <input type="number" value={productForm.wholesale_price} onChange={(e) => setProductForm({ ...productForm, wholesale_price: e.target.value })} className="w-full rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-mono font-bold text-emerald-700" />
                 </div>
                 <div>
                   <label className="block text-xs font-black mb-1.5">موجودی *</label>
@@ -348,6 +341,11 @@ export default function OwnerPricing() {
                     <span className="text-xs font-bold">ویژه صفحه اصلی</span>
                   </label>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4">
+                <label className="block text-xs font-black mb-2 text-emerald-700">قیمت عمده</label>
+                <input type="number" value={productForm.wholesale_price} onChange={(e) => setProductForm({ ...productForm, wholesale_price: e.target.value })} placeholder="مثلا 80000" className="w-full rounded-xl border-2 border-emerald-200 bg-white px-4 py-3 text-sm font-mono font-bold text-emerald-700 outline-none focus:border-emerald-500" />
               </div>
 
               <div className="rounded-2xl border-2 border-amber-100 bg-amber-50/50 p-4">

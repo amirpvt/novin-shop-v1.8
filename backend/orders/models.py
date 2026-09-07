@@ -34,6 +34,7 @@ python manage.py migrate
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 import random, string
 
 def generate_order_number(): return "ORD-" + "".join(random.choices(string.digits, k=8))
@@ -73,6 +74,14 @@ class Order(models.Model):
         verbose_name = "سفارش تک‌فروشی"
         verbose_name_plural = "سفارش‌های تک‌فروشی"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="order_user_created_idx"),
+            models.Index(fields=["order_status", "-created_at"], name="order_status_created_idx"),
+            models.Index(fields=["phone"], name="order_phone_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(total_amount__gte=0), name="order_total_non_negative"),
+        ]
 
     def __str__(self): return f"{self.order_number} — {self.name}"
 
@@ -86,6 +95,14 @@ class OrderItem(models.Model):
     class Meta:
         verbose_name = "آیتم سفارش"
         verbose_name_plural = "آیتم‌های سفارش"
+        indexes = [
+            models.Index(fields=["order"], name="orderitem_order_idx"),
+            models.Index(fields=["product"], name="orderitem_product_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(quantity__gt=0), name="orderitem_qty_positive"),
+            models.CheckConstraint(condition=Q(price__gte=0), name="orderitem_price_non_negative"),
+        ]
 
     def __str__(self): return f"{self.product_name} × {self.quantity}"
     @property
@@ -130,6 +147,14 @@ class WholesaleRequest(models.Model):
         verbose_name = "درخواست خرید عمده"
         verbose_name_plural = "درخواست‌های خرید عمده"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="wholesale_user_created_idx"),
+            models.Index(fields=["status", "-created_at"], name="wholesale_status_created_idx"),
+            models.Index(fields=["phone"], name="wholesale_phone_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(total_amount__gte=0), name="wholesale_total_non_negative"),
+        ]
 
     def __str__(self): return f"{self.request_number} — {self.company_name}"
 
@@ -143,6 +168,13 @@ class WholesaleRequestItem(models.Model):
     class Meta:
         verbose_name = "آیتم درخواست عمده"
         verbose_name_plural = "آیتم‌های درخواست عمده"
+        indexes = [
+            models.Index(fields=["request"], name="whitem_request_idx"),
+            models.Index(fields=["product"], name="whitem_product_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(quantity__gt=0), name="wholesaleitem_qty_positive"),
+        ]
 
 class Payment(models.Model):
     PAYMENT_STATUS_CHOICES = [("PENDING", "در انتظار پرداخت"), ("SUCCESS", "موفق"), ("FAILED", "ناموفق"), ("REFUNDED", "مسترد شده")]
@@ -154,3 +186,15 @@ class Payment(models.Model):
     transaction_id = models.CharField("کد پیگیری تراکنش", max_length=255, blank=True, null=True)
     created_at = models.DateTimeField("تاریخ ایجاد", auto_now_add=True)
     updated_at = models.DateTimeField("تاریخ بروزرسانی", auto_now=True)
+
+    class Meta:
+        verbose_name = "پرداخت"
+        verbose_name_plural = "پرداخت‌ها"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["order", "-created_at"], name="payment_order_created_idx"),
+            models.Index(fields=["payment_status", "-created_at"], name="payment_status_created_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(amount__gte=0), name="payment_amount_non_negative"),
+        ]

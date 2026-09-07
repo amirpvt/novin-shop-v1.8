@@ -1,9 +1,8 @@
-// @ts-nocheck
 // پنل ادمین دو سطحی - ادمین معمولی و مدیر کل
 // گزینه افزودن محصول عالی قبلی دست نخورده - فقط تب مدیریت ادمین‌ها اضافه شده برای مدیر کل
 
 import { useState, useEffect } from "react";
-import { formatPrice, type Product } from "../data";
+import { formatPrice } from "../data";
 import { productsApi, ordersApi, wholesaleApi } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 
@@ -14,11 +13,8 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [wholesale, setWholesale] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
   const [admins, setAdmins] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter] = useState("");
 
   const { user: currentUser } = useAuth();
   const isSuperAdmin = currentUser?.role === "superadmin";
@@ -29,7 +25,6 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [hasDiscount, setHasDiscount] = useState(false);
-  const [brands, setBrands] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [form, setForm] = useState<any>({
     name: "", description: "", price: 0, wholesale_price: "", discount_price: "", stock: 10, unit: "pack", category: 1, brand: "", sku: "", tag: "", badge: "", is_featured: false,
@@ -41,24 +36,22 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
   });
 
   const loadProducts = async () => {
-    setLoading(true);
     try {
       const data: any = await productsApi.getAll();
       setProducts(data.results ?? data);
-    } catch {} finally { setLoading(false); }
+    } catch {}
   };
   const loadOrders = async () => {
-    setLoading(true);
     try {
       const data: any = await ordersApi.list(statusFilter ? { order_status: statusFilter } : undefined);
       setOrders(data.results ?? data);
-    } catch {} finally { setLoading(false); }
+    } catch {}
   };
   const loadWholesale = async () => {
     try { const data: any = await wholesaleApi.list(); setWholesale(data.results ?? data); } catch {}
   };
   const loadStats = async () => {
-    try { const data: any = await ordersApi.stats(); setStats(data); } catch {}
+    try { await ordersApi.stats(); } catch {}
   };
   const loadMeta = async () => {
     try {
@@ -69,7 +62,7 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
         fetch(`${base}/products/brands/`, { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${base}/products/categories/`, { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
       ]);
-      setBrands(brandsRes.results ?? brandsRes ?? []);
+      void brandsRes;
       setCategories(catsRes.results ?? catsRes ?? []);
     } catch {}
   };
@@ -94,14 +87,6 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
     setImageFile(null); setImagePreview(null); setHasDiscount(false);
   };
   const openAdd = () => { resetForm(); setEditing(null); setIsAdding(true); };
-  const openEdit = (p: any) => {
-    setEditing(p);
-    setForm({ name: p.name, description: p.description || "", price: parseFloat(p.price) || 0, wholesale_price: p.wholesale_price ? parseFloat(p.wholesale_price) : "", discount_price: p.discount_price ? parseFloat(p.discount_price) : "", stock: p.stock ?? 10, unit: p.unit || "pack", category: p.category || categories[0]?.id || 1, brand: p.brand_name || p.brand || "", sku: p.sku || "", tag: p.tag || "", badge: p.badge || "", is_featured: p.is_featured || false });
-    setHasDiscount(!!p.discount_price);
-    setImagePreview(p.image || null);
-    setImageFile(null);
-    setIsAdding(false);
-  };
   const handleImageChange = (e: any) => {
     const file = e.target.files?.[0];
     if (file) { setImageFile(file); const reader = new FileReader(); reader.onload = (ev) => setImagePreview(ev.target?.result as string); reader.readAsDataURL(file); }
@@ -300,10 +285,19 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
                   <input type="file" accept="image/*" onChange={handleImageChange} className="mt-4 block w-full text-sm" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="نام *" className="rounded-xl border px-4 py-3 text-sm" />
-                <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} placeholder="قیمت *" className="rounded-xl border px-4 py-3 text-sm" />
-                <input type="number" value={form.wholesale_price} onChange={(e) => setForm({ ...form, wholesale_price: e.target.value })} placeholder="قیمت عمده" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-black mb-1.5">نام محصول *</label>
+                  <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="نام *" className="w-full rounded-xl border px-4 py-3 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black mb-1.5">قیمت اصلی *</label>
+                  <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} placeholder="قیمت *" className="w-full rounded-xl border px-4 py-3 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black mb-1.5 text-emerald-700">قیمت عمده</label>
+                  <input type="number" value={form.wholesale_price} onChange={(e) => setForm({ ...form, wholesale_price: e.target.value })} placeholder="قیمت عمده" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} placeholder="موجودی" className="rounded-xl border px-4 py-3 text-sm" />

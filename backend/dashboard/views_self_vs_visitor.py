@@ -12,14 +12,8 @@ class CustomerSelfOrdersView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request):
         user = request.user
+        # فقط سفارش‌های متصل به user جاری؛ فیلتر موبایل حذف شد تا سفارش کاربر دیگر قابل مشاهده نباشد.
         my_orders = Order.objects.filter(user=user)
-        try:
-            phone = user.customer_profile.phone if hasattr(user, 'customer_profile') else None
-            if phone:
-                my_orders = my_orders | Order.objects.filter(phone=phone)
-        except:
-            pass
-        my_orders = my_orders.distinct()
         commission_order_ids = Commission.objects.values_list('order_id', flat=True)
         self_orders = my_orders.exclude(id__in=commission_order_ids).order_by('-created_at')
         serializer = OrderSerializer(self_orders, many=True)
@@ -29,20 +23,14 @@ class CustomerSelfWholesaleView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request):
         user = request.user
-        qs = WholesaleRequest.objects.filter(user=user)
-        try:
-            phone = user.customer_profile.phone if hasattr(user, 'customer_profile') else None
-            if phone:
-                qs = qs | WholesaleRequest.objects.filter(phone=phone)
-        except:
-            pass
-        qs = qs.distinct().order_by('-created_at')
+        # فقط درخواست‌های عمده متصل به user جاری؛ فیلتر موبایل برای جلوگیری از نشت اطلاعات حذف شد.
+        qs = WholesaleRequest.objects.filter(user=user).order_by('-created_at')
         serializer = WholesaleRequestSerializer(qs, many=True)
         return Response(serializer.data)
 
 class VisitorOrdersOnlyView(APIView):
     """
-    FINAL - همیشه حداقل 5 سفارش برمی‌گرداند تا "هنوز سفارشی ثبت نکرده" ننویسد
+    فقط سفارش‌های واقعی ثبت‌شده توسط ویزیتورها؛ بدون fallback دمو.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -54,24 +42,16 @@ class VisitorOrdersOnlyView(APIView):
 
         visitor_id = request.query_params.get('visitor_id')
 
-        # برای تست، اول سعی کن سفارشات واقعی ویزیتور را بیاوری
         qs = Order.objects.none()
-        if visitor_id:
-            try:
-                commission_qs = Commission.objects.filter(visitor_id=visitor_id).values_list('order_id', flat=True)
-                if commission_qs.exists():
-                    qs = Order.objects.filter(id__in=commission_qs).order_by('-created_at')
-            except:
-                pass
-
-        # اگر هنوز خالی بود (چون کمیسیون 0 است)، 5 سفارش آخر را به عنوان دمو برگردان
-        # تا پنل خالی نماند و کاربر ببیند که بخش کار می‌کند
-        if not qs.exists():
-            # اول PENDING
-            qs = Order.objects.filter(order_status='PENDING').order_by('-created_at')[:5]
-            if not qs.exists():
-                # اگر PENDING هم نبود، همه سفارشات
-                qs = Order.objects.all().order_by('-created_at')[:5]
+        try:
+            if visitor_id:
+                commission_order_ids = Commission.objects.filter(visitor_id=visitor_id, order__isnull=False).values_list('order_id', flat=True)
+                qs = Order.objects.filter(id__in=commission_order_ids).order_by('-created_at')
+            else:
+                commission_order_ids = Commission.objects.filter(order__isnull=False).values_list('order_id', flat=True)
+                qs = Order.objects.filter(id__in=commission_order_ids).order_by('-created_at')
+        except Exception:
+            qs = Order.objects.none()
 
         serializer = OrderSerializer(qs, many=True)
         data = serializer.data

@@ -1,4 +1,4 @@
-import { phone, phoneFixed, mobilePhone, address } from "../data";
+import { phoneFixed, mobilePhone, address } from "../data";
 
 type Props = {
   id: string;

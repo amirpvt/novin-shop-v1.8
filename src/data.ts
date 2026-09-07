@@ -44,6 +44,7 @@ export type Product = {
   brand: string;
   tag?: string;
   category: string;
+  category_name?: string;
   image: string;
   badge?: string;
   available: boolean;

@@ -163,7 +163,7 @@ export default function OwnerCommissions() {
                 <div><p className="text-[10px] font-black text-stone-400">مدیریت پورسانت ویزیتور</p><h2 className="mt-2 text-2xl font-black">{selected.visitor_name}</h2><p className="mt-1 text-xs text-stone-400">@{selected.visitor_username} {selected.visitor_phone ? `· ${selected.visitor_phone}` : ""}</p></div>
                 <button onClick={() => setSelected(null)} className="rounded-2xl bg-white/10 px-4 py-2 text-sm font-black">✕</button>
               </div>
-              <div className="mt-6 grid grid-cols-3 gap-3">
+              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl bg-white/10 p-4"><p className="text-[10px] text-stone-400">کل پورسانت</p><p className="text-lg font-black">{money(selected.total_commission)}</p></div>
                 <div className="rounded-2xl bg-amber-500/20 p-4"><p className="text-[10px] text-amber-100">در انتظار</p><p className="text-lg font-black text-amber-100">{money(selected.unpaid_commission)}</p></div>
                 <div className="rounded-2xl bg-emerald-500/20 p-4"><p className="text-[10px] text-emerald-100">پرداخت‌شده</p><p className="text-lg font-black text-emerald-100">{money(selected.paid_commission)}</p></div>

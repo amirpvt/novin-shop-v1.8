@@ -597,12 +597,8 @@ class AdminPendingOrders(APIView):
             # سفارشات ویزیتوری = آنهایی که کمیسیون دارند یا user ویزیتور است
             qs = qs.filter(Q(id__in=commission_order_ids) | Q(user_id__in=visitor_user_ids))
         else:
-            # اگر هنوز کمیسیونی نیست (سفارشات قدیمی بدون کمیسیون)، همه PENDING را برگردان تا مدیر ببیند
-            # یا فقط آنهایی که user ویزیتور است
+            # امنیت تحویل: fallback دمو حذف شد؛ فقط سفارش‌های واقعاً مرتبط با ویزیتورها برگردانده می‌شود.
             qs = qs.filter(user_id__in=visitor_user_ids)
-            if not qs.exists():
-                # برای دمو، اگر هیچ سفارش ویزیتوری نبود، همه PENDING را برگردان
-                qs = Order.objects.filter(order_status='PENDING').order_by('-created_at')[:20]
 
         from orders.serializers import OrderSerializer
         serializer = OrderSerializer(qs, many=True)
@@ -673,24 +669,9 @@ class VisitorTodayList(APIView):
         today = timezone.now().date()
         qs = VisitSchedule.objects.filter(visitor=request.user, date=today).select_related('customer').order_by('priority')
         
-        # اگر برنامه‌ای برای امروز ندارد، مشتریان نزدیک یا تصادفی را برگردان (برای دمو)
+        # امنیت تحویل: اگر برنامه‌ای برای امروز ندارد، هیچ مشتری تصادفی/دمویی نمایش داده نمی‌شود.
         if not qs.exists():
-            # 5 مشتری تصادفی
-            customers = User.objects.filter(customer_profile__role='customer').order_by('?')[:5]
-            data = [
-                {
-                    'id': None,
-                    'customer_id': c.id,
-                    'customer_name': c.get_full_name() or c.username,
-                    'customer_phone': getattr(c.customer_profile, 'phone', '') if hasattr(c, 'customer_profile') else '',
-                    'customer_address': getattr(c.customer_profile, 'address', '') if hasattr(c, 'customer_profile') else '',
-                    'date': str(today),
-                    'status': 'pending',
-                    'priority': 1,
-                }
-                for c in customers
-            ]
-            return Response(data)
+            return Response([])
 
         serializer = VisitScheduleSerializer(qs, many=True)
         return Response(serializer.data)

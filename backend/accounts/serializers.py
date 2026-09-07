@@ -65,6 +65,13 @@ class UserSerializer(serializers.ModelSerializer):
     def get_role(self, obj):
         if obj.is_superuser:
             return "superadmin"
+        try:
+            if hasattr(obj, "customer_profile") and obj.customer_profile and obj.customer_profile.role:
+                return obj.customer_profile.role
+        except Customer.DoesNotExist:
+            pass
+        except Exception:
+            pass
         if obj.is_staff:
             return "admin"
         return "customer"

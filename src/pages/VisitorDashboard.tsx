@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * VisitorOrdersPro.tsx - پنل مخصوص ویزیتورها
  * فقط سفارش‌هایی که خودشون ثبت کردن رو نمایش میده با جزئیات حرفه‌ای
@@ -51,7 +50,6 @@ function formatPrice(n: number | string) {
 
 export default function VisitorOrdersPro() {
   const [orders, setOrders] = useState<any[]>([]);
-  const [commissions, setCommissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "confirmed" | "delivered">("all");
   const [search, setSearch] = useState("");
@@ -71,7 +69,6 @@ export default function VisitorOrdersPro() {
       // گرفتن پورسانت‌ها که شامل سفارش‌هاست + سفارشات تکی که ویزیتور ثبت کرده
       const commissionData = await dashboardApi.visitor.commission();
       const commissionsList = commissionData.commissions ?? commissionData ?? [];
-      setCommissions(commissionsList);
 
       // از روی کمیسیون‌ها، سفارشات را استخراج کن
       // commission شامل order_number, order_total است ولی جزئیات کامل را باید از orders بگیریم
@@ -151,7 +148,6 @@ export default function VisitorOrdersPro() {
 
       // آمار
       const total = commissionsList.length;
-      const pending = commissionsList.filter((c: any) => !c.is_paid).length; // به عنوان نمونه
       const totalSales = commissionData.total_commission ? (commissionData.total_commission * 20) : commissionsList.reduce((s: number, c: any) => s + parseFloat(c.order_total || 0), 0); // تخمینی
       const totalCommission = commissionData.total_commission || 0;
 

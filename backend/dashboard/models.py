@@ -4,6 +4,7 @@
 """
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 
@@ -50,6 +51,13 @@ class ProductPricing(models.Model):
         verbose_name = "قیمت‌گذاری محصول"
         verbose_name_plural = "قیمت‌گذاری محصولات"
         ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["is_active", "-updated_at"], name="pricing_active_updated_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(base_price__gte=0), name="pricing_base_non_negative"),
+            models.CheckConstraint(condition=Q(wholesale_price__gte=0), name="pricing_wholesale_non_negative"),
+        ]
 
     def __str__(self):
         return f"{self.product.name} - پایه: {self.base_price} / عمده: {self.wholesale_price}"
@@ -101,6 +109,14 @@ class VisitSchedule(models.Model):
         verbose_name_plural = "برنامه‌های بازدید"
         ordering = ["date", "priority"]
         unique_together = ["visitor", "customer", "date"]
+        indexes = [
+            models.Index(fields=["visitor", "date", "status"], name="visit_visitor_date_status_idx"),
+            models.Index(fields=["customer", "date"], name="visit_customer_date_idx"),
+            models.Index(fields=["status", "date"], name="visit_status_date_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(priority__gte=1) & Q(priority__lte=5), name="visit_priority_between_1_5"),
+        ]
 
     def __str__(self):
         return f"{self.visitor.username} -> {self.customer.username} در {self.date} - {self.get_status_display()}"
@@ -150,6 +166,14 @@ class CashCollection(models.Model):
         verbose_name = "دریافت وجه نقد"
         verbose_name_plural = "دریافت‌های وجه نقد"
         ordering = ["-collected_at"]
+        indexes = [
+            models.Index(fields=["customer", "-collected_at"], name="cash_customer_collected_idx"),
+            models.Index(fields=["visitor", "-collected_at"], name="cash_visitor_collected_idx"),
+            models.Index(fields=["order", "-collected_at"], name="cash_order_collected_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(amount__gt=0), name="cash_amount_positive"),
+        ]
 
     def __str__(self):
         return f"{self.customer.username} - {self.amount} - {self.collected_at.date()}"
@@ -157,7 +181,7 @@ class CashCollection(models.Model):
 
 class Commission(models.Model):
     """
-    پورسانت ویزیتور به ازای سفارش خرده یا درخواست عمده
+    پورسانت ویزیتور به ازای هر سفارش
     """
     visitor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -165,7 +189,6 @@ class Commission(models.Model):
         related_name='commissions',
         verbose_name="ویزیتور"
     )
-
     order = models.OneToOneField(
         'orders.Order',
         on_delete=models.CASCADE,
@@ -174,7 +197,6 @@ class Commission(models.Model):
         null=True,
         blank=True
     )
-
     wholesale_request = models.OneToOneField(
         'orders.WholesaleRequest',
         on_delete=models.CASCADE,
@@ -183,20 +205,8 @@ class Commission(models.Model):
         null=True,
         blank=True
     )
-
-    percentage = models.DecimalField(
-        "درصد پورسانت",
-        max_digits=5,
-        decimal_places=2,
-        default=5.00,
-        validators=[MinValueValidator(0)]
-    )
-    amount = models.DecimalField(
-        "مبلغ پورسانت",
-        max_digits=12,
-        decimal_places=0,
-        validators=[MinValueValidator(0)]
-    )
+    percentage = models.DecimalField("درصد پورسانت", max_digits=5, decimal_places=2, default=5.00, validators=[MinValueValidator(0)])
+    amount = models.DecimalField("مبلغ پورسانت", max_digits=12, decimal_places=0, validators=[MinValueValidator(0)])
     is_paid = models.BooleanField("پرداخت شده؟", default=False)
     paid_at = models.DateTimeField("تاریخ پرداخت پورسانت", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -205,11 +215,21 @@ class Commission(models.Model):
         verbose_name = "پورسانت"
         verbose_name_plural = "پورسانت‌ها"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["visitor", "is_paid", "-created_at"], name="commission_visitor_paid_idx"),
+            models.Index(fields=["is_paid", "-created_at"], name="commission_paid_created_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(percentage__gte=0), name="commission_percent_non_negative"),
+            models.CheckConstraint(condition=Q(amount__gte=0), name="commission_amount_non_negative"),
+            models.CheckConstraint(
+                condition=(Q(order__isnull=False) & Q(wholesale_request__isnull=True)) | (Q(order__isnull=True) & Q(wholesale_request__isnull=False)),
+                name="commission_exactly_one_source",
+            ),
+        ]
 
     def __str__(self):
-        source_number = self.order.order_number if self.order else (
-            self.wholesale_request.request_number if self.wholesale_request else "بدون سند"
-        )
+        source_number = self.order.order_number if self.order else (self.wholesale_request.request_number if self.wholesale_request else "بدون سند")
         return f"{self.visitor.username} - {self.amount} برای {source_number}"
 
     def save(self, *args, **kwargs):
@@ -220,6 +240,8 @@ class Commission(models.Model):
             elif self.wholesale_request:
                 self.amount = (self.wholesale_request.total_amount * self.percentage / 100)
         super().save(*args, **kwargs)
+
+
 
 
 class CommissionRule(models.Model):
@@ -249,6 +271,12 @@ class CommissionRule(models.Model):
         verbose_name = "قانون پورسانت"
         verbose_name_plural = "قوانین پورسانت"
         ordering = ["visitor__username"]
+        indexes = [
+            models.Index(fields=["is_active", "-updated_at"], name="commission_rule_active_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(percentage__gte=0), name="commission_rule_percent_non_negative"),
+        ]
 
     def __str__(self):
         return f"{self.visitor.username} - {self.percentage}%"
@@ -282,6 +310,13 @@ class CommissionPayment(models.Model):
         verbose_name = "پرداخت پورسانت"
         verbose_name_plural = "پرداخت‌های پورسانت"
         ordering = ["-paid_at"]
+        indexes = [
+            models.Index(fields=["visitor", "-paid_at"], name="commission_payment_visitor_idx"),
+            models.Index(fields=["-paid_at"], name="commission_payment_paid_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(amount__gte=0), name="commission_payment_amount_non_negative"),
+        ]
 
     def __str__(self):
         return f"{self.visitor.username} - {self.amount}"
@@ -309,6 +344,14 @@ class CustomerDebt(models.Model):
         verbose_name = "بدهی مشتری"
         verbose_name_plural = "بدهی مشتریان"
         ordering = ["-total_debt"]
+        indexes = [
+            models.Index(fields=["is_overdue", "-total_debt"], name="debt_overdue_total_idx"),
+            models.Index(fields=["-last_order_date"], name="debt_last_order_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(total_debt__gte=0), name="debt_total_non_negative"),
+            models.CheckConstraint(condition=Q(total_paid__gte=0), name="debt_paid_non_negative"),
+        ]
 
     def __str__(self):
         return f"{self.customer.username} - بدهی: {self.total_debt}"

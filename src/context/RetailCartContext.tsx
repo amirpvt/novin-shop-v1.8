@@ -5,9 +5,9 @@ import { getStoredCart, saveStoredCart, type CartItem } from '../storage';
 interface RetailCartContextType {
   retailCart: CartItem[];
   addRetailItem: (product: Product) => void;
-  removeRetailItem: (productId: string) => void;
-  increaseRetailQuantity: (productId: string) => void;
-  decreaseRetailQuantity: (productId: string) => void;
+  removeRetailItem: (productId: number) => void;
+  increaseRetailQuantity: (productId: number) => void;
+  decreaseRetailQuantity: (productId: number) => void;
   clearRetailCart: () => void;
   getRetailTotal: () => number;
   getRetailCount: () => number;
@@ -67,17 +67,17 @@ export function RetailCartProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const removeRetailItem = (productId: string) => {
+  const removeRetailItem = (productId: number) => {
     setRetailCart((prev) => prev.filter((item) => item.id !== productId));
   };
 
-  const increaseRetailQuantity = (productId: string) => {
+  const increaseRetailQuantity = (productId: number) => {
     setRetailCart((prev) =>
       prev.map((item) => (item.id === productId ? { ...item, qty: item.qty + 1 } : item))
     );
   };
 
-  const decreaseRetailQuantity = (productId: string) => {
+  const decreaseRetailQuantity = (productId: number) => {
     setRetailCart((prev) =>
       prev
         .map((item) => (item.id === productId ? { ...item, qty: item.qty - 1 } : item))

@@ -1,5 +1,5 @@
-import { siteName, siteSlogan, phone, phoneFixed, mobilePhone, address, brands } from "../data";
-import { CheckIcon, TruckIcon, PhoneIcon, ArrowRightIcon } from "../components/icons";
+import { siteName, siteSlogan, phoneFixed, mobilePhone, address, brands } from "../data";
+import { PhoneIcon, ArrowRightIcon } from "../components/icons";
 
 type Props = {
   onBack: () => void;

@@ -98,6 +98,11 @@ class Customer(models.Model):
         verbose_name = "پروفایل مشتری"
         verbose_name_plural = "پروفایل مشتری‌ها"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["role", "is_active"], name="customer_role_active_idx"),
+            models.Index(fields=["customer_type", "is_wholesale_approved"], name="customer_type_wholesale_idx"),
+            models.Index(fields=["is_active", "-created_at"], name="customer_active_created_idx"),
+        ]
 
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} — {self.get_role_display()}"
