@@ -11,6 +11,7 @@ from .models import Customer
 from .serializers import (
     ChangePasswordSerializer,
     CustomerSerializer,
+    ProfileUpdateSerializer,
     RegisterSerializer,
     UserSerializer,
 )
@@ -79,18 +80,11 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
     def patch(self, request):
-        # بروزرسانی پروفایل Customer
-        try:
-            customer, _ = Customer.objects.get_or_create(user=request.user)
-            serializer = CustomerSerializer(customer, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(UserSerializer(request.user).data)
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error in ProfileView.patch: {e}", exc_info=True)
-            return Response({"detail": f"خطا در بروزرسانی: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        request.user.refresh_from_db()
+        return Response(UserSerializer(request.user).data)
 
 
 class ChangePasswordView(APIView):

@@ -43,9 +43,16 @@ function StatusTimeline({ type, status }: { type: "retail" | "wholesale"; status
   );
 }
 
-function formatPrice(n: number | string) {
-  const num = typeof n === "string" ? parseFloat(n) : n;
-  return num.toLocaleString("en-US") + " تومان";
+function formatPrice(n?: number | string | null) {
+  const num = Number(n ?? 0);
+  const safeNum = Number.isFinite(num) ? num : 0;
+  return safeNum.toLocaleString("en-US") + " تومان";
+}
+
+function itemSubtotal(item: any) {
+  const price = Number(item?.price ?? 0);
+  const quantity = Number(item?.quantity ?? 0);
+  return (Number.isFinite(price) ? price : 0) * (Number.isFinite(quantity) ? quantity : 0);
 }
 
 export default function VisitorOrdersPro() {
@@ -182,7 +189,7 @@ export default function VisitorOrdersPro() {
   });
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] pt-28 pb-20" dir="rtl">
+    <div className="min-h-screen bg-[#faf8f5] pt-0 pb-20" dir="rtl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* هدر حرفه‌ای مخصوص ویزیتور */}
         <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-8 text-white shadow-2xl">
@@ -267,14 +274,17 @@ export default function VisitorOrdersPro() {
           </div>
         ) : (
           <div className="mt-8 grid gap-5">
-            {filteredOrders.map((order: any) => (
+            {filteredOrders.map((order: any, index: number) => (
               <div key={order.id || order.order_number} className="group relative overflow-hidden rounded-[2rem] bg-white border border-stone-200 shadow-sm hover:shadow-xl hover:border-blue-200 hover:-translate-y-1 transition-all duration-500">
                 <div className="absolute top-0 right-0 w-40 h-40 bg-blue-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-100 transition" />
                 
                 <div className="relative p-6 md:p-8">
                   <div className="flex flex-col lg:flex-row justify-between gap-6">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-stone-900 to-blue-700 px-3 text-sm font-black text-white shadow-lg shadow-blue-900/15" title="شماره ردیف">
+                          {index + 1}
+                        </span>
                         <span className="font-mono font-black text-lg">{order.order_number}</span>
                         <span className={`px-3 py-1 rounded-full text-[11px] font-black border ${statusMeta(order.sale_type === "wholesale" ? "wholesale" : "retail", order.order_status).color}`}>{statusMeta(order.sale_type === "wholesale" ? "wholesale" : "retail", order.order_status).label}</span>
                         <span className={`px-3 py-1 rounded-full text-[11px] font-black border ${order.sale_type === "wholesale" ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-sky-50 text-sky-700 border-sky-200"}`}>{order.sale_type === "wholesale" ? "عمده" : "خرده"}</span>
@@ -291,7 +301,7 @@ export default function VisitorOrdersPro() {
                           <p className="text-[10px] font-black tracking-widest text-stone-400">آدرس تحویل</p>
                           <p className="text-xs mt-1 leading-relaxed line-clamp-2">{order.address || "بدون آدرس"}</p>
                         </div>
-                        <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                        <div className="bg-blue-50 rounded-2xl p-4 border">
                           <p className="text-[10px] font-black tracking-widest text-blue-600">مبلغ و تاریخ</p>
                           <p className="font-black text-blue-700 mt-1">{formatPrice(order.total_amount || 0)}</p>
                           <p className="text-[11px] text-stone-500 mt-1">{order.created_at ? new Date(order.created_at).toLocaleDateString("fa-IR") : ""}</p>
@@ -316,10 +326,10 @@ export default function VisitorOrdersPro() {
                             <img src={item.product_image || "/images/placeholder.jpg"} alt={item.product_name} className="h-14 w-14 rounded-xl object-cover bg-white border shadow-sm" />
                             <div className="flex-1 min-w-0">
                               <p className="font-bold text-sm truncate">{item.product_name}</p>
-                              <p className="text-[11px] text-stone-500 mt-1">تعداد: <span className="font-mono font-black text-stone-900">{item.quantity}</span> × {formatPrice(item.price)}</p>
+                              <p className="text-[11px] text-stone-500 mt-1">تعداد: <span className="font-mono font-black text-stone-900">{item.quantity || 0}</span> × {formatPrice(item.price)}</p>
                             </div>
                             <div className="text-left">
-                              <p className="font-black text-sm">{formatPrice(item.price * item.quantity)}</p>
+                              <p className="font-black text-sm">{formatPrice(itemSubtotal(item))}</p>
                             </div>
                           </div>
                         ))}

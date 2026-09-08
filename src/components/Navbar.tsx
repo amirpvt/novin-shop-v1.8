@@ -38,6 +38,7 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
   const goManagerPanel = () => { setAccountMenuOpen(false); window.location.href = "/dashboard/manager"; };
   const goAdminPanel = () => { setAccountMenuOpen(false); window.location.href = "/admin"; };
   const goVisitorPanel = () => { setAccountMenuOpen(false); window.location.href = "/dashboard/visitor/today"; };
+  const goMyProfile = () => { setAccountMenuOpen(false); window.location.href = "/profile"; };
   const goMyOrders = () => { setAccountMenuOpen(false); if (onMyOrders) onMyOrders(); else window.location.href = "/my-orders"; };
   const handleAccountLogout = () => { setAccountMenuOpen(false); onLogout(); };
 
@@ -131,6 +132,10 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
                         </div>
 
                         <div className="space-y-1.5">
+                          <button onClick={goMyProfile} className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs font-black text-stone-700 transition hover:bg-gold-50 hover:text-amber-700">
+                            <span className="flex items-center gap-2"><UserIcon className="h-4 w-4" /> ویرایش اطلاعات</span>
+                            <span className="text-stone-300">←</span>
+                          </button>
                           {isCustomer && (
                             <button onClick={goMyOrders} className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-xs font-black text-stone-700 transition hover:bg-paprika-50 hover:text-paprika-700">
                               <span className="flex items-center gap-2"><span>📦</span> سفارش‌های من</span>
@@ -223,6 +228,7 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
                   {isManager && <button onClick={() => { goManagerPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-gold-600 py-3 text-stone-900 font-black shadow">👑 مدیریت کل</button>}
                   {isAdmin && <button onClick={() => { goAdminPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-stone-900 py-3 text-white font-black">🛡️ پنل ادمین</button>}
                   {isVisitor && <button onClick={() => { goVisitorPanel(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-blue-600 py-3 text-white font-black">🧑‍💼 پنل ویزیتور</button>}
+                  <button onClick={() => { goMyProfile(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-gold-50 border border-gold-100 py-3 font-bold text-amber-700">👤 ویرایش اطلاعات</button>
                   {isCustomer && <button onClick={() => { goMyOrders(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 border py-3 font-bold text-paprika-700">📦 سفارشات من</button>}
                   <button onClick={() => { handleAccountLogout(); setMobileMenuOpen(false); }} className="w-full rounded-xl bg-paprika-50 py-3 text-paprika-600 font-bold">خروج</button>
                 </div>

@@ -135,5 +135,11 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+# Payment / Zarinpal
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173").rstrip("/")
+ZARINPAL_MERCHANT_ID = env("ZARINPAL_MERCHANT_ID", default="")
+ZARINPAL_SANDBOX = env.bool("ZARINPAL_SANDBOX", default=DEBUG)
+ZARINPAL_REQUEST_TIMEOUT = env.int("ZARINPAL_REQUEST_TIMEOUT", default=10)
+
 # Dashboard JWT: مسیرهای عمومی تحت تاثیر نیستند، فقط /api/dashboard/* با IsAuthenticated + Role check محافظت می‌شود
 # این تنظیم در dashboard/permissions.py اعمال شده است

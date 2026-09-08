@@ -1,129 +1,150 @@
 """
-Zarinpal Payment Gateway - Phase 4 REAL IMPLEMENTATION
-پیاده‌سازی واقعی زرین‌پال با sandbox + production
+Zarinpal Payment Gateway - production implementation.
+Flow:
+Create -> Redirect -> Callback -> Verify -> Transaction ID -> Order = CONFIRMED
+
+Production rule:
+NO MOCK IN PRODUCTION. Network/configuration/gateway errors fail closed and never confirm orders.
 """
-import requests
-from django.conf import settings
-from .models import Payment, Order
 import logging
 
+import requests
+from django.conf import settings
+from django.db import transaction
+
+from .models import Payment, Order
+
 logger = logging.getLogger(__name__)
+
+DUMMY_MERCHANT_ID = "00000000-0000-0000-0000-000000000000"
+
 
 class BasePaymentGateway:
     def create_payment(self, payment: Payment, callback_url: str, description: str = ""):
         raise NotImplementedError
+
     def verify_payment(self, payment: Payment, authority: str):
         raise NotImplementedError
 
+
 class ZarinPalGateway(BasePaymentGateway):
     """
-    زرین‌پال - مستندات: https://docs.zarinpal.com/paymentGateway/
-    Endpoints:
+    زرین‌پال v4
     - Sandbox: https://sandbox.zarinpal.com/pg/v4/payment/request.json
     - Production: https://api.zarinpal.com/pg/v4/payment/request.json
     """
 
     def __init__(self):
-        self.merchant_id = getattr(settings, "ZARINPAL_MERCHANT_ID", "00000000-0000-0000-0000-000000000000")
-        self.sandbox = getattr(settings, "ZARINPAL_SANDBOX", True)
+        self.merchant_id = getattr(settings, "ZARINPAL_MERCHANT_ID", "")
+        self.sandbox = bool(getattr(settings, "ZARINPAL_SANDBOX", True))
+        self.timeout = int(getattr(settings, "ZARINPAL_REQUEST_TIMEOUT", 10))
         self.base_url = "https://sandbox.zarinpal.com" if self.sandbox else "https://api.zarinpal.com"
         self.request_url = f"{self.base_url}/pg/v4/payment/request.json"
         self.verify_url = f"{self.base_url}/pg/v4/payment/verify.json"
         self.startpay_url = f"{self.base_url}/pg/StartPay/"
 
+    @property
+    def production_mode(self) -> bool:
+        return not bool(getattr(settings, "DEBUG", False)) and not self.sandbox
+
+    def _validate_gateway_config(self):
+        if not self.merchant_id:
+            return "ZARINPAL_MERCHANT_ID تنظیم نشده است."
+        if self.production_mode and self.merchant_id == DUMMY_MERCHANT_ID:
+            return "Merchant ID تستی در Production مجاز نیست."
+        return None
+
     def create_payment(self, payment: Payment, callback_url: str, description: str = ""):
-        """
-        ایجاد تراکنش در زرین‌پال
-        """
-        payload = {
-            "merchant_id": self.merchant_id,
-            "amount": int(payment.amount),  # باید به تومان * 10 = ریال؟ زرین‌پال جدید تومان می‌گیرد
-            "description": description or f"پرداخت سفارش {payment.order.order_number} - نوین شاپ",
-            "callback_url": callback_url,
-            "metadata": {
-                "email": payment.order.name,
-                "mobile": payment.order.phone,
-            }
-        }
-
-        logger.info(f"Zarinpal request: merchant={self.merchant_id[:8]}... amount={payment.amount} callback={callback_url} sandbox={self.sandbox}")
-
-        try:
-            # در حالت sandbox یا اگر merchant_id تستی است، mock برگردان
-            if self.sandbox and self.merchant_id == "00000000-0000-0000-0000-000000000000":
-                logger.warning("SANDBOX MODE with dummy merchant - returning mock URL")
-                return {
-                    "status": "success",
-                    "url": f"/payment-mock/?authority=mock_{payment.payment_number}&payment_number={payment.payment_number}",
-                    "authority": f"mock_{payment.payment_number}",
-                    "is_mock": True
-                }
-
-            resp = requests.post(self.request_url, json=payload, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            logger.info(f"Zarinpal response: {data}")
-
-            # پاسخ جدید زرین‌پال v4: {"data": {"code": 100, "message": "...", "authority": "...", "fee_type"...}, "errors": []}
-            if data.get("data") and data["data"].get("code") == 100:
-                authority = data["data"]["authority"]
-                return {
-                    "status": "success",
-                    "url": f"{self.startpay_url}{authority}",
-                    "authority": authority,
-                    "is_mock": False
-                }
-            else:
-                # خطاهای قدیمی: errors dict
-                errors = data.get("errors") or data.get("data", {})
-                logger.error(f"Zarinpal request failed: {data}")
-                return {"status": "failed", "message": str(errors)}
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Zarinpal network error: {e}", exc_info=True)
-            # در صورت قطعی اینترنت، mock برگردان تا تست ادامه پیدا کند
-            return {
-                "status": "success",
-                "url": f"/payment-mock/?authority=mock_{payment.payment_number}&payment_number={payment.payment_number}",
-                "authority": f"mock_{payment.payment_number}",
-                "is_mock": True,
-                "network_error": True
-            }
-
-    def verify_payment(self, payment: Payment, authority: str):
-        """
-        تایید تراکنش بعد از برگشت از درگاه
-        """
-        if authority.startswith("mock_"):
-            logger.info(f"Mock verification for {authority} - auto success")
-            return {"status": "success", "ref_id": f"mock_ref_{payment.payment_number}", "is_mock": True}
+        """Create payment request and return StartPay URL."""
+        config_error = self._validate_gateway_config()
+        if config_error:
+            logger.error("Zarinpal configuration error: %s", config_error)
+            return {"status": "failed", "message": config_error}
 
         payload = {
             "merchant_id": self.merchant_id,
             "amount": int(payment.amount),
-            "authority": authority
+            "description": description or f"پرداخت سفارش {payment.order.order_number} - نوین شاپ",
+            "callback_url": callback_url,
+            "metadata": {
+                "mobile": payment.order.phone,
+            },
+        }
+
+        logger.info(
+            "Zarinpal create request: merchant=%s... amount=%s callback=%s sandbox=%s",
+            self.merchant_id[:8],
+            payment.amount,
+            callback_url,
+            self.sandbox,
+        )
+
+        try:
+            response = requests.post(self.request_url, json=payload, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            logger.info("Zarinpal create response: %s", data)
+        except requests.exceptions.RequestException as exc:
+            logger.error("Zarinpal create network error: %s", exc, exc_info=True)
+            return {"status": "failed", "message": "خطا در ارتباط با زرین‌پال"}
+        except ValueError as exc:
+            logger.error("Invalid Zarinpal create JSON response: %s", exc, exc_info=True)
+            return {"status": "failed", "message": "پاسخ نامعتبر از زرین‌پال"}
+
+        gateway_data = data.get("data") or {}
+        if gateway_data.get("code") == 100 and gateway_data.get("authority"):
+            authority = gateway_data["authority"]
+            return {
+                "status": "success",
+                "url": f"{self.startpay_url}{authority}",
+                "authority": authority,
+            }
+
+        errors = data.get("errors") or gateway_data or data
+        logger.error("Zarinpal create failed: %s", errors)
+        return {"status": "failed", "message": str(errors)}
+
+    def verify_payment(self, payment: Payment, authority: str):
+        """Verify payment after Zarinpal callback."""
+        if authority.startswith("mock_"):
+            logger.error("Mock authority rejected: %s", authority)
+            return {"status": "failed", "message": "Mock payment is not allowed."}
+
+        config_error = self._validate_gateway_config()
+        if config_error:
+            logger.error("Zarinpal configuration error on verify: %s", config_error)
+            return {"status": "failed", "message": config_error}
+
+        payload = {
+            "merchant_id": self.merchant_id,
+            "amount": int(payment.amount),
+            "authority": authority,
         }
 
         try:
-            resp = requests.post(self.verify_url, json=payload, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            logger.info(f"Zarinpal verify response: {data}")
+            response = requests.post(self.verify_url, json=payload, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            logger.info("Zarinpal verify response: %s", data)
+        except requests.exceptions.RequestException as exc:
+            logger.error("Zarinpal verify network error: %s", exc, exc_info=True)
+            return {"status": "failed", "message": "خطا در تایید پرداخت زرین‌پال"}
+        except ValueError as exc:
+            logger.error("Invalid Zarinpal verify JSON response: %s", exc, exc_info=True)
+            return {"status": "failed", "message": "پاسخ تایید نامعتبر از زرین‌پال"}
 
-            if data.get("data") and data["data"].get("code") in [100, 101]:
-                # 100 = موفق، 101 = قبلاً تایید شده
-                return {
-                    "status": "success",
-                    "ref_id": str(data["data"].get("ref_id") or data["data"].get("card_pan") or authority),
-                    "is_mock": False
-                }
-            else:
-                logger.error(f"Zarinpal verify failed: {data}")
-                return {"status": "failed", "message": str(data.get("errors") or data)}
+        gateway_data = data.get("data") or {}
+        if gateway_data.get("code") in [100, 101]:
+            # 100 = verified, 101 = already verified
+            return {
+                "status": "success",
+                "ref_id": str(gateway_data.get("ref_id") or authority),
+                "card_pan": gateway_data.get("card_pan"),
+                "card_hash": gateway_data.get("card_hash"),
+            }
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Zarinpal verify network error: {e}", exc_info=True)
-            return {"status": "failed", "message": f"Network error: {e}"}
+        logger.error("Zarinpal verify failed: %s", data)
+        return {"status": "failed", "message": str(data.get("errors") or data)}
 
 
 class PaymentService:
@@ -131,69 +152,94 @@ class PaymentService:
         self.gateway = gateway or ZarinPalGateway()
 
     def initiate_payment(self, order_id, callback_url: str = None):
-        """
-        شروع پرداخت برای سفارش
-        """
+        """Start payment for an order and return redirect URL."""
         try:
             order = Order.objects.get(id=order_id)
         except Order.DoesNotExist:
-            logger.error(f"Order {order_id} not found")
+            logger.error("Order %s not found", order_id)
             return None
 
-        # اگر قبلاً پرداخت موفق داشته، همان را برگردان
         existing_success = Payment.objects.filter(order=order, payment_status="SUCCESS").first()
         if existing_success:
-            logger.info(f"Order {order.order_number} already has successful payment")
+            logger.info("Order %s already has successful payment", order.order_number)
             return None
 
-        callback = callback_url or f"http://localhost:5173/payment/verify?order={order.order_number}"
+        callback = callback_url or f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/payment/verify?order={order.order_number}"
 
-        payment = Payment.objects.create(
-            order=order,
+        payment, created = Payment.objects.get_or_create(
             payment_number=f"PAY-{order.order_number}",
-            amount=order.total_amount,
-            payment_status="PENDING"
+            defaults={
+                "order": order,
+                "amount": order.total_amount,
+                "payment_status": "PENDING",
+            },
         )
+        if not created:
+            payment.order = order
+            payment.amount = order.total_amount
+            payment.payment_status = "PENDING"
+            payment.transaction_id = None
+            payment.save(update_fields=["order", "amount", "payment_status", "transaction_id"])
 
         description = f"نوین شاپ - سفارش {order.order_number} - {order.name}"
-
         gateway_res = self.gateway.create_payment(payment, callback_url=callback, description=description)
 
-        if gateway_res["status"] == "success":
+        if gateway_res.get("status") == "success":
+            # Before verify, transaction_id temporarily stores Zarinpal Authority.
             payment.transaction_id = gateway_res["authority"]
             payment.save(update_fields=["transaction_id"])
             return gateway_res["url"]
-        else:
-            payment.payment_status = "FAILED"
-            payment.save(update_fields=["payment_status"])
-            logger.error(f"Payment initiation failed for order {order.order_number}: {gateway_res}")
-            return None
 
-    def process_verification(self, payment_number, authority):
-        """
-        تایید پرداخت بعد از برگشت از درگاه
-        """
+        payment.payment_status = "FAILED"
+        payment.save(update_fields=["payment_status"])
+        logger.error("Payment initiation failed for order %s: %s", order.order_number, gateway_res)
+        return None
+
+    @transaction.atomic
+    def mark_cancelled(self, payment_number):
         try:
-            payment = Payment.objects.get(payment_number=payment_number)
+            payment = Payment.objects.select_for_update().get(payment_number=payment_number)
         except Payment.DoesNotExist:
-            logger.error(f"Payment {payment_number} not found")
-            return False
+            return {"status": "failed", "message": "پرداخت یافت نشد"}
+        payment.payment_status = "FAILED"
+        payment.save(update_fields=["payment_status"])
+        return {"status": "cancelled", "payment_number": payment.payment_number}
+
+    @transaction.atomic
+    def process_verification(self, payment_number, authority):
+        """Verify callback and confirm order only after successful gateway verification."""
+        try:
+            payment = Payment.objects.select_for_update().select_related("order").get(payment_number=payment_number)
+        except Payment.DoesNotExist:
+            logger.error("Payment %s not found", payment_number)
+            return {"status": "failed", "message": "پرداخت یافت نشد"}
 
         verify_res = self.gateway.verify_payment(payment, authority)
 
-        if verify_res["status"] == "success":
+        if verify_res.get("status") == "success":
+            transaction_id = verify_res.get("ref_id") or authority
             payment.payment_status = "SUCCESS"
-            payment.transaction_id = verify_res.get("ref_id") or authority
+            payment.transaction_id = transaction_id
             payment.save(update_fields=["payment_status", "transaction_id"])
 
-            # آپدیت سفارش به تایید شده
             order = payment.order
             order.order_status = "CONFIRMED"
             order.save(update_fields=["order_status"])
-            logger.info(f"Payment {payment_number} verified, order {order.order_number} confirmed")
-            return True
-        else:
-            payment.payment_status = "FAILED"
-            payment.save(update_fields=["payment_status"])
-            logger.error(f"Payment verification failed for {payment_number}: {verify_res}")
-            return False
+
+            logger.info(
+                "Payment %s verified, transaction_id=%s, order %s confirmed",
+                payment_number,
+                transaction_id,
+                order.order_number,
+            )
+            return {
+                "status": "success",
+                "payment_number": payment.payment_number,
+                "transaction_id": transaction_id,
+                "order_number": order.order_number,
+            }
+
+        payment.payment_status = "FAILED"
+        payment.save(update_fields=["payment_status"])
+        logger.error("Payment verification failed for %s: %s", payment_number, verify_res)
+        return {"status": "failed", "payment_number": payment.payment_number, "message": verify_res.get("message")}

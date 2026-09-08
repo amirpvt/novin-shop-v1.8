@@ -200,7 +200,7 @@ class PaymentCreateView(APIView):
 
         if payment_url:
             return Response({"payment_url": payment_url}, status=status.HTTP_201_CREATED)
-        return Response({"error": "خطا در ایجاد درخواست پرداخت"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "خطا در ایجاد درخواست پرداخت زرین‌پال"}, status=status.HTTP_502_BAD_GATEWAY)
 
 
 class PaymentVerifyView(APIView):
@@ -214,6 +214,19 @@ class PaymentVerifyView(APIView):
         status_param = request.data.get("status")
 
         if status_param == "NOK":
+            if not payment_number:
+                order_number = request.data.get("order_number")
+                if order_number:
+                    try:
+                        order = Order.objects.get(order_number=order_number)
+                        payment = order.payments.filter(payment_status="PENDING").last() or order.payments.last()
+                        if payment:
+                            payment_number = payment.payment_number
+                    except Order.DoesNotExist:
+                        pass
+            if payment_number:
+                service = PaymentService()
+                service.mark_cancelled(payment_number)
             return Response({"status": "CANCELLED", "message": "پرداخت لغو شد توسط کاربر"}, status=status.HTTP_400_BAD_REQUEST)
 
         if not payment_number or not authority:
@@ -231,11 +244,20 @@ class PaymentVerifyView(APIView):
                 return Response({"error": "payment_number و authority الزامی است"}, status=status.HTTP_400_BAD_REQUEST)
 
         service = PaymentService()
-        is_success = service.process_verification(payment_number, authority)
+        result = service.process_verification(payment_number, authority)
 
-        if is_success:
-            return Response({"status": "SUCCESS", "payment_number": payment_number}, status=status.HTTP_200_OK)
-        return Response({"status": "FAILED", "payment_number": payment_number}, status=status.HTTP_400_BAD_REQUEST)
+        if result.get("status") == "success":
+            return Response({
+                "status": "SUCCESS",
+                "payment_number": result.get("payment_number", payment_number),
+                "transaction_id": result.get("transaction_id"),
+                "order_number": result.get("order_number"),
+            }, status=status.HTTP_200_OK)
+        return Response({
+            "status": "FAILED",
+            "payment_number": payment_number,
+            "message": result.get("message") or "تایید پرداخت ناموفق بود",
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ─── Wholesale ───────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useRetailCart } from "../context/RetailCartContext";
 
 function CheckIcon({ className }: { className?: string }) {
   return (
@@ -20,6 +21,7 @@ function CloseIcon({ className }: { className?: string }) {
 export default function PaymentVerify() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { clearRetailCart } = useRetailCart();
   const [status, setStatus] = useState<"loading" | "success" | "failed" | "cancelled">("loading");
   const [message, setMessage] = useState("");
 
@@ -43,21 +45,8 @@ export default function PaymentVerify() {
       }
 
       if (authority.startsWith("mock_")) {
-        setStatus("success");
-        setMessage("پرداخت تستی با موفقیت انجام شد (حالت آزمایشی sandbox)");
-        try {
-          const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
-          await fetch(`${baseUrl}/orders/payments/verify/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              payment_number: paymentNumber,
-              authority: authority,
-              order_number: orderNumber,
-              status: "OK",
-            }),
-          });
-        } catch {}
+        setStatus("failed");
+        setMessage("پرداخت mock در نسخه Production مجاز نیست.");
         return;
       }
 
@@ -76,8 +65,9 @@ export default function PaymentVerify() {
 
         const data = await res.json();
         if (res.ok && data.status === "SUCCESS") {
+          clearRetailCart();
           setStatus("success");
-          setMessage(`پرداخت موفق! کد پیگیری: ${data.payment_number || authority}`);
+          setMessage(`پرداخت موفق! کد تراکنش: ${data.transaction_id || data.payment_number || authority}`);
         } else {
           setStatus("failed");
           setMessage(data.message || "تایید پرداخت ناموفق بود");

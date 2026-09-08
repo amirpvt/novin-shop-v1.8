@@ -40,7 +40,7 @@ export interface PaginatedResponse<T> { count: number; next: string | null; prev
 export interface OrderItem { id: number; product: number | null; product_name: string; price: string; quantity: number; subtotal: string; }
 export interface Order { id: number; order_number: string; name: string; phone: string; address: string; message: string; order_status: string; total_amount: string; items: OrderItem[]; created_at: string; }
 export interface WholesaleRequest { id: number; request_number: string; company_name: string; contact_person: string; phone: string; address: string; description: string; status: string; items: any[]; created_at: string; }
-export interface ApiUser { id: number; username: string; email: string; name: string; phone: string; role: string; is_staff: boolean; customer: any; }
+export interface ApiUser { id: number; username: string; email: string; first_name?: string; last_name?: string; name: string; phone: string; role: string; is_staff: boolean; customer: any; }
 export interface ApiAuthResponse { access: string; refresh: string; user: ApiUser; }
 
 export const productsApi = {
@@ -75,5 +75,6 @@ export const authApi = {
   login: (username: string, password: string) => request<ApiAuthResponse>("/auth/login/", { method: "POST", body: JSON.stringify({ username, password }) }).then((data: any) => { tokenStore.set({ access: data.access, refresh: data.refresh }); return data; }),
   logout: async () => { try { await request("/auth/logout/", { method: "POST" }, true); } catch {} tokenStore.clear(); },
   getProfile: () => get<ApiUser>("/auth/profile/", undefined, true),
+  updateProfile: (payload: any) => request<ApiUser>("/auth/profile/", { method: "PATCH", body: JSON.stringify(payload) }, true),
   isAuthenticated: () => !!tokenStore.get()?.access,
 };

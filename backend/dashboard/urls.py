@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/stock/', views.AdminStockView.as_view(), name='admin-stock'),
 
     # ─── Visitor ───────────────────────────────────────────────────────
+    path('visitor/customers/', views.VisitorCustomerListCreate.as_view(), name='visitor-customers'),
     path('visitor/today/', views.VisitorTodayList.as_view(), name='visitor-today'),
     path('visitor/orders/create/', views.VisitorOrderCreateWithWeight.as_view(), name='visitor-order-create'),
     path('visitor/cash/', views.VisitorCashCollectionView.as_view(), name='visitor-cash'),

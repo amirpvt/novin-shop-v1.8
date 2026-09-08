@@ -24,6 +24,49 @@ class CustomerSerializer(serializers.ModelSerializer):
             "customer_type",
             "is_wholesale_approved",
         ]
+        read_only_fields = ["customer_type", "is_wholesale_approved"]
+
+
+class ProfileUpdateSerializer(serializers.Serializer):
+    """ویرایش امن پروفایل توسط خود کاربر؛ نقش و تایید عمده‌فروشی قابل تغییر نیست."""
+
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_blank=False, max_length=20)
+    address = serializers.CharField(required=False, allow_blank=True)
+    city = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    postal_code = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    national_id = serializers.CharField(required=False, allow_blank=True, max_length=20)
+
+    def validate_email(self, value):
+        user = self.context["request"].user
+        if value and User.objects.filter(email=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError("این ایمیل قبلاً ثبت شده است.")
+        return value
+
+    def validate_phone(self, value):
+        user = self.context["request"].user
+        if Customer.objects.filter(phone=value).exclude(user=user).exists():
+            raise serializers.ValidationError("این شماره موبایل قبلاً ثبت شده است.")
+        return value
+
+    def update(self, instance, validated_data):
+        customer, _ = Customer.objects.get_or_create(
+            user=instance,
+            defaults={"phone": validated_data.get("phone") or ""},
+        )
+
+        for field in ["first_name", "last_name", "email"]:
+            if field in validated_data:
+                setattr(instance, field, validated_data[field])
+        instance.save(update_fields=["first_name", "last_name", "email"])
+
+        for field in ["phone", "address", "city", "postal_code", "national_id"]:
+            if field in validated_data:
+                setattr(customer, field, validated_data[field])
+        customer.save(update_fields=["phone", "address", "city", "postal_code", "national_id", "updated_at"])
+        return instance
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -40,6 +83,8 @@ class UserSerializer(serializers.ModelSerializer):
             "id",
             "username",
             "email",
+            "first_name",
+            "last_name",
             "name",
             "phone",
             "role",

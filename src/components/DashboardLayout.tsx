@@ -31,6 +31,7 @@ const menuByRole: Record<Role, { label: string; path: string; icon: string }[]> 
   ],
   visitor: [
     { label: "برنامه امروز", path: "/dashboard/visitor/today", icon: "📅" },
+    { label: "مشتری‌ها", path: "/dashboard/visitor/customers", icon: "👥" },
     { label: "ثبت سفارش", path: "/dashboard/visitor/order", icon: "📝" },
     { label: "دریافت وجه", path: "/dashboard/visitor/cash", icon: "💵" },
     { label: "پورسانت من", path: "/dashboard/visitor/commission", icon: "💎" },
@@ -133,7 +134,7 @@ export default function DashboardLayout({ children, role }: Props) {
           </div>
         </header>
 
-        <main className="p-4 sm:p-6 lg:p-8">
+        <main className={role === "visitor" ? "p-0" : "p-4 sm:p-6 lg:p-8"}>
           {children}
         </main>
       </div>

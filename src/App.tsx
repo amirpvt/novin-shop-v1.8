@@ -37,8 +37,8 @@ export default function App() {
 
   const location = useLocation();
 
-  // پنل مدیر کل (/dashboard/manager/*): هدر اصلی سایت (Navbar) نمایش داده نمی‌شود
-  const isOwnerPanel = location.pathname.startsWith("/dashboard/manager");
+  // پنل‌های داخلی داشبورد: هدر اصلی سایت (Navbar) نمایش داده نمی‌شود
+  const isDashboardPanel = location.pathname.startsWith("/dashboard/manager") || location.pathname.startsWith("/dashboard/visitor");
 
   const { getRetailCount, clearRetailCart, addRetailItem } = useRetailCart();
   const { clearWholesaleRequest } = useWholesaleRequest();
@@ -79,8 +79,8 @@ export default function App() {
     }, 300);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     showToast("از حساب خارج شدید");
     window.location.href = "/";
   };
@@ -145,7 +145,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-cream-50 font-sans text-stone-800">
       <ScrollToTop />
-      {!isOwnerPanel && (
+      {!isDashboardPanel && (
         <Navbar
           siteName={siteName}
           user={user as any}
@@ -165,7 +165,7 @@ export default function App() {
       )}
 
       {/* فضای خالی جبرانیِ نوبار ثابت - فقط وقتی نوبار هست */}
-      {!isOwnerPanel && <div className="h-[88px] lg:h-[108px]" />}
+      {!isDashboardPanel && <div className="h-[88px] lg:h-[108px]" />}
 
       <AppRouter
         products={products}

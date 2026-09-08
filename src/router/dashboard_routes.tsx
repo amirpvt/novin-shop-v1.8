@@ -19,6 +19,8 @@ import AdminStoreDashboard from "../pages/AdminStoreDashboard";
 
 // Visitor pages
 import VisitorDashboard from "../pages/VisitorDashboard";
+import VisitorOrderCreate from "../pages/VisitorOrderCreate";
+import VisitorCustomers from "../pages/VisitorCustomers";
 
 // Customer pages
 import CustomerDashboard from "../pages/CustomerDashboard";
@@ -172,11 +174,21 @@ export default function DashboardRoutes() {
         }
       />
       <Route
+        path="/visitor/customers"
+        element={
+          <RoleGuard allowedRoles={["visitor", "manager"]}>
+            <DashboardLayout role="visitor">
+              <VisitorCustomers />
+            </DashboardLayout>
+          </RoleGuard>
+        }
+      />
+      <Route
         path="/visitor/order"
         element={
           <RoleGuard allowedRoles={["visitor", "manager"]}>
             <DashboardLayout role="visitor">
-              <VisitorDashboard />
+              <VisitorOrderCreate />
             </DashboardLayout>
           </RoleGuard>
         }

@@ -12,6 +12,7 @@ import OrderSuccess from "../pages/OrderSuccess";
 import PaymentVerify from "../pages/PaymentVerify";
 import OrderTracking from "../pages/OrderTracking";
 import MyOrders from "../pages/MyOrders";
+import ProfileEdit from "../pages/ProfileEdit";
 import NotFound from "../pages/NotFound";
 import DashboardRoutes from "./dashboard_routes";
 
@@ -37,7 +38,6 @@ export default function AppRouter({
       <Route path="/order-success/:orderNumber" element={<OrderSuccess orderNumber={lastOrderNumber} onBack={() => window.history.back()} />} />
       {/* Payment */}
       <Route path="/payment/verify" element={<PaymentVerify />} />
-      <Route path="/payment-mock" element={<PaymentVerify />} />
       {/* Tracking */}
       <Route path="/track" element={<OrderTracking />} />
       <Route path="/order-tracking" element={<OrderTracking />} />
@@ -45,6 +45,7 @@ export default function AppRouter({
       {/* 🆕 My Orders - داشبورد سفارشات من */}
       <Route path="/my-orders" element={<MyOrders />} />
       <Route path="/orders" element={<MyOrders />} />
+      <Route path="/profile" element={<ProfileEdit />} />
       {/* 🆕 صفحه Not found*/}
       <Route path="*" element={<NotFound />} />
       <Route path="/dashboard/*" element={<DashboardRoutes />} />

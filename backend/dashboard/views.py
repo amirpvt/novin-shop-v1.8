@@ -15,7 +15,8 @@ from .serializers import (
     ProductPricingSerializer, ProductPricingUpdateSerializer,
     VisitScheduleSerializer, VisitScheduleCreateSerializer,
     CashCollectionSerializer, CommissionSerializer, CustomerDebtSerializer,
-    UserBriefSerializer, OwnerUserCreateSerializer
+    UserBriefSerializer, OwnerUserCreateSerializer,
+    VisitorCustomerSerializer, VisitorCustomerCreateSerializer
 )
 from .permissions import IsManager, IsAdminOrManager, IsVisitor, IsCustomer, IsWholesaleApproved, get_user_role
 from products.models import Product
@@ -657,6 +658,48 @@ class AdminStockView(APIView):
 
 # ─── Visitor ───────────────────────────────────────────────────────────
 
+class VisitorCustomerListCreate(APIView):
+    """لیست/افزودن مشتری‌های قابل استفاده برای ویزیتور."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _ensure_visitor(self, request):
+        role = get_user_role(request.user)
+        return role == 'visitor' or request.user.is_superuser
+
+    def get(self, request):
+        if not self._ensure_visitor(request):
+            return Response({"error": "فقط ویزیتور"}, status=403)
+
+        q = request.query_params.get('q', '').strip()
+        today_only = request.query_params.get('today') == '1'
+
+        if today_only:
+            customer_ids = VisitSchedule.objects.filter(visitor=request.user, date=timezone.now().date()).values_list('customer_id', flat=True)
+        else:
+            scheduled_ids = VisitSchedule.objects.filter(visitor=request.user).values_list('customer_id', flat=True)
+            ordered_ids = Order.objects.filter(commission__visitor=request.user).values_list('user_id', flat=True)
+            customer_ids = set(scheduled_ids) | set(ordered_ids)
+
+        qs = User.objects.filter(id__in=customer_ids, customer_profile__role='customer').select_related('customer_profile').order_by('first_name', 'last_name', 'username')
+        if q:
+            qs = qs.filter(
+                Q(first_name__icontains=q) |
+                Q(last_name__icontains=q) |
+                Q(username__icontains=q) |
+                Q(customer_profile__phone__icontains=q) |
+                Q(customer_profile__city__icontains=q)
+            )
+        return Response(VisitorCustomerSerializer(qs, many=True).data)
+
+    def post(self, request):
+        if not self._ensure_visitor(request):
+            return Response({"error": "فقط ویزیتور"}, status=403)
+        serializer = VisitorCustomerCreateSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(VisitorCustomerSerializer(user).data, status=201)
+
+
 class VisitorTodayList(APIView):
     """لیست مشتریانی که امروز باید بازدید کند"""
     permission_classes = [permissions.IsAuthenticated]  # + IsVisitor در get_queryset
@@ -678,81 +721,134 @@ class VisitorTodayList(APIView):
 
 
 class VisitorOrderCreateWithWeight(APIView):
-    """ثبت سفارش در محل با وزن دقیق"""
+    """ثبت سفارش حضوری ویزیتور - فقط سفارش عمده"""
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        from decimal import Decimal, InvalidOperation
         from dashboard.permissions import get_user_role
+        from orders.models import Order, OrderItem, WholesaleRequest, WholesaleRequestItem
+        from orders.serializers import OrderSerializer, WholesaleRequestSerializer
+
         if get_user_role(request.user) != 'visitor' and not request.user.is_superuser:
             return Response({"error": "فقط ویزیتور"}, status=403)
 
         customer_id = request.data.get('customer_id')
+        sale_type = request.data.get('sale_type', 'wholesale')
         items = request.data.get('items', [])  # [{product_id, quantity, weight}]
         address = request.data.get('address', '')
+
+        if sale_type != 'wholesale':
+            return Response({"error": "ثبت سفارش ویزیتور فقط برای سفارش عمده فعال است"}, status=400)
 
         if not customer_id or not items:
             return Response({"error": "customer_id و items الزامی"}, status=400)
 
         try:
-            customer_user = User.objects.get(id=customer_id)
+            customer_user = User.objects.select_related('customer_profile').get(id=customer_id)
         except User.DoesNotExist:
             return Response({"error": "مشتری یافت نشد"}, status=404)
 
-        # ایجاد سفارش با وزن دقیق
-        total = 0
+        def to_decimal(value, default='0'):
+            try:
+                return Decimal(str(value if value not in [None, ''] else default))
+            except (InvalidOperation, ValueError, TypeError):
+                return Decimal(default)
+
+        total = Decimal('0')
         order_items_data = []
+        wholesale_items_data = []
+
         for item in items:
             try:
                 product = Product.objects.get(id=item['product_id'])
-            except:
-                return Response({"error": f"محصول {item['product_id']} یافت نشد"}, status=400)
-            
-            # اگر محصول تخفیف معتبر دارد، قیمت نهایی خرده همان قیمت بعد از تخفیف است
-            qty = item.get('quantity', 1)
-            weight = item.get('weight')  # وزن دقیق به کیلوگرم
-            discount = getattr(product, 'discount_price', None)
-            price = discount if discount and discount > 0 and discount < product.price else product.price
-            if weight:
-                total += price * float(weight)
-            else:
+            except Exception:
+                return Response({"error": f"محصول {item.get('product_id')} یافت نشد"}, status=400)
+
+            qty = int(item.get('quantity') or 1)
+            if qty < 1:
+                return Response({"error": f"تعداد محصول {product.name} معتبر نیست"}, status=400)
+
+            weight = to_decimal(item.get('weight'), '0')
+
+            if sale_type == 'wholesale':
+                try:
+                    pricing = product.dashboard_pricing
+                    price = pricing.wholesale_price if pricing.is_active else product.price
+                except Exception:
+                    price = product.price
                 total += price * qty
+                wholesale_items_data.append((product, qty))
+            else:
+                discount = getattr(product, 'discount_price', None)
+                price = discount if discount and discount > 0 and discount < product.price else product.price
+                total += price * weight if weight > 0 else price * qty
+                order_items_data.append((product, price, qty, weight))
 
-            order_items_data.append((product, price, qty, weight))
+        customer_profile = getattr(customer_user, 'customer_profile', None)
+        customer_name = customer_user.get_full_name() or customer_user.username
+        customer_phone = getattr(customer_profile, 'phone', '') if customer_profile else ''
 
-        from orders.models import Order, OrderItem
+        rule, _ = CommissionRule.objects.get_or_create(visitor=request.user, defaults={'percentage': 5})
+        percentage = rule.percentage if rule.is_active else 0
+
+        if sale_type == 'wholesale':
+            wholesale_request = WholesaleRequest.objects.create(
+                user=customer_user,
+                company_name=customer_name,
+                contact_person=customer_name,
+                phone=customer_phone,
+                address=address,
+                description=f"ثبت سفارش عمده توسط ویزیتور: {request.user.get_full_name() or request.user.username}",
+                total_amount=total,
+                status='NEW',
+            )
+            WholesaleRequestItem.objects.bulk_create([
+                WholesaleRequestItem(
+                    request=wholesale_request,
+                    product=product,
+                    product_name=product.name,
+                    quantity=qty,
+                    notes='ثبت شده توسط ویزیتور',
+                )
+                for product, qty in wholesale_items_data
+            ])
+            Commission.objects.create(
+                visitor=request.user,
+                wholesale_request=wholesale_request,
+                percentage=percentage,
+                amount=total * percentage / 100,
+            )
+            VisitSchedule.objects.filter(visitor=request.user, customer=customer_user, date=timezone.now().date()).update(status='ordered')
+            return Response(WholesaleRequestSerializer(wholesale_request, context={'request': request}).data, status=201)
+
         order = Order.objects.create(
             user=customer_user,
-            name=customer_user.get_full_name() or customer_user.username,
-            phone=getattr(customer_user.customer_profile, 'phone', '') if hasattr(customer_user, 'customer_profile') else "",
+            name=customer_name,
+            phone=customer_phone,
             address=address,
             total_amount=total,
-            order_status='PENDING'  # نیاز به تایید ادمین
+            order_status='PENDING',  # نیاز به تایید ادمین
         )
 
         for product, price, qty, weight in order_items_data:
             OrderItem.objects.create(
                 order=order,
                 product=product,
-                product_name=f"{product.name} - وزن: {weight}kg" if weight else product.name,
+                product_name=f"{product.name} - وزن: {weight}kg" if weight > 0 else product.name,
                 price=price,
-                quantity=qty
+                quantity=qty,
             )
 
-        # ایجاد کمیسیون خودکار بر اساس قانون پورسانت ویزیتور
-        rule, _ = CommissionRule.objects.get_or_create(visitor=request.user, defaults={'percentage': 5})
-        percentage = rule.percentage if rule.is_active else 0
         Commission.objects.create(
             visitor=request.user,
             order=order,
             percentage=percentage,
-            amount=total * percentage / 100
+            amount=total * percentage / 100,
         )
 
-        # آپدیت برنامه بازدید به ordered
         VisitSchedule.objects.filter(visitor=request.user, customer=customer_user, date=timezone.now().date()).update(status='ordered')
-
-        from orders.serializers import OrderSerializer
-        return Response(OrderSerializer(order).data, status=201)
+        return Response(OrderSerializer(order, context={'request': request}).data, status=201)
 
 
 class VisitorCashCollectionView(APIView):

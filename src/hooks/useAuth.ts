@@ -35,6 +35,15 @@ export function useAuth() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    const handleProfileUpdated = (event: Event) => {
+      const updatedUser = (event as CustomEvent<ApiUser>).detail;
+      if (updatedUser?.id) setUser(updatedUser);
+    };
+    window.addEventListener("novin_profile_updated", handleProfileUpdated);
+    return () => window.removeEventListener("novin_profile_updated", handleProfileUpdated);
+  }, []);
+
   // login واقعی با username/password
   const loginReal = useCallback(async (username: string, password: string) => {
     setError(null);
@@ -48,18 +57,10 @@ export function useAuth() {
     }
   }, []);
 
-  // برای سازگاری با App.tsx قدیمی که login(newUser) صدا می‌زند
+  // برای هماهنگی بین AuthModal و App: کاربر برگشتی از API در App هم ست می‌شود
   const loginCompat = useCallback((newUser: any) => {
-    // اگر آبجکت User ارسال شد، مستقیم set کن (fallback قدیمی)
-    if (newUser && typeof newUser === "object" && newUser.username === undefined && newUser.name) {
-      // تبدیل فرمت قدیمی storage به فرمت جدید برای نمایش
-      setUser(newUser as any);
-      return newUser;
-    }
-    // اگر username/password ارسال شد، در AuthModal قبلاً لاگین شده، اینجا فقط set
-    if (newUser && newUser.id) {
+    if (newUser && typeof newUser === "object" && newUser.id) {
       setUser(newUser);
-      return newUser;
     }
     return newUser;
   }, []);

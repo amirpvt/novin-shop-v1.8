@@ -8,8 +8,8 @@ import { ordersApi } from "../api/client";
  * RetailCart نهایی فاز 4 با پرداخت زرین‌پال
  */
 
-export default function RetailCart({ onCheckoutSuccess, onContinueShopping }: { onCheckoutSuccess: (orderNumber: string) => void, onContinueShopping: () => void }) {
-  const { retailCart, removeRetailItem, increaseRetailQuantity, decreaseRetailQuantity, clearRetailCart, getRetailTotal } = useRetailCart();
+export default function RetailCart({ onCheckoutSuccess: _onCheckoutSuccess, onContinueShopping }: { onCheckoutSuccess: (orderNumber: string) => void, onContinueShopping: () => void }) {
+  const { retailCart, removeRetailItem, increaseRetailQuantity, decreaseRetailQuantity, getRetailTotal } = useRetailCart();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -40,23 +40,15 @@ export default function RetailCart({ onCheckoutSuccess, onContinueShopping }: { 
         });
         const paymentData = await paymentRes.json();
         if (paymentRes.ok && paymentData.payment_url) {
-          // اگر mock باشد یا واقعی، به درگاه ببر
-          if (paymentData.payment_url.startsWith("/payment-mock/") || paymentData.payment_url.startsWith("/")) {
-            // mock: مستقیم به صفحه تایید ببر
-            window.location.href = paymentData.payment_url + `&order=${order.order_number}`;
-          } else {
-            // واقعی زرین‌پال
-            window.location.href = paymentData.payment_url;
-          }
+          window.location.href = paymentData.payment_url;
           return;
         }
-      } catch (payErr) {
-        console.error("Payment create failed, going to success anyway", payErr);
-      }
 
-      // اگر پرداخت ساخته نشد، مستقیم به صفحه موفقیت برو
-      clearRetailCart();
-      onCheckoutSuccess(order.order_number);
+        throw new Error(paymentData.error || "خطا در ایجاد لینک پرداخت زرین‌پال");
+      } catch (payErr: any) {
+        console.error("Payment create failed", payErr);
+        throw new Error(payErr.message || "خطا در ارتباط با زرین‌پال");
+      }
     } catch (err: any) {
       setError(err.message || "خطا در ثبت سفارش - موجودی را چک کنید");
     } finally {

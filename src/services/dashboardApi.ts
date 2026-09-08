@@ -57,39 +57,6 @@ async function authFetch<T>(endpoint: string, options: RequestInit = {}): Promis
   }
 }
 
-async function authFetchFormData<T>(endpoint: string, formData: FormData, method: string = "POST"): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${DASHBOARD_BASE}${endpoint}`, {
-    method,
-    headers,
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    let err: any = {};
-    try {
-      err = JSON.parse(text);
-    } catch {
-      err = { detail: text };
-    }
-    throw new Error(err.detail || err.error || JSON.stringify(err) || text);
-  }
-
-  const text = await res.text();
-  if (!text) return {} as T;
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return text as any;
-  }
-}
-
 export const dashboardApi = {
   owner: {
     stats: () => authFetch<any>("/owner/stats/"),
@@ -145,8 +112,14 @@ export const dashboardApi = {
   },
 
   visitor: {
+    customers: (q?: string, todayOnly = false) => authFetch<any[]>(`/visitor/customers/${q || todayOnly ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(todayOnly ? { today: "1" } : {}) }).toString()}` : ""}`),
+    customerCreate: (data: { first_name: string; last_name?: string; phone: string; email?: string; address?: string; city?: string; postal_code?: string; national_id?: string; add_to_today?: boolean }) =>
+      authFetch<any>("/visitor/customers/", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
     todayList: () => authFetch<any[]>("/visitor/today/"),
-    orderCreate: (data: { customer_id: number; items: { product_id: number; quantity: number; weight?: number }[]; address?: string }) =>
+    orderCreate: (data: { customer_id: number; sale_type?: "wholesale"; items: { product_id: number; quantity: number }[]; address?: string }) =>
       authFetch<any>("/visitor/orders/create/", {
         method: "POST",
         body: JSON.stringify(data),

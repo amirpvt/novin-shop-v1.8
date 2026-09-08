@@ -3,8 +3,11 @@
 """
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import Sum
 from .models import ProductPricing, VisitSchedule, CashCollection, Commission, CustomerDebt
 from products.models import Product
+from accounts.models import Customer
 
 User = get_user_model()
 
@@ -38,6 +41,159 @@ class UserBriefSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.username
+
+
+class VisitorCustomerSerializer(serializers.ModelSerializer):
+    """نمایش حرفه‌ای مشتری برای پنل ویزیتور."""
+    full_name = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
+    address = serializers.SerializerMethodField()
+    city = serializers.SerializerMethodField()
+    postal_code = serializers.SerializerMethodField()
+    national_id = serializers.SerializerMethodField()
+    customer_type = serializers.SerializerMethodField()
+    is_wholesale_approved = serializers.SerializerMethodField()
+    total_orders = serializers.SerializerMethodField()
+    total_purchases = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
+            'phone', 'address', 'city', 'postal_code', 'national_id',
+            'customer_type', 'is_wholesale_approved', 'total_orders',
+            'total_purchases', 'date_joined'
+        ]
+        read_only_fields = fields
+
+    def _profile(self, obj):
+        try:
+            return obj.customer_profile
+        except Exception:
+            return None
+
+    def get_full_name(self, obj):
+        return obj.get_full_name() or obj.username
+
+    def get_phone(self, obj):
+        profile = self._profile(obj)
+        return profile.phone if profile else ""
+
+    def get_address(self, obj):
+        profile = self._profile(obj)
+        return profile.address if profile else ""
+
+    def get_city(self, obj):
+        profile = self._profile(obj)
+        return profile.city if profile else ""
+
+    def get_postal_code(self, obj):
+        profile = self._profile(obj)
+        return profile.postal_code if profile else ""
+
+    def get_national_id(self, obj):
+        profile = self._profile(obj)
+        return profile.national_id if profile else ""
+
+    def get_customer_type(self, obj):
+        profile = self._profile(obj)
+        return profile.customer_type if profile else "retail"
+
+    def get_is_wholesale_approved(self, obj):
+        profile = self._profile(obj)
+        return bool(profile.is_wholesale_approved) if profile else False
+
+    def get_total_orders(self, obj):
+        try:
+            return obj.orders.count()
+        except Exception:
+            return 0
+
+    def get_total_purchases(self, obj):
+        try:
+            total = obj.orders.aggregate(s=Sum('total_amount'))['s'] or 0
+            return total
+        except Exception:
+            return 0
+
+
+class VisitorCustomerCreateSerializer(serializers.Serializer):
+    """افزودن مشتری جدید توسط ویزیتور؛ فقط نقش customer ساخته می‌شود."""
+    first_name = serializers.CharField(required=True, max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    phone = serializers.CharField(required=True, max_length=20)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    city = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    postal_code = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    national_id = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    add_to_today = serializers.BooleanField(required=False, default=True)
+
+    def validate_phone(self, value):
+        clean = value.strip()
+        if Customer.objects.filter(phone=clean).exists():
+            raise serializers.ValidationError("این شماره موبایل قبلاً برای مشتری دیگری ثبت شده است.")
+        return clean
+
+    def validate_email(self, value):
+        if value and User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("این ایمیل قبلاً ثبت شده است.")
+        return value
+
+    def _unique_username(self, phone):
+        digits = ''.join(ch for ch in phone if ch.isdigit()) or 'customer'
+        base = f"customer_{digits[-10:]}"
+        username = base
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            counter += 1
+            username = f"{base}_{counter}"
+        return username
+
+    @transaction.atomic
+    def create(self, validated_data):
+        add_to_today = validated_data.pop('add_to_today', True)
+        phone = validated_data.pop('phone').strip()
+        address = validated_data.pop('address', '')
+        city = validated_data.pop('city', '')
+        postal_code = validated_data.pop('postal_code', '')
+        national_id = validated_data.pop('national_id', '')
+
+        user = User.objects.create(
+            username=self._unique_username(phone),
+            email=validated_data.get('email', ''),
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            is_active=True,
+        )
+        user.set_unusable_password()
+        user.save(update_fields=['password'])
+
+        Customer.objects.create(
+            user=user,
+            phone=phone,
+            address=address,
+            city=city,
+            postal_code=postal_code,
+            national_id=national_id,
+            customer_type='retail',
+            role='customer',
+            is_active=True,
+            is_wholesale_approved=False,
+        )
+
+        if add_to_today:
+            from django.utils import timezone
+            from .models import VisitSchedule
+            today = timezone.now().date()
+            next_priority = (VisitSchedule.objects.filter(visitor=self.context['request'].user, date=today).count() or 0) + 1
+            VisitSchedule.objects.get_or_create(
+                visitor=self.context['request'].user,
+                customer=user,
+                date=today,
+                defaults={'priority': min(next_priority, 5), 'status': 'pending', 'notes': 'افزوده‌شده توسط ویزیتور'},
+            )
+        return user
 
 
 # --- ProductPricing ---
@@ -78,13 +234,19 @@ class ProductPricingUpdateSerializer(serializers.ModelSerializer):
 
 class VisitScheduleSerializer(serializers.ModelSerializer):
     visitor_name = serializers.CharField(source='visitor.username', read_only=True)
-    customer_name = serializers.CharField(source='customer.username', read_only=True)
+    customer_name = serializers.SerializerMethodField()
     customer_phone = serializers.SerializerMethodField()
 
     class Meta:
         model = VisitSchedule
         fields = ['id', 'visitor', 'visitor_name', 'customer', 'customer_name', 'customer_phone', 'date', 'status', 'priority', 'notes', 'admin_notes', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_customer_name(self, obj):
+        try:
+            return obj.customer.get_full_name() or obj.customer.username
+        except Exception:
+            return ""
 
     def get_customer_phone(self, obj):
         try:
