@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ordersApi, wholesaleApi } from "../api/client";
+import { formatJalaliDateTime } from "../utils/date";
 
 type Tab = "all" | "retail" | "wholesale";
 type UnifiedOrder = {
@@ -38,12 +39,7 @@ const nf = (n: any) => new Intl.NumberFormat("en-US").format(Math.round(Number(n
 const money = (n: any) => `${nf(n)} تومان`;
 
 function dateFa(iso?: string) {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString("fa-IR", { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return "—";
-  }
+  return formatJalaliDateTime(iso);
 }
 
 function normalizeList(data: any): any[] {

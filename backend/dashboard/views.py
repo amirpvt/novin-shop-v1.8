@@ -200,6 +200,120 @@ class OwnerPricingList(APIView):
         return Response(serializer.data, status=201)
 
 
+
+class OwnerTodayScheduleManagement(APIView):
+    """مدیریت برنامه امروز ویزیتورها توسط مدیرکل"""
+    permission_classes = [IsManager]
+
+    def get(self, request):
+        date_param = request.query_params.get('date')
+        target_date = timezone.now().date()
+        if date_param:
+            try:
+                from datetime import datetime
+                target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({"error": "فرمت تاریخ باید YYYY-MM-DD باشد"}, status=400)
+
+        visitor_id = request.query_params.get('visitor_id')
+        qs = VisitSchedule.objects.filter(date=target_date).select_related('visitor', 'customer', 'customer__customer_profile').order_by('visitor__first_name', 'visitor__last_name', 'priority')
+        if visitor_id:
+            qs = qs.filter(visitor_id=visitor_id)
+
+        serializer = VisitScheduleSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        visitor_id = request.data.get('visitor_id')
+        customer_id = request.data.get('customer_id')
+        date_value = request.data.get('date')
+        priority = request.data.get('priority') or 1
+        notes = request.data.get('notes') or ''
+        admin_notes = request.data.get('admin_notes') or ''
+
+        if not visitor_id or not customer_id:
+            return Response({"error": "visitor_id و customer_id الزامی است"}, status=400)
+
+        try:
+            visitor = User.objects.get(id=visitor_id, customer_profile__role='visitor')
+        except User.DoesNotExist:
+            return Response({"error": "ویزیتور یافت نشد"}, status=404)
+
+        try:
+            customer = User.objects.get(id=customer_id, customer_profile__role='customer')
+        except User.DoesNotExist:
+            return Response({"error": "مشتری یافت نشد"}, status=404)
+
+        target_date = timezone.now().date()
+        if date_value:
+            try:
+                from datetime import datetime
+                target_date = datetime.strptime(date_value, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({"error": "فرمت تاریخ باید YYYY-MM-DD باشد"}, status=400)
+
+        try:
+            priority = int(priority)
+        except (TypeError, ValueError):
+            priority = 1
+        priority = max(1, min(priority, 5))
+
+        schedule, created = VisitSchedule.objects.get_or_create(
+            visitor=visitor,
+            customer=customer,
+            date=target_date,
+            defaults={
+                'priority': priority,
+                'status': 'pending',
+                'notes': notes,
+                'admin_notes': admin_notes,
+            },
+        )
+        if not created:
+            return Response({"error": "این مشتری برای این ویزیتور در این تاریخ قبلاً ثبت شده است"}, status=400)
+
+        return Response(VisitScheduleSerializer(schedule).data, status=201)
+
+    def patch(self, request):
+        schedule_id = request.data.get('schedule_id')
+        if not schedule_id:
+            return Response({"error": "schedule_id الزامی است"}, status=400)
+
+        try:
+            schedule = VisitSchedule.objects.select_related('visitor', 'customer').get(id=schedule_id)
+        except VisitSchedule.DoesNotExist:
+            return Response({"error": "برنامه یافت نشد"}, status=404)
+
+        allowed_statuses = {choice[0] for choice in VisitSchedule.STATUS_CHOICES}
+        if 'status' in request.data:
+            new_status = request.data.get('status')
+            if new_status not in allowed_statuses:
+                return Response({"error": "وضعیت انتخاب‌شده معتبر نیست"}, status=400)
+            schedule.status = new_status
+
+        if 'priority' in request.data:
+            try:
+                schedule.priority = max(1, min(int(request.data.get('priority')), 5))
+            except (TypeError, ValueError):
+                return Response({"error": "اولویت معتبر نیست"}, status=400)
+        if 'notes' in request.data:
+            schedule.notes = request.data.get('notes') or ''
+        if 'admin_notes' in request.data:
+            schedule.admin_notes = request.data.get('admin_notes') or ''
+
+        schedule.save(update_fields=['status', 'priority', 'notes', 'admin_notes', 'updated_at'])
+        return Response(VisitScheduleSerializer(schedule).data)
+
+    def delete(self, request):
+        schedule_id = request.data.get('schedule_id')
+        if not schedule_id:
+            return Response({"error": "schedule_id الزامی است"}, status=400)
+        deleted, _ = VisitSchedule.objects.filter(id=schedule_id).delete()
+        if not deleted:
+            return Response({"error": "برنامه یافت نشد"}, status=404)
+        return Response({"detail": "برنامه حذف شد"})
+
+
 class OwnerUserManagement(APIView):
     """
     مدیریت کاربران: افزودن، حذف، غیرفعال کردن ویزیتور و ادمین
@@ -718,6 +832,37 @@ class VisitorTodayList(APIView):
 
         serializer = VisitScheduleSerializer(qs, many=True)
         return Response(serializer.data)
+
+    def patch(self, request):
+        role = get_user_role(request.user)
+        if role != 'visitor' and not request.user.is_superuser:
+            return Response({"error": "فقط ویزیتور"}, status=403)
+
+        schedule_id = request.data.get('schedule_id')
+        if not schedule_id:
+            return Response({"error": "schedule_id الزامی است"}, status=400)
+
+        try:
+            schedule = VisitSchedule.objects.select_related('customer').get(
+                id=schedule_id,
+                visitor=request.user,
+                date=timezone.now().date(),
+            )
+        except VisitSchedule.DoesNotExist:
+            return Response({"error": "برنامه امروز یافت نشد"}, status=404)
+
+        allowed_statuses = {choice[0] for choice in VisitSchedule.STATUS_CHOICES}
+        new_status = request.data.get('status')
+        if new_status is not None:
+            if new_status not in allowed_statuses:
+                return Response({"error": "وضعیت انتخاب‌شده معتبر نیست"}, status=400)
+            schedule.status = new_status
+
+        if 'notes' in request.data:
+            schedule.notes = request.data.get('notes') or ''
+
+        schedule.save(update_fields=['status', 'notes', 'updated_at'])
+        return Response(VisitScheduleSerializer(schedule).data)
 
 
 class VisitorOrderCreateWithWeight(APIView):

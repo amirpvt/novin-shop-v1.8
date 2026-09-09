@@ -72,6 +72,14 @@ export const dashboardApi = {
         body: JSON.stringify(data),
       }),
     users: (role?: string) => authFetch<any[]>(`/owner/users/${role ? `?role=${role}` : ""}`),
+    todaySchedules: (params?: { visitor_id?: number; date?: string }) =>
+      authFetch<any[]>(`/owner/today-schedules/${params ? `?${new URLSearchParams(Object.entries(params).reduce((acc, [key, value]) => value ? { ...acc, [key]: String(value) } : acc, {} as Record<string, string>)).toString()}` : ""}`),
+    todayScheduleCreate: (data: { visitor_id: number; customer_id: number; date?: string; priority?: number; notes?: string; admin_notes?: string }) =>
+      authFetch<any>("/owner/today-schedules/", { method: "POST", body: JSON.stringify(data) }),
+    todayScheduleUpdate: (data: { schedule_id: number; status?: string; priority?: number; notes?: string; admin_notes?: string }) =>
+      authFetch<any>("/owner/today-schedules/", { method: "PATCH", body: JSON.stringify(data) }),
+    todayScheduleDelete: (schedule_id: number) =>
+      authFetch<any>("/owner/today-schedules/", { method: "DELETE", body: JSON.stringify({ schedule_id }) }),
     userCreate: (data: { username: string; password: string; role: string; phone?: string; first_name?: string; last_name?: string; email?: string }) =>
       authFetch<any>("/owner/users/", {
         method: "POST",
@@ -119,6 +127,11 @@ export const dashboardApi = {
         body: JSON.stringify(data),
       }),
     todayList: () => authFetch<any[]>("/visitor/today/"),
+    todayUpdate: (data: { schedule_id: number; status?: string; notes?: string }) =>
+      authFetch<any>("/visitor/today/", {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
     orderCreate: (data: { customer_id: number; sale_type?: "wholesale"; items: { product_id: number; quantity: number }[]; address?: string }) =>
       authFetch<any>("/visitor/orders/create/", {
         method: "POST",

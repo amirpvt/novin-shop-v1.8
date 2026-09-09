@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { dashboardApi } from "../services/dashboardApi";
+import { formatJalaliDate } from "../utils/date";
 
 const nf = (n: any) => new Intl.NumberFormat("en-US").format(Number(n || 0));
 const money = (n: any) => `${nf(n)} تومان`;
 
 function dateFa(iso?: string) {
-  if (!iso) return "—";
-  try { return new Date(iso).toLocaleDateString("fa-IR"); } catch { return "—"; }
+  return formatJalaliDate(iso);
 }
 
 function friendlyError(message: string) {

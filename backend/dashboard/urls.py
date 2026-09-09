@@ -14,6 +14,7 @@ urlpatterns = [
     path('owner/pricing/', views.OwnerPricingList.as_view(), name='owner-pricing-list'),
     path('owner/pricing/<int:product_id>/', views.OwnerPricingUpdate.as_view(), name='owner-pricing-update'),
     path('owner/users/', views.OwnerUserManagement.as_view(), name='owner-users'),
+    path('owner/today-schedules/', views.OwnerTodayScheduleManagement.as_view(), name='owner-today-schedules'),
     path('owner/reports/', views.OwnerVisitorReport.as_view(), name='owner-reports'),
     path('owner/wholesale/', views.OwnerWholesaleList.as_view(), name='owner-wholesale-list'),
     path('owner/commissions/', views.OwnerCommissionManagement.as_view(), name='owner-commissions'),

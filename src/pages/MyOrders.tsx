@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ordersApi, wholesaleApi, type Order, type WholesaleRequest } from "../api/client";
 import { formatPrice } from "../data";
+import { formatJalaliDateTime } from "../utils/date";
 
 type OrderType = "retail" | "wholesale";
 type Tab = "all" | OrderType;
@@ -67,8 +68,7 @@ function toNumber(v: any) {
 }
 
 function dateFa(iso?: string) {
-  if (!iso) return "—";
-  try { return new Date(iso).toLocaleString("fa-IR", { dateStyle: "medium", timeStyle: "short" }); } catch { return "—"; }
+  return formatJalaliDateTime(iso);
 }
 
 function imgSrc(src?: string) {
@@ -196,6 +196,7 @@ export default function MyOrders() {
             <div>
               <span className="inline-flex rounded-full border border-white/10 bg-white/10 px-4 py-1.5 text-[11px] font-black text-gold-200">پیگیری زنده سفارش</span>
               <h1 className="mt-4 text-3xl font-black">سفارش‌های من</h1>
+              <p className="mt-2 max-w-2xl text-sm font-bold leading-7 text-stone-400">وضعیت هر سفارش دقیقاً از همان بخش مدیریت کل خوانده می‌شود؛ با تغییر مدیرکل، این صفحه هم بروزرسانی می‌شود.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => navigate("/")} className="rounded-2xl bg-white/10 px-5 py-3 text-xs font-black transition hover:bg-white/20">بازگشت به فروشگاه</button>

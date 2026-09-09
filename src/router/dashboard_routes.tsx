@@ -9,6 +9,7 @@ import DashboardLayout from "../components/DashboardLayout";
 
 // Owner pages
 import OwnerDashboard from "../pages/OwnerDashboard";
+import OwnerTodaySchedule from "../pages/OwnerTodaySchedule";
 import OwnerPricing from "../pages/OwnerPricing";
 import OwnerCommissions from "../pages/OwnerCommissions";
 import OwnerOrdersManagement from "../pages/OwnerOrdersManagement";
@@ -19,6 +20,7 @@ import AdminStoreDashboard from "../pages/AdminStoreDashboard";
 
 // Visitor pages
 import VisitorDashboard from "../pages/VisitorDashboard";
+import VisitorTodayManagement from "../pages/VisitorTodayManagement";
 import VisitorOrderCreate from "../pages/VisitorOrderCreate";
 import VisitorCustomers from "../pages/VisitorCustomers";
 
@@ -55,6 +57,16 @@ export default function DashboardRoutes() {
           <RoleGuard allowedRoles={["manager"]}>
             <DashboardLayout role="manager">
               <OwnerDashboard />
+            </DashboardLayout>
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/manager/today"
+        element={
+          <RoleGuard allowedRoles={["manager"]}>
+            <DashboardLayout role="manager">
+              <OwnerTodaySchedule />
             </DashboardLayout>
           </RoleGuard>
         }
@@ -168,6 +180,16 @@ export default function DashboardRoutes() {
         element={
           <RoleGuard allowedRoles={["visitor", "manager"]}>
             <DashboardLayout role="visitor">
+              <VisitorTodayManagement />
+            </DashboardLayout>
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/visitor/orders"
+        element={
+          <RoleGuard allowedRoles={["visitor", "manager"]}>
+            <DashboardLayout role="visitor">
               <VisitorDashboard />
             </DashboardLayout>
           </RoleGuard>
@@ -219,7 +241,7 @@ export default function DashboardRoutes() {
         element={
           <RoleGuard allowedRoles={["visitor"]}>
             <DashboardLayout role="visitor">
-              <VisitorDashboard />
+              <VisitorTodayManagement />
             </DashboardLayout>
           </RoleGuard>
         }

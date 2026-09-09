@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { dashboardApi } from "../services/dashboardApi";
 import { CloseIcon, CrownIcon, PackageIcon, ShoppingBagIcon, TruckIcon } from "../components/icons";
+import { formatJalaliDate, formatTodayJalali } from "../utils/date";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 type Stats = {
@@ -166,9 +167,7 @@ function isToday(iso?: string): boolean {
 }
 
 function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
+  return formatJalaliDate(iso);
 }
 
 async function apiGet<T>(path: string): Promise<T[]> {
@@ -700,12 +699,7 @@ export default function OwnerDashboard() {
   ];
   const visitTotal = visitSegments.reduce((s, x) => s + x.value, 0);
 
-  const todayLabel = new Date().toLocaleDateString("fa-IR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const todayLabel = formatTodayJalali();
   const hour = new Date().getHours();
   const greeting = hour < 6 ? "شب‌بخیر" : hour < 12 ? "صبح‌بخیر" : hour < 18 ? "عصر‌بخیر" : "شب‌بخیر";
 
