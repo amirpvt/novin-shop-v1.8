@@ -44,8 +44,19 @@ export function CustomerCreateModal({ onClose, onCreated }: { onClose: () => voi
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-stone-950/70 p-4 backdrop-blur-xl" onClick={onClose} dir="rtl">
       <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="w-full max-w-3xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
         <div className="relative overflow-hidden bg-gradient-to-br from-stone-950 via-blue-950 to-indigo-900 p-7 text-white">
-          <div className="absolute -left-16 -top-16 h-48 w-48 rounded-full bg-gold-300/20 blur-3xl" />
-          <button type="button" onClick={onClose} className="absolute left-5 top-5 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20">×</button>
+          <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-gold-300/20 blur-3xl" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute left-5 top-5 z-30 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+            aria-label="بستن پنجره افزودن مشتری"
+          >
+            ×
+          </button>
           <div className="relative">
             <span className="rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-[11px] font-black">مشتری جدید</span>
             <h2 className="mt-4 text-2xl font-black">افزودن مشتری به پنل ویزیتور</h2>

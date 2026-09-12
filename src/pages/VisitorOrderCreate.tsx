@@ -13,6 +13,8 @@ type VisitCustomer = {
   status: string;
   notes?: string;
   admin_notes?: string;
+  address?: string;
+  source?: "today" | "saved";
 };
 
 type CartLine = {
@@ -41,6 +43,7 @@ function statusLabel(status: string) {
     ordered: "سفارش ثبت شده",
     no_order: "سفارش نداشت",
     postponed: "به تعویق افتاد",
+    saved: "مشتری ذخیره‌شده",
   };
   return labels[status] || status || "نامشخص";
 }
@@ -64,16 +67,44 @@ export default function VisitorOrderCreate() {
   useEffect(() => {
     let ignore = false;
     setCustomersLoading(true);
-    dashboardApi.visitor.todayList()
-      .then((data) => {
-        if (!ignore) setCustomers(Array.isArray(data) ? data : []);
-      })
-      .catch((err: any) => {
-        if (!ignore) setError(err.message || "خطا در دریافت مشتریان امروز");
+
+    Promise.allSettled([
+      dashboardApi.visitor.todayList(),
+      dashboardApi.visitor.customers(),
+    ])
+      .then(([todayResult, savedResult]) => {
+        if (ignore) return;
+
+        const todayCustomers: VisitCustomer[] = todayResult.status === "fulfilled" && Array.isArray(todayResult.value)
+          ? todayResult.value.map((customer: any) => ({ ...customer, source: "today" as const }))
+          : [];
+
+        const savedCustomers: VisitCustomer[] = savedResult.status === "fulfilled" && Array.isArray(savedResult.value)
+          ? savedResult.value.map((customer: any, index: number) => ({
+              id: -Number(customer.id || index + 1),
+              customer: Number(customer.id),
+              customer_name: customer.full_name || `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || customer.username || "مشتری بدون نام",
+              customer_phone: customer.phone || "",
+              priority: 0,
+              status: "saved",
+              address: customer.address || "",
+              source: "saved" as const,
+            }))
+          : [];
+
+        const merged = new Map<number, VisitCustomer>();
+        savedCustomers.forEach((customer) => merged.set(customer.customer, customer));
+        todayCustomers.forEach((customer) => merged.set(customer.customer, customer));
+        setCustomers(Array.from(merged.values()));
+
+        if (todayResult.status === "rejected" && savedResult.status === "rejected") {
+          setError("خطا در دریافت مشتریان");
+        }
       })
       .finally(() => {
         if (!ignore) setCustomersLoading(false);
       });
+
     return () => { ignore = true; };
   }, []);
 
@@ -197,7 +228,7 @@ export default function VisitorOrderCreate() {
             <div>
               <h1 className="font-display text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
                 ثبت سفارش حضوری
-                <span className="block text-gold-300">سریع و دقیق</span>
+                <span className="block text-gold-300">سریع، دقیق و لوکس</span>
               </h1>
               <p className="mt-4 max-w-2xl text-sm font-bold leading-8 text-blue-100/80">
 مشتری برنامه امروز را انتخاب کنید، محصولات عمده را اضافه کنید و درخواست عمده را برای پیگیری و تایید ثبت نمایید.
@@ -215,7 +246,7 @@ export default function VisitorOrderCreate() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-30">
         <div className="rounded-[2rem] border border-blue-100 bg-gradient-to-l from-blue-50 via-white to-cyan-50 p-5 shadow-xl shadow-blue-900/5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
@@ -230,13 +261,13 @@ export default function VisitorOrderCreate() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[230px_1fr_300px] lg:px-10">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[310px_1fr_300px] lg:px-0">
         <aside className="space-y-4">
           <div className="rounded-[2rem] border border-stone-200 bg-white p-5 shadow-xl shadow-stone-900/5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-black text-stone-900">انتخاب مشتری</h2>
-                <p className="mt-1 text-[10px] font-bold text-stone-400">از برنامه امروز یا مشتری جدید</p>
+                <p className="mt-1 text-[10px] font-bold text-stone-400">از برنامه امروز، مشتری‌های ذخیره‌شده یا مشتری جدید</p>
               </div>
               <button onClick={() => setCustomerModalOpen(true)} className="rounded-2xl bg-gradient-to-l from-blue-700 to-indigo-600 px-3 py-2 text-[10px] font-black text-white shadow-lg shadow-blue-700/15 transition hover:-translate-y-0.5" type="button">+ مشتری</button>
             </div>
@@ -247,7 +278,7 @@ export default function VisitorOrderCreate() {
               </div>
             ) : customers.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 p-5 text-center text-sm font-bold leading-7 text-stone-500">
-                برای امروز مشتری‌ای در برنامه ویزیت شما ثبت نشده است.
+هنوز مشتری‌ای برای انتخاب پیدا نشد؛ می‌توانید مشتری جدید اضافه کنید.
               </div>
             ) : (
               <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
@@ -256,7 +287,7 @@ export default function VisitorOrderCreate() {
                   return (
                     <button
                       key={customer.id}
-                      onClick={() => { setSelectedCustomerId(customer.customer); setSuccessOrder(null); }}
+                      onClick={() => { setSelectedCustomerId(customer.customer); setAddress(customer.address || ""); setSuccessOrder(null); }}
                       className={`w-full rounded-2xl border p-4 text-right transition ${active ? "border-blue-300 bg-blue-50 shadow-lg shadow-blue-900/10" : "border-stone-200 bg-white hover:border-blue-200 hover:bg-blue-50/40"}`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -264,10 +295,13 @@ export default function VisitorOrderCreate() {
                           <div className="truncate text-sm font-black text-stone-900">{customer.customer_name}</div>
                           <div dir="ltr" className="mt-1 text-right font-mono text-xs font-bold text-stone-500">{customer.customer_phone || "بدون شماره"}</div>
                         </div>
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-stone-900 text-xs font-black text-white">{customer.priority}</span>
+                        <span className={`flex h-9 min-w-9 shrink-0 items-center justify-center rounded-2xl px-2 text-xs font-black text-white ${customer.source === "today" ? "bg-stone-900" : "bg-blue-700"}`}>
+                          {customer.source === "today" ? customer.priority : "ذخیره"}
+                        </span>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black">
                         <span className="rounded-full bg-white px-2.5 py-1 text-stone-500">{statusLabel(customer.status)}</span>
+                        {customer.source === "saved" && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">لیست مشتری‌ها</span>}
                         {customer.admin_notes && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">یادداشت مدیر</span>}
                       </div>
                     </button>

@@ -16,6 +16,19 @@ def get_effective_retail_price(product):
     return product.price
 
 
+def get_effective_wholesale_price(product):
+    """قیمت نهایی عمده برای نمایش آیتم‌های درخواست عمده."""
+    if not product:
+        return 0
+    try:
+        pricing = product.dashboard_pricing
+        if pricing.is_active:
+            return pricing.wholesale_price
+    except Exception:
+        pass
+    return product.wholesale_price if getattr(product, "wholesale_price", None) else product.price
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
     subtotal = serializers.SerializerMethodField()
     product_image = serializers.SerializerMethodField()
@@ -84,7 +97,7 @@ class OrderTrackingSerializer(serializers.ModelSerializer):
     payment_status = serializers.SerializerMethodField()
     class Meta:
         model = Order
-        fields = ["order_number", "name", "phone", "address", "message", "order_status", "total_amount", "payment_status", "items", "created_at"]
+        fields = ["order_number", "order_status", "total_amount", "payment_status", "items", "created_at"]
     def get_payment_status(self, obj):
         latest = obj.payments.order_by("-created_at").first()
         return latest.payment_status if latest else "PENDING"
@@ -131,10 +144,20 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 # --- Wholesale with images ---
 class WholesaleRequestItemSerializer(serializers.ModelSerializer):
     product_image = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
+    subtotal = serializers.SerializerMethodField()
+
     class Meta:
         model = WholesaleRequestItem
-        fields = ["id", "product", "product_name", "quantity", "notes", "product_image"]
+        fields = ["id", "product", "product_name", "quantity", "notes", "price", "subtotal", "product_image"]
         read_only_fields = fields
+
+    def get_price(self, obj):
+        return get_effective_wholesale_price(obj.product)
+
+    def get_subtotal(self, obj):
+        return get_effective_wholesale_price(obj.product) * obj.quantity
+
     def get_product_image(self, obj):
         if obj.product and obj.product.image and hasattr(obj.product.image, 'url'):
             request = self.context.get('request')
@@ -184,7 +207,7 @@ class WholesaleRequestTrackingSerializer(serializers.ModelSerializer):
     items = WholesaleRequestItemSerializer(many=True, read_only=True)
     class Meta:
         model = WholesaleRequest
-        fields = ["request_number", "company_name", "contact_person", "phone", "address", "description", "status", "items", "created_at"]
+        fields = ["request_number", "status", "items", "created_at"]
 
 class WholesaleRequestCreateSerializer(serializers.ModelSerializer):
     items = WholesaleRequestItemInputSerializer(many=True, write_only=True)

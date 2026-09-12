@@ -55,6 +55,7 @@ class VisitorCustomerSerializer(serializers.ModelSerializer):
     is_wholesale_approved = serializers.SerializerMethodField()
     total_orders = serializers.SerializerMethodField()
     total_purchases = serializers.SerializerMethodField()
+    remaining_debt = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -62,7 +63,7 @@ class VisitorCustomerSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
             'phone', 'address', 'city', 'postal_code', 'national_id',
             'customer_type', 'is_wholesale_approved', 'total_orders',
-            'total_purchases', 'date_joined'
+            'total_purchases', 'remaining_debt', 'date_joined'
         ]
         read_only_fields = fields
 
@@ -103,16 +104,35 @@ class VisitorCustomerSerializer(serializers.ModelSerializer):
         profile = self._profile(obj)
         return bool(profile.is_wholesale_approved) if profile else False
 
+    def _financial_totals(self, obj):
+        order_total = obj.orders.exclude(order_status='CANCELLED').aggregate(s=Sum('total_amount'))['s'] or 0
+        wholesale_total = obj.wholesale_requests.exclude(status='REJECTED').aggregate(s=Sum('total_amount'))['s'] or 0
+        paid_total = obj.cash_payments.aggregate(s=Sum('amount'))['s'] or 0
+        return order_total, wholesale_total, paid_total
+
     def get_total_orders(self, obj):
         try:
-            return obj.orders.count()
+            retail_count = obj.orders.exclude(order_status='CANCELLED').count()
+            wholesale_count = obj.wholesale_requests.exclude(status='REJECTED').count()
+            return retail_count + wholesale_count
         except Exception:
             return 0
 
     def get_total_purchases(self, obj):
         try:
-            total = obj.orders.aggregate(s=Sum('total_amount'))['s'] or 0
-            return total
+            order_total, wholesale_total, _ = self._financial_totals(obj)
+            return order_total + wholesale_total
+        except Exception:
+            return 0
+
+    def get_remaining_debt(self, obj):
+        try:
+            order_total, wholesale_total, paid_total = self._financial_totals(obj)
+            calculated_remaining = order_total + wholesale_total - paid_total
+            debt = CustomerDebt.objects.filter(customer=obj).first()
+            model_remaining = debt.remaining_debt if debt else 0
+            remaining = max(calculated_remaining, model_remaining, 0)
+            return remaining
         except Exception:
             return 0
 
@@ -264,13 +284,28 @@ class VisitScheduleCreateSerializer(serializers.ModelSerializer):
 # --- CashCollection ---
 
 class CashCollectionSerializer(serializers.ModelSerializer):
-    visitor_name = serializers.CharField(source='visitor.username', read_only=True, default="")
-    customer_name = serializers.CharField(source='customer.username', read_only=True)
+    visitor_name = serializers.SerializerMethodField()
+    customer_name = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
 
     class Meta:
         model = CashCollection
-        fields = ['id', 'visitor', 'visitor_name', 'customer', 'customer_name', 'order', 'amount', 'payment_type', 'receipt_number', 'notes', 'collected_at', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'visitor', 'visitor_name', 'customer', 'customer_name', 'customer_phone', 'order', 'amount', 'payment_type', 'receipt_number', 'notes', 'collected_at', 'created_at']
+        read_only_fields = ['id', 'visitor', 'visitor_name', 'customer_name', 'customer_phone', 'created_at']
+
+    def get_visitor_name(self, obj):
+        if not obj.visitor_id:
+            return ""
+        return obj.visitor.get_full_name() or obj.visitor.username
+
+    def get_customer_name(self, obj):
+        return obj.customer.get_full_name() or obj.customer.username
+
+    def get_customer_phone(self, obj):
+        try:
+            return obj.customer.customer_profile.phone
+        except Exception:
+            return ""
 
 
 # --- Commission ---
@@ -280,11 +315,14 @@ class CommissionSerializer(serializers.ModelSerializer):
     order_number = serializers.SerializerMethodField()
     order_total = serializers.SerializerMethodField()
     sale_type = serializers.SerializerMethodField()
+    customer_name = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
+    customer_address = serializers.SerializerMethodField()
     items = serializers.SerializerMethodField()
 
     class Meta:
         model = Commission
-        fields = ['id', 'visitor', 'visitor_name', 'order', 'wholesale_request', 'order_number', 'order_total', 'sale_type', 'items', 'percentage', 'amount', 'is_paid', 'paid_at', 'created_at']
+        fields = ['id', 'visitor', 'visitor_name', 'order', 'wholesale_request', 'order_number', 'order_total', 'sale_type', 'customer_name', 'customer_phone', 'customer_address', 'items', 'percentage', 'amount', 'is_paid', 'paid_at', 'created_at']
         read_only_fields = ['id', 'created_at', 'amount']
 
     def get_order_number(self, obj):
@@ -304,6 +342,27 @@ class CommissionSerializer(serializers.ModelSerializer):
     def get_sale_type(self, obj):
         return 'wholesale' if obj.wholesale_request_id else 'retail'
 
+    def get_customer_name(self, obj):
+        if obj.order_id and obj.order:
+            return obj.order.name
+        if obj.wholesale_request_id and obj.wholesale_request:
+            return obj.wholesale_request.company_name or obj.wholesale_request.contact_person
+        return ""
+
+    def get_customer_phone(self, obj):
+        if obj.order_id and obj.order:
+            return obj.order.phone
+        if obj.wholesale_request_id and obj.wholesale_request:
+            return obj.wholesale_request.phone
+        return ""
+
+    def get_customer_address(self, obj):
+        if obj.order_id and obj.order:
+            return obj.order.address
+        if obj.wholesale_request_id and obj.wholesale_request:
+            return obj.wholesale_request.address
+        return ""
+
     def get_items(self, obj):
         request = self.context.get('request')
         if obj.order_id and obj.order:
@@ -320,17 +379,27 @@ class CommissionSerializer(serializers.ModelSerializer):
                 for item in obj.order.items.select_related('product').all()
             ]
         if obj.wholesale_request_id and obj.wholesale_request:
-            return [
-                {
+            result = []
+            for item in obj.wholesale_request.items.select_related('product').all():
+                product = item.product
+                price = 0
+                if product:
+                    try:
+                        pricing = product.dashboard_pricing
+                        price = pricing.wholesale_price if pricing.is_active else product.price
+                    except Exception:
+                        price = product.price
+                result.append({
                     'id': item.id,
                     'product': item.product_id,
                     'product_name': item.product_name,
+                    'price': price,
                     'quantity': item.quantity,
+                    'subtotal': price * item.quantity,
                     'notes': item.notes,
                     'product_image': request.build_absolute_uri(item.product.image.url) if request and item.product and item.product.image else (item.product.image.url if item.product and item.product.image else '/images/placeholder.jpg'),
-                }
-                for item in obj.wholesale_request.items.select_related('product').all()
-            ]
+                })
+            return result
         return []
 
 

@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { dashboardApi } from "../services/dashboardApi";
+import { formatJalaliDate } from "../utils/date";
 
 
 const retailStatuses = [
@@ -49,10 +50,17 @@ function formatPrice(n?: number | string | null) {
   return safeNum.toLocaleString("en-US") + " تومان";
 }
 
-function itemSubtotal(item: any) {
+function itemPrice(item: any) {
   const price = Number(item?.price ?? 0);
+  return Number.isFinite(price) ? price : 0;
+}
+
+function itemSubtotal(item: any) {
+  const directSubtotal = Number(item?.subtotal ?? 0);
+  if (Number.isFinite(directSubtotal) && directSubtotal > 0) return directSubtotal;
+  const price = itemPrice(item);
   const quantity = Number(item?.quantity ?? 0);
-  return (Number.isFinite(price) ? price : 0) * (Number.isFinite(quantity) ? quantity : 0);
+  return price * (Number.isFinite(quantity) ? quantity : 0);
 }
 
 export default function VisitorOrdersPro() {
@@ -105,9 +113,9 @@ export default function VisitorOrdersPro() {
                   ...tracked,
                   id: comm.order || comm.wholesale_request || comm.id,
                   order_number: tracked.order_number || tracked.request_number || comm.order_number,
-                  name: isWholesale ? (tracked.company_name || tracked.contact_person || `درخواست عمده ${comm.order_number}`) : tracked.name,
-                  phone: tracked.phone || "-",
-                  address: tracked.address || "",
+                  name: isWholesale ? (comm.customer_name || tracked.company_name || tracked.contact_person || `درخواست عمده ${comm.order_number}`) : (comm.customer_name || tracked.name),
+                  phone: comm.customer_phone || tracked.phone || "-",
+                  address: comm.customer_address || tracked.address || "",
                   order_status: isWholesale ? tracked.status : tracked.order_status,
                   total_amount: tracked.total_amount || comm.order_total || 0,
                   items: tracked.items || [],
@@ -122,9 +130,9 @@ export default function VisitorOrdersPro() {
             return {
               id: comm.order || comm.wholesale_request,
               order_number: comm.order_number || `ORD-${comm.order}`,
-              name: comm.sale_type === "wholesale" ? `درخواست عمده ${comm.order_number}` : `سفارش ${comm.order_number}`,
-              phone: "-",
-              address: "",
+              name: comm.customer_name || (comm.sale_type === "wholesale" ? `درخواست عمده ${comm.order_number}` : `سفارش ${comm.order_number}`),
+              phone: comm.customer_phone || "-",
+              address: comm.customer_address || "",
               order_status: comm.sale_type === "wholesale" ? "NEW" : "CONFIRMED",
               total_amount: comm.order_total || 0,
               items: [],
@@ -189,28 +197,28 @@ export default function VisitorOrdersPro() {
   });
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] pt-0 pb-20" dir="rtl">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        {/* هدر حرفه‌ای مخصوص ویزیتور */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-8 text-white shadow-2xl">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3" />
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-300/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur border border-white/20 px-4 py-1.5 text-xs font-black tracking-widest">
-              <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
-              پنل اختصاصی ویزیتور - فقط سفارشات شما
-            </div>
-            <h1 className="mt-5 font-display text-3xl md:text-4xl font-black">📝 سفارشات ثبت شده توسط شما</h1>
-            <p className="mt-3 text-blue-100 text-sm max-w-2xl leading-relaxed">
-              اینجا فقط سفارش‌هایی که خودتان در محل مشتری ثبت کرده‌اید نمایش داده می‌شود، با جزئیات کامل حرفه‌ای
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <div className="rounded-full bg-white/10 backdrop-blur border border-white/10 px-4 py-2 text-xs font-bold">📦 {stats.total} سفارش ثبت شده</div>
-              <div className="rounded-full bg-emerald-500/20 border border-emerald-400/30 px-4 py-2 text-xs font-bold text-emerald-200">💰 پورسانت کل: {formatPrice(stats.totalCommission)}</div>
-            </div>
+    <div className="min-h-screen bg-[#faf8f5] pb-20" dir="rtl">
+      {/* هدر حرفه‌ای مخصوص ویزیتور */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 px-4 py-8 text-white shadow-2xl sm:px-6 lg:px-10">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-300/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
+        <div className="relative mx-auto max-w-7xl">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur border border-white/20 px-4 py-1.5 text-xs font-black tracking-widest">
+            <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
+            پنل اختصاصی ویزیتور - فقط سفارشات شما
+          </div>
+          <h1 className="mt-5 font-display text-3xl md:text-4xl font-black">📝 سفارشات ثبت شده توسط شما</h1>
+          <p className="mt-3 text-blue-100 text-sm max-w-2xl leading-relaxed">
+            اینجا فقط سفارش‌هایی که خودتان در محل مشتری ثبت کرده‌اید نمایش داده می‌شود، با جزئیات کامل حرفه‌ای
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <div className="rounded-full bg-white/10 backdrop-blur border border-white/10 px-4 py-2 text-xs font-bold">📦 {stats.total} سفارش ثبت شده</div>
+            <div className="rounded-full bg-emerald-500/20 border border-emerald-400/30 px-4 py-2 text-xs font-bold text-emerald-200">💰 پورسانت کل: {formatPrice(stats.totalCommission)}</div>
           </div>
         </div>
+      </div>
 
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10">
         {/* آمار حرفه‌ای */}
         <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="rounded-[1.8rem] bg-white p-6 border shadow-sm hover:shadow-lg transition">
@@ -295,16 +303,17 @@ export default function VisitorOrdersPro() {
                         <div className="bg-stone-50 rounded-2xl p-4 border">
                           <p className="text-[10px] font-black tracking-widest text-stone-400">مشتری</p>
                           <p className="font-bold mt-1">{order.name}</p>
+                          <p className="mt-1 font-mono text-xs font-black text-blue-700">شماره سفارش: {order.order_number}</p>
                           <p className="text-xs text-stone-500 mt-1">📞 {order.phone}</p>
                         </div>
                         <div className="bg-stone-50 rounded-2xl p-4 border">
                           <p className="text-[10px] font-black tracking-widest text-stone-400">آدرس تحویل</p>
                           <p className="text-xs mt-1 leading-relaxed line-clamp-2">{order.address || "بدون آدرس"}</p>
                         </div>
-                        <div className="bg-blue-50 rounded-2xl p-4 border">
+                        <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
                           <p className="text-[10px] font-black tracking-widest text-blue-600">مبلغ و تاریخ</p>
                           <p className="font-black text-blue-700 mt-1">{formatPrice(order.total_amount || 0)}</p>
-                          <p className="text-[11px] text-stone-500 mt-1">{order.created_at ? new Date(order.created_at).toLocaleDateString("fa-IR") : ""}</p>
+                          <p className="text-[11px] text-stone-500 mt-1">{order.created_at ? formatJalaliDate(order.created_at) : ""}</p>
                         </div>
                       </div>
 
@@ -326,7 +335,7 @@ export default function VisitorOrdersPro() {
                             <img src={item.product_image || "/images/placeholder.jpg"} alt={item.product_name} className="h-14 w-14 rounded-xl object-cover bg-white border shadow-sm" />
                             <div className="flex-1 min-w-0">
                               <p className="font-bold text-sm truncate">{item.product_name}</p>
-                              <p className="text-[11px] text-stone-500 mt-1">تعداد: <span className="font-mono font-black text-stone-900">{item.quantity || 0}</span> × {formatPrice(item.price)}</p>
+                              <p className="text-[11px] text-stone-500 mt-1">تعداد: <span className="font-mono font-black text-stone-900">{item.quantity || 0}</span> × {formatPrice(itemPrice(item))}</p>
                             </div>
                             <div className="text-left">
                               <p className="font-black text-sm">{formatPrice(itemSubtotal(item))}</p>

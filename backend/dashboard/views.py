@@ -4,7 +4,7 @@
 from rest_framework import generics, status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, Max
 from django.db.utils import OperationalError
 from django.utils import timezone
 from datetime import timedelta
@@ -385,22 +385,75 @@ class OwnerVisitorReport(APIView):
         report_type = request.query_params.get('type', 'visitors')
 
         if report_type == 'debtors':
-            debts = CustomerDebt.objects.select_related('customer').filter(total_debt__gt=0).order_by('-total_debt')[:50]
-            serializer = CustomerDebtSerializer(debts, many=True)
-            return Response(serializer.data)
+            # بدهکار واقعی فقط رکورد دستی CustomerDebt نیست؛
+            # مشتری‌هایی که ویزیتور برایشان سفارش ثبت کرده و هنوز کل مبلغ را با نقدی/کارتخوان/چک/آنلاین پرداخت نکرده‌اند هم باید نمایش داده شوند.
+            debt_customer_ids = CustomerDebt.objects.values_list('customer_id', flat=True)
+            retail_customer_ids = Order.objects.exclude(order_status='CANCELLED').values_list('user_id', flat=True)
+            wholesale_customer_ids = WholesaleRequest.objects.exclude(status='REJECTED').values_list('user_id', flat=True)
+            paid_customer_ids = CashCollection.objects.values_list('customer_id', flat=True)
+            customer_ids = {
+                customer_id
+                for customer_id in list(debt_customer_ids) + list(retail_customer_ids) + list(wholesale_customer_ids) + list(paid_customer_ids)
+                if customer_id
+            }
+
+            customers = User.objects.filter(id__in=customer_ids, customer_profile__role='customer').select_related('customer_profile')
+            report = []
+            for customer in customers:
+                retail_total = Order.objects.filter(user=customer).exclude(order_status='CANCELLED').aggregate(s=Sum('total_amount'))['s'] or 0
+                wholesale_total = WholesaleRequest.objects.filter(user=customer).exclude(status='REJECTED').aggregate(s=Sum('total_amount'))['s'] or 0
+                cash_paid = CashCollection.objects.filter(customer=customer).aggregate(s=Sum('amount'))['s'] or 0
+                last_order = Order.objects.filter(user=customer).exclude(order_status='CANCELLED').aggregate(d=Max('created_at'))['d']
+                last_wholesale = WholesaleRequest.objects.filter(user=customer).exclude(status='REJECTED').aggregate(d=Max('created_at'))['d']
+                last_payment = CashCollection.objects.filter(customer=customer).aggregate(d=Max('collected_at'))['d']
+                debt = CustomerDebt.objects.filter(customer=customer).first()
+
+                stored_total = debt.total_debt if debt else 0
+                stored_paid = debt.total_paid if debt else 0
+                total_debt = max(retail_total + wholesale_total, stored_total)
+                total_paid = max(cash_paid, stored_paid)
+                remaining_debt = total_debt - total_paid
+                if remaining_debt <= 0:
+                    continue
+
+                if last_order and last_wholesale:
+                    last_order_date = max(last_order, last_wholesale)
+                else:
+                    last_order_date = last_order or last_wholesale
+
+                profile = getattr(customer, 'customer_profile', None)
+                report.append({
+                    'id': debt.id if debt else customer.id,
+                    'customer': customer.id,
+                    'customer_name': customer.get_full_name() or customer.username,
+                    'customer_phone': getattr(profile, 'phone', '') if profile else '',
+                    'total_debt': total_debt,
+                    'total_paid': total_paid,
+                    'remaining_debt': remaining_debt,
+                    'last_order_date': last_order_date,
+                    'last_payment_date': debt.last_payment_date if debt and debt.last_payment_date else last_payment,
+                    'is_overdue': debt.is_overdue if debt else False,
+                    'notes': debt.notes if debt else '',
+                    'updated_at': debt.updated_at if debt else last_order_date,
+                })
+
+            return Response(sorted(report, key=lambda x: x['remaining_debt'], reverse=True)[:50])
 
         # گزارش ویزیتورها
         visitors = User.objects.filter(customer_profile__role='visitor')
         report = []
         for visitor in visitors:
-            # سفارش‌های خرده ویزیتور از روی کمیسیون مشخص می‌شوند؛ چون user سفارش، مشتری است.
+            # سفارش‌های ثبت‌شده توسط ویزیتور از روی کمیسیون تشخیص داده می‌شوند؛ چون user سفارش، مشتری است.
             retail_orders = Order.objects.filter(Q(commission__visitor=visitor) | Q(user=visitor)).distinct()
-            wholesale_requests = WholesaleRequest.objects.filter(user=visitor).defer('total_amount').prefetch_related('items__product')
+            wholesale_request_ids = Commission.objects.filter(visitor=visitor, wholesale_request__isnull=False).values_list('wholesale_request_id', flat=True)
+            wholesale_requests = WholesaleRequest.objects.filter(Q(id__in=wholesale_request_ids) | Q(user=visitor)).distinct().defer('total_amount').prefetch_related('items__product')
             visits = VisitSchedule.objects.filter(visitor=visitor)
 
-            retail_sales = retail_orders.aggregate(s=Sum('total_amount'))['s'] or 0
+            retail_sales = retail_orders.exclude(order_status='CANCELLED').aggregate(s=Sum('total_amount'))['s'] or 0
             wholesale_sales = 0
-            for req in wholesale_requests:
+            valid_wholesale_count = 0
+            for req in wholesale_requests.exclude(status='REJECTED'):
+                valid_wholesale_count += 1
                 stored_total = req.__dict__.get('total_amount', None)
                 if stored_total and stored_total > 0:
                     wholesale_sales += stored_total
@@ -425,13 +478,13 @@ class OwnerVisitorReport(APIView):
                 'visitor_name': visitor.get_full_name() or visitor.username,
                 'total_visits': visits.count(),
                 'completed_visits': visits.filter(status__in=['visited', 'ordered']).count(),
-                'total_orders': retail_orders.count() + wholesale_requests.count(),
+                'total_orders': retail_orders.exclude(order_status='CANCELLED').count() + valid_wholesale_count,
                 'total_sales': total_sales,
                 'total_commission': commissions,
                 'pending_visits': visits.filter(status='pending').count(),
-                'retail_orders': retail_orders.count(),
+                'retail_orders': retail_orders.exclude(order_status='CANCELLED').count(),
                 'retail_sales': retail_sales,
-                'wholesale_orders': wholesale_requests.count(),
+                'wholesale_orders': valid_wholesale_count,
                 'wholesale_sales': wholesale_sales,
             })
 
@@ -792,7 +845,8 @@ class VisitorCustomerListCreate(APIView):
         else:
             scheduled_ids = VisitSchedule.objects.filter(visitor=request.user).values_list('customer_id', flat=True)
             ordered_ids = Order.objects.filter(commission__visitor=request.user).values_list('user_id', flat=True)
-            customer_ids = set(scheduled_ids) | set(ordered_ids)
+            wholesale_ordered_ids = Commission.objects.filter(visitor=request.user, wholesale_request__isnull=False).values_list('wholesale_request__user_id', flat=True)
+            customer_ids = set(scheduled_ids) | set(ordered_ids) | set(wholesale_ordered_ids)
 
         qs = User.objects.filter(id__in=customer_ids, customer_profile__role='customer').select_related('customer_profile').order_by('first_name', 'last_name', 'username')
         if q:

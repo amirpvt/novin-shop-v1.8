@@ -22,6 +22,8 @@ import AdminStoreDashboard from "../pages/AdminStoreDashboard";
 import VisitorDashboard from "../pages/VisitorDashboard";
 import VisitorTodayManagement from "../pages/VisitorTodayManagement";
 import VisitorOrderCreate from "../pages/VisitorOrderCreate";
+import VisitorCashCollection from "../pages/VisitorCashCollection";
+import VisitorCommission from "../pages/VisitorCommission";
 import VisitorCustomers from "../pages/VisitorCustomers";
 
 // Customer pages
@@ -32,6 +34,7 @@ import MyOrders from "../pages/MyOrders";
 // فعلا از OwnerDashboard برای همه گزارش‌ها استفاده می‌کنیم - می‌توان جدا کرد
 
 import VisitorReportWithOrders from "../pages/OwnerVisitorReport";
+import OwnerDebtors from "../pages/OwnerDebtors";
 import CustomerOrdersPro from "../pages/CustomerOrdersPro";
 
 export default function DashboardRoutes() {
@@ -116,7 +119,7 @@ export default function DashboardRoutes() {
         element={
           <RoleGuard allowedRoles={["manager"]}>
             <DashboardLayout role="manager">
-              <OwnerDashboard />
+              <VisitorReportWithOrders />
             </DashboardLayout>
           </RoleGuard>
         }
@@ -126,7 +129,7 @@ export default function DashboardRoutes() {
         element={
           <RoleGuard allowedRoles={["manager"]}>
             <DashboardLayout role="manager">
-              <OwnerDashboard />
+              <OwnerDebtors />
             </DashboardLayout>
           </RoleGuard>
         }
@@ -220,7 +223,7 @@ export default function DashboardRoutes() {
         element={
           <RoleGuard allowedRoles={["visitor", "manager"]}>
             <DashboardLayout role="visitor">
-              <VisitorDashboard />
+              <VisitorCashCollection />
             </DashboardLayout>
           </RoleGuard>
         }
@@ -230,7 +233,7 @@ export default function DashboardRoutes() {
         element={
           <RoleGuard allowedRoles={["visitor", "manager"]}>
             <DashboardLayout role="visitor">
-              <VisitorDashboard />
+              <VisitorCommission />
             </DashboardLayout>
           </RoleGuard>
         }
