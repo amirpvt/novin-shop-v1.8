@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { productsApi, type ApiProduct } from "../api/client";
-import { type Product, mapApiProduct, products as fallbackProducts } from "../data";
+import { type Product, mapApiProduct } from "../data";
 
 export function useProducts() {
-  const [products, setProducts] = useState<Product[]>(fallbackProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
@@ -19,19 +19,12 @@ export function useProducts() {
     try {
       const response = await productsApi.getAll(params);
       const apiResults = (response as any).results ?? response;
-      if (Array.isArray(apiResults) && apiResults.length > 0) {
-        const mapped = apiResults.map((p: ApiProduct) => mapApiProduct(p));
-        console.log("✅ API PRODUCTS:", apiResults.length, "items");
-        setProducts(mapped);
-      } else {
-        console.warn("⚠️ API returned empty, keeping fallback");
-        // اگر API خالی بود، fallback را نگه دار ولی خطا نده
-        // setProducts(fallbackProducts);
-      }
+      const mapped = Array.isArray(apiResults) ? apiResults.map((p: ApiProduct) => mapApiProduct(p)) : [];
+      setProducts(mapped);
     } catch (err) {
       console.error("Failed to fetch products:", err);
+      setProducts([]);
       setError(err instanceof Error ? err.message : "خطا در دریافت محصولات");
-      // Keep fallback data on error
     } finally {
       setLoading(false);
     }

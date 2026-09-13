@@ -7,6 +7,7 @@ Production rule:
 NO MOCK IN PRODUCTION. Network/configuration/gateway errors fail closed and never confirm orders.
 """
 import logging
+from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 
 import requests
 from django.conf import settings
@@ -151,20 +152,38 @@ class PaymentService:
     def __init__(self, gateway: BasePaymentGateway = None):
         self.gateway = gateway or ZarinPalGateway()
 
-    def initiate_payment(self, order_id, callback_url: str = None):
-        """Start payment for an order and return redirect URL."""
+    def _callback_with_payment_params(self, callback_url: str, order: Order, payment: Payment) -> str:
+        parsed = urlparse(callback_url)
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query.setdefault("order", order.order_number)
+        query.setdefault("payment_number", payment.payment_number)
+        return urlunparse(parsed._replace(query=urlencode(query)))
+
+    def initiate_payment_detail(self, order_id, callback_url: str = None):
+        """Start payment for an order and return structured gateway data."""
         try:
             order = Order.objects.get(id=order_id)
         except Order.DoesNotExist:
             logger.error("Order %s not found", order_id)
-            return None
+            return {"status": "failed", "message": "سفارش یافت نشد"}
+
+        if order.order_status == "CANCELLED":
+            return {"status": "failed", "message": "امکان پرداخت سفارش لغوشده وجود ندارد"}
+        if int(order.total_amount or 0) <= 0:
+            return {"status": "failed", "message": "مبلغ سفارش برای پرداخت معتبر نیست"}
 
         existing_success = Payment.objects.filter(order=order, payment_status="SUCCESS").first()
         if existing_success:
             logger.info("Order %s already has successful payment", order.order_number)
-            return None
+            return {
+                "status": "already_paid",
+                "message": "این سفارش قبلاً با موفقیت پرداخت شده است",
+                "payment_number": existing_success.payment_number,
+                "transaction_id": existing_success.transaction_id,
+                "order_number": order.order_number,
+            }
 
-        callback = callback_url or f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/payment/verify?order={order.order_number}"
+        callback = callback_url or f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/payment/verify"
 
         payment, created = Payment.objects.get_or_create(
             payment_number=f"PAY-{order.order_number}",
@@ -181,6 +200,7 @@ class PaymentService:
             payment.transaction_id = None
             payment.save(update_fields=["order", "amount", "payment_status", "transaction_id"])
 
+        callback = self._callback_with_payment_params(callback, order, payment)
         description = f"نوین شاپ - سفارش {order.order_number} - {order.name}"
         gateway_res = self.gateway.create_payment(payment, callback_url=callback, description=description)
 
@@ -188,12 +208,24 @@ class PaymentService:
             # Before verify, transaction_id temporarily stores Zarinpal Authority.
             payment.transaction_id = gateway_res["authority"]
             payment.save(update_fields=["transaction_id"])
-            return gateway_res["url"]
+            return {
+                "status": "success",
+                "payment_url": gateway_res["url"],
+                "authority": gateway_res["authority"],
+                "payment_number": payment.payment_number,
+                "order_number": order.order_number,
+                "amount": payment.amount,
+            }
 
         payment.payment_status = "FAILED"
         payment.save(update_fields=["payment_status"])
         logger.error("Payment initiation failed for order %s: %s", order.order_number, gateway_res)
-        return None
+        return {"status": "failed", "message": gateway_res.get("message") or "خطا در ایجاد پرداخت"}
+
+    def initiate_payment(self, order_id, callback_url: str = None):
+        """Backward-compatible wrapper returning only redirect URL."""
+        result = self.initiate_payment_detail(order_id, callback_url=callback_url)
+        return result.get("payment_url") if result.get("status") == "success" else None
 
     @transaction.atomic
     def mark_cancelled(self, payment_number):
@@ -214,9 +246,21 @@ class PaymentService:
             logger.error("Payment %s not found", payment_number)
             return {"status": "failed", "message": "پرداخت یافت نشد"}
 
+        if payment.payment_status == "SUCCESS":
+            return {
+                "status": "success",
+                "payment_number": payment.payment_number,
+                "transaction_id": payment.transaction_id,
+                "order_number": payment.order.order_number,
+            }
+
+        if payment.transaction_id and payment.transaction_id != authority:
+            logger.error("Authority mismatch for %s: expected=%s got=%s", payment_number, payment.transaction_id, authority)
+            return {"status": "failed", "payment_number": payment.payment_number, "message": "Authority پرداخت با سفارش همخوانی ندارد"}
+
         verify_res = self.gateway.verify_payment(payment, authority)
 
-        if verify_res.get("status") == "success":
+        if verify_res.get("status") == "success": 
             transaction_id = verify_res.get("ref_id") or authority
             payment.payment_status = "SUCCESS"
             payment.transaction_id = transaction_id

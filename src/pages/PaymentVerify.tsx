@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useRetailCart } from "../context/RetailCartContext";
+import { ordersApi } from "../api/client";
 
 function CheckIcon({ className }: { className?: string }) {
   return (
@@ -33,6 +34,16 @@ export default function PaymentVerify() {
   useEffect(() => {
     const verify = async () => {
       if (paymentStatus === "NOK") {
+        try {
+          await ordersApi.verifyPayment({
+            payment_number: paymentNumber,
+            authority,
+            order_number: orderNumber,
+            status: "NOK",
+          });
+        } catch {
+          // لغو پرداخت نباید باعث نمایش خطای فنی به کاربر شود.
+        }
         setStatus("cancelled");
         setMessage("پرداخت توسط شما لغو شد");
         return;
@@ -51,20 +62,14 @@ export default function PaymentVerify() {
       }
 
       try {
-        const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
-        const res = await fetch(`${baseUrl}/orders/payments/verify/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            payment_number: paymentNumber,
-            authority: authority,
-            order_number: orderNumber,
-            status: paymentStatus || "OK",
-          }),
+        const data = await ordersApi.verifyPayment({
+          payment_number: paymentNumber,
+          authority,
+          order_number: orderNumber,
+          status: paymentStatus || "OK",
         });
 
-        const data = await res.json();
-        if (res.ok && data.status === "SUCCESS") {
+        if (data.status === "SUCCESS") {
           clearRetailCart();
           setStatus("success");
           setMessage(`پرداخت موفق! کد تراکنش: ${data.transaction_id || data.payment_number || authority}`);

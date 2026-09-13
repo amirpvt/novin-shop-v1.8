@@ -5,6 +5,8 @@
  * در فایل .env فرانت:
  *   VITE_API_BASE_URL=http://127.0.0.1:8000/api
  */
+import { apiFetchWithAuthRefresh, tokenStore } from "./authToken";
+
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || "http://127.0.0.1:8000/api";
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -79,24 +81,7 @@ export interface ApiAuthResponse {
 }
 
 // ─── Token Helpers ──────────────────────────────────────────────────────
-const TOKEN_KEY = "novin_auth_tokens";
-
-export const tokenStore = {
-  get(): { access: string; refresh: string } | null {
-    try {
-      const raw = localStorage.getItem(TOKEN_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  },
-  set(tokens: { access: string; refresh: string }) {
-    localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
-  },
-  clear() {
-    localStorage.removeItem(TOKEN_KEY);
-  },
-};
+export { tokenStore };
 
 // ─── Fetch Helper (خودکار Authorization Header) ────────────────────────
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -109,7 +94,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers["Authorization"] = `Bearer ${tokens.access}`;
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+  const res = await apiFetchWithAuthRefresh(path, { ...init, headers });
   if (!res.ok) {
     let err: any = { detail: `HTTP ${res.status}` };
     try {
@@ -183,12 +168,23 @@ export const apiService = {
   },
 
   async logout(): Promise<void> {
+    const tokens = tokenStore.get();
     try {
-      await apiFetch("/auth/logout/", { method: "POST" });
+      if (tokens?.refresh) {
+        await fetch(`${BASE_URL}/auth/logout/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(tokens?.access ? { Authorization: `Bearer ${tokens.access}` } : {}),
+          },
+          body: JSON.stringify({ refresh: tokens.refresh }),
+        });
+      }
     } catch {
-      /* حتی اگه خطا داشت، توکن پاک می‌شود */
+      /* حتی اگر ارتباط با سرور خطا داشت، توکن سمت کاربر پاک می‌شود */
+    } finally {
+      tokenStore.clear();
     }
-    tokenStore.clear();
   },
 
   async getProfile(): Promise<ApiUser> {

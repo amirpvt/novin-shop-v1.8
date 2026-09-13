@@ -9,6 +9,7 @@ from django.conf import settings
 from django.db.models import Sum
 from django.utils import timezone
 from datetime import timedelta
+from urllib.parse import urlparse
 
 from .models import Order, WholesaleRequest, OrderItem
 from .serializers import (
@@ -28,6 +29,7 @@ from .services import PaymentService
 class OrderCreateView(generics.CreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderCreateSerializer
+    permission_classes = [permissions.AllowAny]
 
     def perform_create(self, serializer):
         # اگر کاربر لاگین کرده، سفارش را به او لینک کن برای داشبورد "سفارشات من"
@@ -39,6 +41,7 @@ class OrderTrackingView(generics.RetrieveAPIView):
     """پیگیری عمومی با شماره سفارش - بدون نیاز به لاگین"""
     queryset = Order.objects.all()
     serializer_class = OrderTrackingSerializer
+    permission_classes = [permissions.AllowAny]
     lookup_field = "order_number"
 
 
@@ -171,6 +174,8 @@ class PaymentCreateView(APIView):
     ایجاد لینک پرداخت زرین‌پال
     POST /api/orders/payments/create/  body: {order_id, callback_url?}
     """
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         order_id = request.data.get("order_id")
         callback_url = request.data.get("callback_url")
@@ -186,21 +191,28 @@ class PaymentCreateView(APIView):
             else:
                 return Response({"error": "order_id یا order_number الزامی است"}, status=status.HTTP_400_BAD_REQUEST)
 
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+        if callback_url:
+            frontend_host = urlparse(frontend_url).netloc
+            callback_host = urlparse(callback_url).netloc
+            if callback_host != frontend_host:
+                return Response({"error": "callback_url نامعتبر است"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            callback_url = f"{frontend_url}/payment/verify"
+
         service = PaymentService()
+        payment_result = service.initiate_payment_detail(order_id, callback_url=callback_url)
 
-        if not callback_url:
-            frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
-            try:
-                order_obj = Order.objects.get(id=order_id)
-                callback_url = f"{frontend_url}/payment/verify?order={order_obj.order_number}"
-            except:
-                callback_url = f"{frontend_url}/payment/verify"
-
-        payment_url = service.initiate_payment(order_id, callback_url=callback_url)
-
-        if payment_url:
-            return Response({"payment_url": payment_url}, status=status.HTTP_201_CREATED)
-        return Response({"error": "خطا در ایجاد درخواست پرداخت زرین‌پال"}, status=status.HTTP_502_BAD_GATEWAY)
+        if payment_result.get("status") == "success":
+            return Response({
+                "payment_url": payment_result.get("payment_url"),
+                "payment_number": payment_result.get("payment_number"),
+                "order_number": payment_result.get("order_number"),
+                "amount": payment_result.get("amount"),
+            }, status=status.HTTP_201_CREATED)
+        if payment_result.get("status") == "already_paid":
+            return Response(payment_result, status=status.HTTP_409_CONFLICT)
+        return Response({"error": payment_result.get("message") or "خطا در ایجاد درخواست پرداخت زرین‌پال"}, status=status.HTTP_502_BAD_GATEWAY)
 
 
 class PaymentVerifyView(APIView):
@@ -208,6 +220,8 @@ class PaymentVerifyView(APIView):
     تایید پرداخت بعد از بازگشت از زرین‌پال
     POST /api/orders/payments/verify/  body: {payment_number, authority, status?, order_number?}
     """
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         payment_number = request.data.get("payment_number")
         authority = request.data.get("authority")
@@ -265,6 +279,7 @@ class PaymentVerifyView(APIView):
 class WholesaleRequestCreateView(generics.CreateAPIView):
     queryset = WholesaleRequest.objects.all()
     serializer_class = WholesaleRequestCreateSerializer
+    permission_classes = [permissions.AllowAny]
 
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
@@ -295,6 +310,7 @@ class WholesaleRequestCreateView(generics.CreateAPIView):
 class WholesaleRequestTrackingView(generics.RetrieveAPIView):
     queryset = WholesaleRequest.objects.all().defer("total_amount").prefetch_related("items__product")
     serializer_class = WholesaleRequestTrackingSerializer
+    permission_classes = [permissions.AllowAny]
     lookup_field = "request_number"
 
 

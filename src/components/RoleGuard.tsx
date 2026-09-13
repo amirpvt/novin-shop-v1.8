@@ -4,6 +4,7 @@
  */
 import { Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { apiFetchWithAuthRefresh, tokenStore } from "../authToken";
 
 type Role = "manager" | "admin" | "visitor" | "customer";
 
@@ -15,14 +16,11 @@ interface Props {
 
 function getUserRole(): Role | null {
   try {
-    // سعی کن از localStorage پروفایل را بخوانی
     const raw = localStorage.getItem("novin_auth_tokens");
-    const userRaw = localStorage.getItem("novin_user_profile") || localStorage.getItem("novin_auth_user");
+    const userRaw = localStorage.getItem("novin_user_profile");
     
-    // اگر توکن ندارید، لاگین نکرده
     if (!raw) return null;
 
-    // از JWT payload نقش را بخوان (اگر در توکن ذخیره شده) یا از پروفایل
     if (userRaw) {
       const user = JSON.parse(userRaw);
       // اگر API ما role را برگردانده
@@ -32,10 +30,7 @@ function getUserRole(): Role | null {
       if (user.is_staff) return "admin";
     }
 
-    // fallback: از customer_profile در localStorage یا API
-    // برای سادگی، اگر کاربر لاگین است ولی نقش نداریم، customer حساب کن
-    // در واقع باید از /api/auth/profile/ نقش را بگیری
-    return "customer";
+    return null;
   } catch {
     return null;
   }
@@ -48,25 +43,16 @@ export default function RoleGuard({ children, allowedRoles, redirectTo = "/login
   useEffect(() => {
     const check = async () => {
       try {
-        const raw = localStorage.getItem("novin_auth_tokens");
-        if (!raw) {
-          setIsAuthenticated(false);
-          setRole(null);
-          return;
-        }
-        const tokens = JSON.parse(raw);
-        if (!tokens.access) {
+        const tokens = tokenStore.get();
+        if (!tokens?.access && !tokens?.refresh) {
           setIsAuthenticated(false);
           setRole(null);
           return;
         }
         setIsAuthenticated(true);
 
-        // سعی کن پروفایل را از API بگیری تا نقش دقیق باشد
-        const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
-        const res = await fetch(`${base}/auth/profile/`, {
-          headers: { Authorization: `Bearer ${tokens.access}` },
-        });
+        // سعی کن پروفایل را از API بگیری تا نقش دقیق باشد؛ اگر access منقضی شده باشد، خودکار refresh و retry می‌شود.
+        const res = await apiFetchWithAuthRefresh("/auth/profile/");
         if (res.ok) {
           const data = await res.json();
           // data.role یا data.customer.role

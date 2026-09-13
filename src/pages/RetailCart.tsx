@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useRetailCart } from "../context/RetailCartContext";
 import { formatPrice } from "../data";
 import { TrashIcon, ArrowRightIcon } from "../components/icons";
@@ -14,6 +15,7 @@ const getCartItemEffectivePrice = (item: any) => {
 };
 
 export default function RetailCart({ onBack, onCheckout }: Props) {
+  const navigate = useNavigate();
   const {
     retailCart,
     increaseRetailQuantity,
@@ -33,10 +35,10 @@ export default function RetailCart({ onBack, onCheckout }: Props) {
           به نظر می‌رسد هنوز محصولی به سبد خرید مصرف‌کننده خود اضافه نکرده‌اید.
         </p>
         <button
-          onClick={onBack}
+          onClick={() => navigate("/shop")}
           className="bg-paprika-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-paprika-600/30 hover:bg-paprika-700 transition"
         >
-          شروع خرید تک‌فروشی
+          رفتن به فروشگاه
         </button>
       </div>
     );

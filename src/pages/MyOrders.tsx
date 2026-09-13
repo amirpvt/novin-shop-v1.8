@@ -403,11 +403,19 @@ function ProductPreviewStrip({ items }: { items: any[] }) {
         <p className="text-[10px] font-bold text-stone-400">{items.length.toLocaleString("en-US")} قلم</p>
       </div>
       <div className="flex items-center gap-2 overflow-hidden">
-        {preview.map((item: any, idx: number) => (
-          <div key={item.id || idx} className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border bg-white shadow-sm">
-            <img src={imgSrc(item.product_image)} alt={item.product_name || "محصول"} className="h-full w-full object-cover transition group-hover:scale-110" />
-          </div>
-        ))}
+        {preview.map((item: any, idx: number) => {
+          const qty = toNumber(item.quantity);
+          return (
+            <div key={item.id || idx} className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border bg-white shadow-sm">
+              <img src={imgSrc(item.product_image)} alt={item.product_name || "محصول"} className="h-full w-full object-cover transition group-hover:scale-110" />
+              {qty > 1 && (
+                <span dir="ltr" className="absolute bottom-1 left-1 rounded-full bg-stone-950/90 px-2 py-0.5 text-[10px] font-black text-white shadow-lg backdrop-blur">
+                  *{qty.toLocaleString("en-US")}
+                </span>
+              )}
+            </div>
+          );
+        })}
         {items.length > preview.length && <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border bg-white text-xs font-black text-stone-500">+{items.length - preview.length}</div>}
       </div>
     </div>
@@ -479,6 +487,7 @@ function OrderDetailsModal({ order, onClose }: { order: UnifiedOrder; onClose: (
                     <img src={imgSrc(item.product_image)} alt="" className="h-20 w-20 rounded-2xl bg-stone-100 object-cover" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black text-stone-900">{item.product_name || item.name || "محصول"}</p>
+                      <p dir="ltr" className="mt-1 text-right font-mono text-xs font-black text-paprika-700">*{qty.toLocaleString("en-US")}</p>
                       {item.notes && <p className="mt-1 text-xs font-bold text-stone-400">{item.notes}</p>}
                       <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-black">
                         <span className="rounded-xl bg-stone-50 px-3 py-1.5 text-stone-600">تعداد: {qty.toLocaleString("en-US")}</span>

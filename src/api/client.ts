@@ -1,16 +1,11 @@
 /**
  * Client FIXED for MyOrders - سفارش به کاربر لاگین شده وصل می‌شود
  */
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
-const TOKEN_KEY = "novin_auth_tokens";
+import { apiFetchWithAuthRefresh, tokenStore } from "../authToken";
 
-export const tokenStore = {
-  get(): { access: string; refresh: string } | null {
-    try { const raw = localStorage.getItem(TOKEN_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
-  },
-  set(tokens: { access: string; refresh: string }) { localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens)); },
-  clear() { localStorage.removeItem(TOKEN_KEY); },
-};
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+
+export { tokenStore };
 
 async function request<T>(endpoint: string, options: RequestInit = {}, _auth = false): Promise<T> {
   const tokens = tokenStore.get();
@@ -18,7 +13,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}, _auth = f
   // اگر auth=True یا توکن داریم، همیشه بفرست تا سفارش به کاربر وصل شود
   if (tokens?.access) headers["Authorization"] = `Bearer ${tokens.access}`;
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+  const res = await apiFetchWithAuthRefresh(endpoint, { ...options, headers });
   if (!res.ok) {
     let err: any = {};
     try { err = await res.json(); } catch { err.detail = await res.text(); }
@@ -47,6 +42,7 @@ export const productsApi = {
   getAll: (params?: any) => get<PaginatedResponse<ApiProduct>>("/products/", params, true),
   getById: (id: number | string) => get<ApiProduct>(`/products/${id}/`, undefined, true),
   getCategories: async () => { const res = await get<any>("/products/categories/", undefined, true); return (res.results ?? res); },
+  getBrands: async () => { const res = await get<any>("/products/brands/", undefined, true); return (res.results ?? res); },
   create: (data: any) => request<ApiProduct>("/products/", { method: "POST", body: JSON.stringify(data) }, true),
   update: (id: number, data: any) => request<ApiProduct>(`/products/${id}/`, { method: "PATCH", body: JSON.stringify(data) }, true),
   delete: (id: number) => request(`/products/${id}/`, { method: "DELETE" }, true),
@@ -55,6 +51,10 @@ export const productsApi = {
 // 🆕 FIX: تمام درخواست‌های سفارش با auth=True تا user ذخیره شود
 export const ordersApi = {
   create: (data: any) => request<Order>("/orders/", { method: "POST", body: JSON.stringify(data) }, true),
+  createPayment: (data: { order_id?: number | string; order_number?: string; callback_url?: string }) =>
+    request<{ payment_url: string; payment_number: string; order_number: string; amount: string | number }>("/orders/payments/create/", { method: "POST", body: JSON.stringify(data) }, true),
+  verifyPayment: (data: { payment_number?: string | null; authority?: string | null; order_number?: string | null; status?: string | null }) =>
+    request<{ status: string; payment_number?: string; transaction_id?: string; order_number?: string; message?: string }>("/orders/payments/verify/", { method: "POST", body: JSON.stringify(data) }, true),
   track: (orderNumber: string) => get<Order>(`/orders/track/${orderNumber}/`, undefined, false),
   list: (params?: any) => get<any>("/orders/list/", params, true),
   myOrders: () => get<any>("/orders/my-orders/", undefined, true),
@@ -73,7 +73,25 @@ export const wholesaleApi = {
 export const authApi = {
   register: (payload: any) => request<ApiAuthResponse>("/auth/register/", { method: "POST", body: JSON.stringify(payload) }).then((data: any) => { tokenStore.set({ access: data.access, refresh: data.refresh }); return data; }),
   login: (username: string, password: string) => request<ApiAuthResponse>("/auth/login/", { method: "POST", body: JSON.stringify({ username, password }) }).then((data: any) => { tokenStore.set({ access: data.access, refresh: data.refresh }); return data; }),
-  logout: async () => { try { await request("/auth/logout/", { method: "POST" }, true); } catch {} tokenStore.clear(); },
+  logout: async () => {
+    const tokens = tokenStore.get();
+    try {
+      if (tokens?.refresh) {
+        await fetch(`${API_BASE_URL}/auth/logout/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(tokens?.access ? { Authorization: `Bearer ${tokens.access}` } : {}),
+          },
+          body: JSON.stringify({ refresh: tokens.refresh }),
+        });
+      }
+    } catch {
+      // حتی اگر ارتباط با سرور خطا داشت، خروج سمت کاربر انجام می‌شود.
+    } finally {
+      tokenStore.clear();
+    }
+  },
   getProfile: () => get<ApiUser>("/auth/profile/", undefined, true),
   updateProfile: (payload: any) => request<ApiUser>("/auth/profile/", { method: "PATCH", body: JSON.stringify(payload) }, true),
   isAuthenticated: () => !!tokenStore.get()?.access,

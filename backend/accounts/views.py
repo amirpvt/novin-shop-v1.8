@@ -5,6 +5,7 @@ Views for accounts app - FIXED VERSION v1.1
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import Customer
@@ -102,9 +103,20 @@ class ChangePasswordView(APIView):
 class LogoutView(APIView):
     """
     POST /api/auth/logout/
-    فعلاً ساده: فقط تأیید می‌کند و فرانت access token را از localStorage پاک می‌کند.
+    خروج واقعی JWT: refresh token دریافتی در blacklist ثبت می‌شود تا دیگر قابل استفاده نباشد.
+    Body: { "refresh": "..." }
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        return Response({"detail": "خروج با موفقیت انجام شد."}, status=status.HTTP_200_OK)
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response({"error": "refresh token الزامی است."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError:
+            return Response({"error": "refresh token نامعتبر یا قبلاً باطل شده است."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"detail": "خروج با موفقیت انجام شد و refresh token باطل شد."}, status=status.HTTP_200_OK)

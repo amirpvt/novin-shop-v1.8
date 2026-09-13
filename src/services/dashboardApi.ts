@@ -4,22 +4,10 @@
  * الان فقط یکبار به صورت text می‌خواند و بعد JSON parse می‌کند
  */
 
-const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
-const DASHBOARD_BASE = `${API_BASE}/dashboard`;
-
-function getToken(): string | null {
-  try {
-    const raw = localStorage.getItem("novin_auth_tokens");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed.access || null;
-  } catch {
-    return null;
-  }
-}
+import { apiFetchWithAuthRefresh, tokenStore } from "../authToken";
 
 async function authFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
+  const token = tokenStore.get()?.access || null;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as any),
@@ -28,7 +16,7 @@ async function authFetch<T>(endpoint: string, options: RequestInit = {}): Promis
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${DASHBOARD_BASE}${endpoint}`, {
+  const res = await apiFetchWithAuthRefresh(`/dashboard${endpoint}`, {
     ...options,
     headers,
   });

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { productsApi } from "../api/client";
-import { categories as fallbackCategories } from "../data";
 
 // ✅ عکس‌های دسته‌بندی از فضای خود پروژه - نه Pexels
 const CAT_IMAGES_LOCAL: Record<string, string> = {
@@ -46,27 +45,9 @@ export default function Categories({ onSelect }: Props) {
       try {
         const cats: any = await productsApi.getCategories();
         const list = (cats.results ?? cats) as CategoryWithImage[];
-        if (list && list.length > 0) {
-          setApiCategories(list);
-        } else {
-          setApiCategories(
-            fallbackCategories.map((name, idx) => ({
-              id: idx,
-              name,
-              slug: name,
-              image: null,
-            }))
-          );
-        }
+        setApiCategories(Array.isArray(list) ? list : []);
       } catch {
-        setApiCategories(
-          fallbackCategories.map((name, idx) => ({
-            id: idx,
-            name,
-            slug: name,
-            image: null,
-          }))
-        );
+        setApiCategories([]);
       } finally {
         setLoading(false);
       }

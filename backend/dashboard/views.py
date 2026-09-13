@@ -385,33 +385,37 @@ class OwnerVisitorReport(APIView):
         report_type = request.query_params.get('type', 'visitors')
 
         if report_type == 'debtors':
-            # بدهکار واقعی فقط رکورد دستی CustomerDebt نیست؛
-            # مشتری‌هایی که ویزیتور برایشان سفارش ثبت کرده و هنوز کل مبلغ را با نقدی/کارتخوان/چک/آنلاین پرداخت نکرده‌اند هم باید نمایش داده شوند.
-            debt_customer_ids = CustomerDebt.objects.values_list('customer_id', flat=True)
-            retail_customer_ids = Order.objects.exclude(order_status='CANCELLED').values_list('user_id', flat=True)
-            wholesale_customer_ids = WholesaleRequest.objects.exclude(status='REJECTED').values_list('user_id', flat=True)
-            paid_customer_ids = CashCollection.objects.values_list('customer_id', flat=True)
+            # فقط بدهکاران مربوط به مشتری‌های ویزیتورها نمایش داده می‌شوند.
+            # معیار: مشتری باید سفارش/پرداخت/برنامه‌ای داشته باشد که به ویزیتور وصل است، نه سفارش‌های عمومی سایت.
+            visitor_ids = User.objects.filter(customer_profile__role='visitor').values_list('id', flat=True)
+            scheduled_customer_ids = VisitSchedule.objects.filter(visitor_id__in=visitor_ids).values_list('customer_id', flat=True)
+            retail_customer_ids = Order.objects.filter(commission__visitor_id__in=visitor_ids).exclude(order_status='CANCELLED').values_list('user_id', flat=True)
+            wholesale_customer_ids = Commission.objects.filter(visitor_id__in=visitor_ids, wholesale_request__isnull=False).values_list('wholesale_request__user_id', flat=True)
+            paid_customer_ids = CashCollection.objects.filter(visitor_id__in=visitor_ids).values_list('customer_id', flat=True)
             customer_ids = {
                 customer_id
-                for customer_id in list(debt_customer_ids) + list(retail_customer_ids) + list(wholesale_customer_ids) + list(paid_customer_ids)
+                for customer_id in list(scheduled_customer_ids) + list(retail_customer_ids) + list(wholesale_customer_ids) + list(paid_customer_ids)
                 if customer_id
             }
 
             customers = User.objects.filter(id__in=customer_ids, customer_profile__role='customer').select_related('customer_profile')
             report = []
             for customer in customers:
-                retail_total = Order.objects.filter(user=customer).exclude(order_status='CANCELLED').aggregate(s=Sum('total_amount'))['s'] or 0
-                wholesale_total = WholesaleRequest.objects.filter(user=customer).exclude(status='REJECTED').aggregate(s=Sum('total_amount'))['s'] or 0
-                cash_paid = CashCollection.objects.filter(customer=customer).aggregate(s=Sum('amount'))['s'] or 0
-                last_order = Order.objects.filter(user=customer).exclude(order_status='CANCELLED').aggregate(d=Max('created_at'))['d']
-                last_wholesale = WholesaleRequest.objects.filter(user=customer).exclude(status='REJECTED').aggregate(d=Max('created_at'))['d']
-                last_payment = CashCollection.objects.filter(customer=customer).aggregate(d=Max('collected_at'))['d']
+                retail_orders = Order.objects.filter(user=customer, commission__visitor_id__in=visitor_ids).exclude(order_status='CANCELLED').distinct()
+                wholesale_request_ids = Commission.objects.filter(visitor_id__in=visitor_ids, wholesale_request__user=customer).values_list('wholesale_request_id', flat=True)
+                wholesale_requests = WholesaleRequest.objects.filter(id__in=wholesale_request_ids).exclude(status='REJECTED').distinct()
+                visitor_payments = CashCollection.objects.filter(customer=customer, visitor_id__in=visitor_ids)
+
+                retail_total = retail_orders.aggregate(s=Sum('total_amount'))['s'] or 0
+                wholesale_total = wholesale_requests.aggregate(s=Sum('total_amount'))['s'] or 0
+                cash_paid = visitor_payments.aggregate(s=Sum('amount'))['s'] or 0
+                last_order = retail_orders.aggregate(d=Max('created_at'))['d']
+                last_wholesale = wholesale_requests.aggregate(d=Max('created_at'))['d']
+                last_payment = visitor_payments.aggregate(d=Max('collected_at'))['d']
                 debt = CustomerDebt.objects.filter(customer=customer).first()
 
-                stored_total = debt.total_debt if debt else 0
-                stored_paid = debt.total_paid if debt else 0
-                total_debt = max(retail_total + wholesale_total, stored_total)
-                total_paid = max(cash_paid, stored_paid)
+                total_debt = retail_total + wholesale_total
+                total_paid = cash_paid
                 remaining_debt = total_debt - total_paid
                 if remaining_debt <= 0:
                     continue

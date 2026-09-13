@@ -14,8 +14,15 @@ class CategorySerializer(serializers.ModelSerializer):
 class BrandSerializer(serializers.ModelSerializer):
     class Meta:
         model = Brand
-        fields = ["id", "name", "slug", "order", "is_active", "description"]
+        fields = ["id", "name", "slug", "order", "is_active", "description", "logo", "website"]
         read_only_fields = ["id"]
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        if instance.logo and hasattr(instance.logo, 'url'):
+            request = self.context.get('request')
+            rep['logo'] = request.build_absolute_uri(instance.logo.url) if request else instance.logo.url
+        return rep
 
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
@@ -85,10 +92,7 @@ class ProductSerializer(serializers.ModelSerializer):
             else:
                 rep['image'] = instance.image.url
         else:
-            try:
-                rep['image'] = f"/images/p{instance.id}.jpg" if instance.id and instance.id <= 8 else "/images/placeholder.jpg"
-            except:
-                rep['image'] = "/images/placeholder.jpg"
+            rep['image'] = "/images/placeholder.jpg"
         return rep
 
     def validate_price(self, value):

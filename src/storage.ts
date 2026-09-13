@@ -30,13 +30,3 @@ export function saveStoredCart(cart: CartItem[]): void {
   }
 }
 
-// این تایپ فقط برای چند کامپوننت قدیمیِ فرم عمده نگه داشته شده و دیگر به localStorage وصل نیست.
-export type StoredOrder = {
-  id: string;
-  customerName: string;
-  customerPhone: string;
-  productName: string;
-  message: string;
-  status: "جدید" | "در حال پیگیری" | "انجام شده" | "لغو شده";
-  createdAt: string;
-};
