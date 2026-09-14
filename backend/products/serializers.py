@@ -14,7 +14,7 @@ class CategorySerializer(serializers.ModelSerializer):
 class BrandSerializer(serializers.ModelSerializer):
     class Meta:
         model = Brand
-        fields = ["id", "name", "slug", "order", "is_active", "description", "logo", "website"]
+        fields = ["id", "name", "slug", "order", "is_active", "is_featured", "description", "logo", "website"]
         read_only_fields = ["id"]
 
     def to_representation(self, instance):
@@ -28,6 +28,7 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     brand_name = serializers.CharField(source="brand.name", read_only=True, default="")
     image = serializers.ImageField(required=False, allow_null=True)
+    brand_logo = serializers.ImageField(write_only=True, required=False, allow_null=True)
     retail_unit_display = serializers.CharField(source="get_retail_unit_display", read_only=True)
     wholesale_unit_display = serializers.CharField(source="get_wholesale_unit_display", read_only=True)
     base_price = serializers.SerializerMethodField()
@@ -36,7 +37,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            "id", "category", "category_name", "brand", "brand_name",
+            "id", "category", "category_name", "brand", "brand_name", "brand_logo",
             "name", "slug", "description", "price", "discount_price",
             "base_price", "wholesale_price",
             "unit", "retail_unit", "retail_unit_display",
@@ -99,11 +100,17 @@ class ProductSerializer(serializers.ModelSerializer):
         if value <= 0: raise serializers.ValidationError("قیمت باید بیشتر از صفر باشد")
         return value
 
+    def _save_brand_logo(self, product, brand_logo):
+        if brand_logo and product.brand:
+            product.brand.logo = brand_logo
+            product.brand.save(update_fields=["logo", "updated_at"])
+
     def create(self, validated_data):
         from django.utils.text import slugify
         from django.db import IntegrityError
         import time
 
+        brand_logo = validated_data.pop("brand_logo", None)
         name = validated_data.get("name", "")
         base_slug = slugify(name, allow_unicode=True) or f"product-{Product.objects.count()+1}"
         slug = base_slug
@@ -118,13 +125,16 @@ class ProductSerializer(serializers.ModelSerializer):
         if not validated_data.get("retail_unit"):
             validated_data["retail_unit"] = validated_data.get("unit", "pack")
         try:
-            return super().create(validated_data)
+            product = super().create(validated_data)
         except IntegrityError:
             # جلوگیری از خطای نام/اسلاگ تکراری وقتی درخواست ایجاد محصول دوبار پشت سر هم ارسال شود
             validated_data["slug"] = f"{base_slug}-{int(time.time() * 1000)}"
-            return super().create(validated_data)
+            product = super().create(validated_data)
+        self._save_brand_logo(product, brand_logo)
+        return product
 
     def update(self, instance, validated_data):
+        brand_logo = validated_data.pop("brand_logo", None)
         if "name" in validated_data and validated_data["name"] != instance.name:
             from django.utils.text import slugify
             base_slug = slugify(validated_data["name"], allow_unicode=True) or instance.slug
@@ -136,4 +146,6 @@ class ProductSerializer(serializers.ModelSerializer):
             validated_data["slug"] = slug
         if "stock" in validated_data:
             validated_data["available"] = validated_data["stock"] > 0
-        return super().update(instance, validated_data)
+        product = super().update(instance, validated_data)
+        self._save_brand_logo(product, brand_logo)
+        return product

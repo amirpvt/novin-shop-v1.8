@@ -31,6 +31,9 @@ class Command(BaseCommand):
             {"name": "سوسیس", "slug": "sausage", "order": 1, "is_featured": True},
             {"name": "کالباس", "slug": "kalbas", "order": 2, "is_featured": True},
             {"name": "فرآورده های منجمد", "slug": "frozen", "order": 3, "is_featured": True},
+            {"name": "سس", "slug": "sauce", "order": 4, "is_featured": True},
+            {"name": "ترشی، خیارشور و زیتون", "slug": "pickles-olives", "order": 5, "is_featured": True},
+            {"name": "نوشیدنی ها", "slug": "drinks", "order": 6, "is_featured": True},
         ]
         categories = {}
         for cat in categories_data:
@@ -53,17 +56,17 @@ class Command(BaseCommand):
         # ─── Brands ──────────────────────────────────────────────
         self.stdout.write("🏷️  ساخت برندها...")
         brands_data = [
-            {"name": "فرآورده های گوشتی گلچین", "slug": "golchin", "order": 1},
-            {"name": "202", "slug": "202", "order": 2},
-            {"name": "لاله بناب", "slug": "laleh-bonab", "order": 3},
-            {"name": "سس 88", "slug": "sauce88", "order": 4},
-            {"name": "شام ایرانی", "slug": "shamirani", "order": 5},
+            {"name": "فرآورده های گوشتی گلچین", "slug": "golchin", "order": 1, "is_featured": True},
+            {"name": "202", "slug": "202", "order": 2, "is_featured": True},
+            {"name": "لاله بناب", "slug": "laleh-bonab", "order": 3, "is_featured": True},
+            {"name": "سس 88", "slug": "sauce88", "order": 4, "is_featured": True},
+            {"name": "شام ایرانی", "slug": "shamirani", "order": 5, "is_featured": True},
         ]
         brands = {}
         for br in brands_data:
             obj, created = Brand.objects.get_or_create(
                 slug=br["slug"],
-                defaults={"name": br["name"], "order": br["order"], "is_active": True},
+                defaults={"name": br["name"], "order": br["order"], "is_active": True, "is_featured": br.get("is_featured", False)},
             )
             brands[br["name"]] = obj
             if created:

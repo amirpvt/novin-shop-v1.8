@@ -3,25 +3,37 @@ import { productsApi } from "../api/client";
 
 // ✅ عکس‌های دسته‌بندی از فضای خود پروژه - نه Pexels
 const CAT_IMAGES_LOCAL: Record<string, string> = {
-  سوسیس: "/images/categories/cat-sausage2.jpg",
-  کالباس: "/images/p2.jpg",
-  "فرآورده های منجمد": "/images/p7.jpg",
-  sausage: "/images/categories/cat-sausage2.jpg",
-  kalbas: "/images/p2.jpg",
-  frozen: "/images/p7.jpg",
+  سوسیس: "/images/categories/sausage.jpg",
+  کالباس: "/images/categories/calbas.jpg",
+  "فرآورده های منجمد": "/images/categories/frozen-products.jpg",
+  "سس": "/images/categories/sauces.jpg",
+  "ترشی، خیارشور و زیتون": "/images/categories/pickles-olives.jpg",
+  "نوشیدنی ها": "/images/categories/drinks.jpg",
+  sausage: "/images/categories/sausage.jpg",
+  kalbas: "/images/categories/calbas.jpg",
+  frozen: "/images/categories/frozen-products.jpg",
+  sauce: "/images/categories/sauces.jpg",
+  "pickles-olives": "/images/categories/pickles-olives.jpg",
+  drinks: "/images/categories/drinks.jpg",
   // fallback اضافی
-  default1: "/images/p1.jpg",
-  default2: "/images/p3.jpg",
-  default3: "/images/p5.jpg",
+  default1: "/images/categories/p1.jpg",
+  default2: "/images/categories/p3.jpg",
+  default3: "/images/categories/p5.jpg",
 };
 
 const CAT_SUB: Record<string, string> = {
   سوسیس: "سوسیس آلمانی، دودی، مرغ و کوکتل",
   کالباس: "کالباس گوشت، مرغ، ژامبون و کم‌نمک",
   "فرآورده های منجمد": "ناگت، کتلت، برگر و سمبوسه",
+  "سس": "انواع سس برای فست‌فود، رستوران و مصرف خانگی",
+  "ترشی، خیارشور و زیتون": "ترشیجات، خیارشور و زیتون مناسب سفارش‌های غذایی",
+  "نوشیدنی ها": "نوشیدنی‌های سرد و مکمل سفارش‌های غذایی",
   sausage: "سوسیس آلمانی، دودی، مرغ",
   kalbas: "کالباس گوشت و مرغ",
   frozen: "ناگت، کتلت، برگر",
+  sauce: "انواع سس برای فست‌فود و رستوران",
+  "pickles-olives": "ترشیجات، خیارشور و زیتون",
+  drinks: "نوشیدنی‌های سرد و مکمل سفارش",
 };
 
 type Props = {

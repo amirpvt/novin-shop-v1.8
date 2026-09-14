@@ -34,6 +34,7 @@ class Brand(models.Model):
     website = models.URLField("وب‌سایت", blank=True)
     order = models.PositiveIntegerField("ترتیب نمایش", default=0)
     is_active = models.BooleanField("فعال", default=True)
+    is_featured = models.BooleanField("نمایش در صفحه اصلی", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
@@ -42,6 +43,7 @@ class Brand(models.Model):
         verbose_name_plural = "برندها"
         indexes = [
             models.Index(fields=["is_active", "order"], name="brand_active_order_idx"),
+            models.Index(fields=["is_featured", "order"], name="brand_featured_order_idx"),
         ]
     def __str__(self): return self.name
 

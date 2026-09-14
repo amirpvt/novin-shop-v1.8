@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatPrice, type Product, mapApiProduct } from "../data";
-import { ArrowRightIcon, TruckIcon, CheckIcon, PhoneIcon } from "../components/icons";
+import { ArrowRightIcon, TruckIcon, PhoneIcon } from "../components/icons";
 import { useRetailCart } from "../context/RetailCartContext";
 import { useWholesaleRequest } from "../context/WholesaleRequestContext";
 import { productsApi, type ApiProduct } from "../api/client";
@@ -211,11 +211,7 @@ export default function ProductDetails({ products: propProducts }: Props) {
             <div className="space-y-4 flex-1 mb-8">
               <h3 className="font-bold text-stone-800">توضیحات:</h3>
               <p className="text-stone-600 leading-relaxed text-sm">{product.description}</p>
-              <ul className="space-y-2.5 mt-6">
-                <li className="flex items-center gap-2 text-sm"><CheckIcon className="h-4 w-4 text-emerald-500" />تولید روز با گوشت تازه ۱۰۰٪</li>
-                <li className="flex items-center gap-2 text-sm"><CheckIcon className="h-4 w-4 text-emerald-500" />بدون مواد نگهدارنده</li>
-                <li className="flex items-center gap-2 text-sm"><CheckIcon className="h-4 w-4 text-emerald-500" />بسته‌بندی وکیوم بهداشتی</li>
-              </ul>
+
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

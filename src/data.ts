@@ -5,16 +5,6 @@ export const phoneFixed = "02636640196";
 export const mobilePhone = "09300117977";
 export const address = "استان البرز، کرج، جاده ملارد، خیابان نیروگاه مپنا، شهرک ارم، بلوار ارم، روبروی آتشنشانی، خیابان پریسای شرقی، جنب حسینیه چهارده معصوم، پخش نوین";
 
-export const brands: { name: string; image: string }[] = [
-  { name: "فرآورده های گوشتی گلچین", image: "/images/brands/golchin.jpg" },
-  { name: "202", image: "/images/brands/202.jpg" },
-  { name: "لاله بناب", image: "/images/brands/laleh-bonab.jpg" },
-  { name: "سس 88", image: "/images/brands/sauce88.jpg" },
-  { name: "شام ایرانی", image: "/images/brands/shamirani.jpg" },
-];
-
-export const categories = ["سوسیس", "کالباس", "فرآورده های منجمد"] as const;
-
 // ✅ واحدها به صورت درست فارسی - بسته بندی و کیلوگرم جدا
 export const UNIT_LABELS: Record<string, string> = {
   kg: "کیلوگرم",
@@ -51,17 +41,6 @@ export type Product = {
   stock?: number;
 };
 
-export const products: Product[] = [
-  { id: 1, name: "سوسیس بلغاری گوشت", description: "۱۰۰٪ گوشت گوساله تازه", price: 89000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 10, brand: "گلچین", category: "سوسیس", image: "/images/p1.jpg", badge: "گوشت تازه", available: true, stock: 150 },
-  { id: 2, name: "کالباس گوشت کلاسیک", description: "بافت نرم", price: 76000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 5, brand: "گلچین", category: "کالباس", image: "/images/p2.jpg", available: true, stock: 80 },
-  { id: 3, name: "فرانکفورتر دودی", description: "اصیل", price: 95000, unit: "pack", retail_unit: "pack", wholesale_unit: "carton", wholesale_min_quantity: 2, brand: "202", category: "سوسیس", image: "/images/p3.jpg", available: true, stock: 45 },
-  { id: 4, name: "سوسیس مرغ سفید", description: "سبک", price: 69000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 10, brand: "لاله بناب", category: "سوسیس", image: "/images/p4.jpg", available: true, stock: 120 },
-  { id: 5, name: "سوسیس کوکتل", description: "مهمانی", price: 82000, unit: "pack", retail_unit: "pack", wholesale_unit: "carton", wholesale_min_quantity: 1, brand: "سس 88", category: "فرآورده های منجمد", image: "/images/p5.jpg", available: true, stock: 200 },
-  { id: 6, name: "کالباس کم‌نمک", description: "کم نمک", price: 88000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 5, brand: "شام ایرانی", category: "کالباس", image: "/images/p6.jpg", available: false, stock: 0 },
-  { id: 7, name: "ناگت مرغ", description: "ناگت", price: 79000, unit: "pack", retail_unit: "pack", wholesale_unit: "carton", wholesale_min_quantity: 2, brand: "شام ایرانی", category: "فرآورده های منجمد", image: "/images/p7.jpg", available: true, stock: 60 },
-  { id: 8, name: "کتلت گوشت", description: "کتلت", price: 99000, unit: "pack", retail_unit: "pack", wholesale_unit: "kg", wholesale_min_quantity: 10, brand: "شام ایرانی", category: "فرآورده های منجمد", image: "/images/p8.jpg", available: true, stock: 35 },
-];
-
 // ✅ اعداد انگلیسی - به جای fa-IR از en-US استفاده می‌کنیم
 export function formatPrice(n: number) {
   return n.toLocaleString("en-US") + " تومان";
@@ -78,14 +57,14 @@ export function getUnitLabel(unit: string) {
 export function mapApiProduct(apiProduct: any): Product {
   const brandName = apiProduct.brand_name || (typeof apiProduct.brand === "string" ? apiProduct.brand : "") || "";
   const catName = apiProduct.category_name || (apiProduct.category ? String(apiProduct.category) : "") || "";
-  let img = apiProduct.image || "/images/placeholder.jpg";
+  let img = apiProduct.image || "";
   if (img.startsWith("/media/")) {
     const base = (import.meta as any).env?.VITE_API_BASE_URL?.replace("/api", "") || "http://127.0.0.1:8000";
     img = `${base}${img}`;
   }
   if (!img || img.includes("placeholder")) {
     const id = apiProduct.id;
-    img = id && id <= 8 ? `/images/p${id}.jpg` : "/images/placeholder.jpg";
+    img = id ? `/image/products/p${id}.jpg` : "/image/products/placeholder.jpg";
   }
 
   const price = parseFloat(apiProduct.price) || 0;

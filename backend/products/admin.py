@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Category
+from .models import Product, Category, Brand
 
 
 @admin.register(Category)
@@ -8,6 +8,45 @@ class CategoryAdmin(admin.ModelAdmin):
     list_editable = ("order",)
     search_fields = ("name", "slug")
     ordering = ("order",)
+
+
+@admin.register(Brand)
+class BrandAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "slug",
+        "is_active",
+        "is_featured",
+        "order",
+    )
+    list_filter = (
+        "is_active",
+        "is_featured",
+    )
+    list_editable = (
+        "is_active",
+        "is_featured",
+        "order",
+    )
+    search_fields = (
+        "name",
+        "slug",
+        "description",
+    )
+    ordering = (
+        "order",
+        "name",
+    )
+    fields = (
+        "name",
+        "slug",
+        "logo",
+        "description",
+        "website",
+        "is_active",
+        "is_featured",
+        "order",
+    )
 
 
 @admin.register(Product)
@@ -34,7 +73,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     search_fields = (
         "name",
-        "brand",
+        "brand__name",
         "slug",
         "description",
     )

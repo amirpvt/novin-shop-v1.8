@@ -19,6 +19,8 @@ export default function OwnerPricing() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [brandLogoFile, setBrandLogoFile] = useState<File | null>(null);
+  const [brandLogoPreview, setBrandLogoPreview] = useState<string | null>(null);
   const [hasDiscount, setHasDiscount] = useState(false);
 
   const [categories, setCategories] = useState<any[]>([]);
@@ -99,6 +101,8 @@ export default function OwnerPricing() {
     setEditingProduct(null);
     setImageFile(null);
     setImagePreview(null);
+    setBrandLogoFile(null);
+    setBrandLogoPreview(null);
     setHasDiscount(false);
     setIsAddingProduct(true);
   };
@@ -125,12 +129,18 @@ export default function OwnerPricing() {
     setHasDiscount(!!p.discount_price);
     setImagePreview(p.image || null);
     setImageFile(null);
+    setBrandLogoFile(null);
+    setBrandLogoPreview(null);
     setIsAddingProduct(true);
   };
 
   const handleImageChange = (e: any) => {
     const file = e.target.files?.[0];
     if (file) { setImageFile(file); const reader = new FileReader(); reader.onload = (ev) => setImagePreview(ev.target?.result as string); reader.readAsDataURL(file); }
+  };
+  const handleBrandLogoChange = (e: any) => {
+    const file = e.target.files?.[0];
+    if (file) { setBrandLogoFile(file); const reader = new FileReader(); reader.onload = (ev) => setBrandLogoPreview(ev.target?.result as string); reader.readAsDataURL(file); }
   };
 
   const handleSaveProduct = async (e: any) => {
@@ -156,6 +166,7 @@ export default function OwnerPricing() {
       if (productForm.wholesale_price) fd.append("wholesale_price", String(productForm.wholesale_price));
       if (hasDiscount && productForm.discount_price) fd.append("discount_price", String(productForm.discount_price));
       if (imageFile) fd.append("image", imageFile);
+      if (brandLogoFile) fd.append("brand_logo", brandLogoFile);
       const url = editingProduct ? `${base}/products/${editingProduct.id}/` : `${base}/products/`;
       const method = editingProduct ? "PATCH" : "POST";
       const res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body: fd });
@@ -310,6 +321,17 @@ export default function OwnerPricing() {
                   <datalist id="brands-list">
                     {brands.map((b: any) => <option key={b.id} value={b.name} />)}
                   </datalist>
+                  <div className="mt-2 rounded-xl border border-dashed border-amber-200 bg-amber-50/40 p-3">
+                    <label className="block text-[11px] font-black text-amber-800">لوگوی برند</label>
+                    {brandLogoPreview && (
+                      <div className="relative mt-2 inline-block">
+                        <img src={brandLogoPreview} alt="brand preview" className="h-16 w-16 rounded-xl border bg-white object-contain p-1 shadow-sm" />
+                        <button type="button" onClick={() => { setBrandLogoFile(null); setBrandLogoPreview(null); }} className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 text-[10px] text-white">✕</button>
+                      </div>
+                    )}
+                    <input type="file" accept="image/*" onChange={handleBrandLogoChange} className="mt-2 block w-full text-xs file:mr-2 file:rounded-full file:border-0 file:bg-amber-600 file:px-3 file:py-1.5 file:text-white" />
+                    <p className="mt-1 text-[10px] text-stone-400">اگر برند جدید باشد، همین لوگو برای آن ذخیره می‌شود.</p>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-black mb-1.5">واحد</label>

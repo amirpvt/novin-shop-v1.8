@@ -1,5 +1,7 @@
-import { siteName, siteSlogan, phoneFixed, mobilePhone, address, brands } from "../data";
+import { useEffect, useState } from "react";
+import { siteName, siteSlogan, phoneFixed, mobilePhone, address } from "../data";
 import { PhoneIcon, ArrowRightIcon } from "../components/icons";
+import { productsApi } from "../api/client";
 
 type Props = {
   onBack: () => void;
@@ -8,6 +10,21 @@ type Props = {
 };
 
 export default function AboutPage({ onBack, onShop, onOrder }: Props) {
+  const [brands, setBrands] = useState<{ id: number; name: string; is_active?: boolean }[]>([]);
+
+  useEffect(() => {
+    let ignore = false;
+    productsApi.getBrands()
+      .then((data: any) => {
+        const list = data?.results ?? data;
+        if (!ignore) setBrands(Array.isArray(list) ? list.filter((b: any) => b.is_active !== false) : []);
+      })
+      .catch(() => {
+        if (!ignore) setBrands([]);
+      });
+    return () => { ignore = true; };
+  }, []);
+
   const values = [
     {
       icon: "🏆",
@@ -53,7 +70,7 @@ export default function AboutPage({ onBack, onShop, onOrder }: Props) {
       {/* HERO */}
       <section className="relative isolate overflow-hidden">
         <img
-          src="/images/banner7.png"
+          src="/images/banners/banner7.png"
           alt="درباره پخش سوسیس و کالباس نوین"
           className="absolute inset-0 -z-20 h-full w-full object-cover"
         />

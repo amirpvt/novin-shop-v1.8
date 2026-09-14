@@ -1,5 +1,7 @@
-import type { ReactNode } from "react";
-import { brands } from "../data";
+import { useEffect, useState, type ReactNode } from "react";
+import { productsApi } from "../api/client";
+
+type Brand = { id: number; name: string; slug?: string; logo?: string | null; description?: string; is_active?: boolean; is_featured?: boolean; };
 
 // Custom high-quality SVG vector logos/icons for each brand
 const BRAND_ICONS: Record<string, ReactNode> = {
@@ -119,6 +121,39 @@ type Props = {
 };
 
 export default function Brands({ onSelect }: Props) {
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let ignore = false;
+    productsApi.getBrands()
+      .then((data: any) => {
+        const list = data?.results ?? data;
+        if (!ignore) setBrands(Array.isArray(list) ? list.filter((b: Brand) => b.is_active !== false && b.is_featured === true) : []);
+      })
+      .catch(() => {
+        if (!ignore) setBrands([]);
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => { ignore = true; };
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="border-b border-stone-100 bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
+            {[1, 2, 3, 4, 5].map((item) => <div key={item} className="h-64 animate-pulse rounded-3xl bg-stone-100" />)}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (brands.length === 0) return null;
+
   return (
     <section className="border-b border-stone-100 bg-white py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -148,7 +183,7 @@ export default function Brands({ onSelect }: Props) {
               {/* Extremely large icon / image container */}
               <div className="relative my-4 flex h-32 w-32 items-center justify-center rounded-2xl bg-white p-2 transition-transform duration-500 group-hover:scale-110 sm:h-36 sm:w-36">
                 <img 
-                  src={b.image} 
+                  src={b.logo || "/images/placeholder.jpg"} 
                   alt={b.name}
                   className="h-full w-full object-contain"
                   onError={(e) => {
