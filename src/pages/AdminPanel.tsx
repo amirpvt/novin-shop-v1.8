@@ -24,8 +24,11 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
   const [isAdding, setIsAdding] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [brandLogoFile, setBrandLogoFile] = useState<File | null>(null);
+  const [brandLogoPreview, setBrandLogoPreview] = useState<string | null>(null);
   const [hasDiscount, setHasDiscount] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
   const [form, setForm] = useState<any>({
     name: "", description: "", price: 0, wholesale_price: "", discount_price: "", stock: 10, unit: "pack", category: 1, brand: "", sku: "", tag: "", badge: "", is_featured: false,
   });
@@ -62,7 +65,7 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
         fetch(`${base}/products/brands/`, { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${base}/products/categories/`, { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
       ]);
-      void brandsRes;
+      setBrands(brandsRes.results ?? brandsRes ?? []);
       setCategories(catsRes.results ?? catsRes ?? []);
     } catch {}
   };
@@ -84,12 +87,16 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
 
   const resetForm = () => {
     setForm({ name: "", description: "", price: 0, wholesale_price: "", discount_price: "", stock: 10, unit: "pack", category: categories[0]?.id || 1, brand: "", sku: "", tag: "", badge: "", is_featured: false });
-    setImageFile(null); setImagePreview(null); setHasDiscount(false);
+    setImageFile(null); setImagePreview(null); setBrandLogoFile(null); setBrandLogoPreview(null); setHasDiscount(false);
   };
   const openAdd = () => { resetForm(); setEditing(null); setIsAdding(true); };
   const handleImageChange = (e: any) => {
     const file = e.target.files?.[0];
     if (file) { setImageFile(file); const reader = new FileReader(); reader.onload = (ev) => setImagePreview(ev.target?.result as string); reader.readAsDataURL(file); }
+  };
+  const handleBrandLogoChange = (e: any) => {
+    const file = e.target.files?.[0];
+    if (file) { setBrandLogoFile(file); const reader = new FileReader(); reader.onload = (ev) => setBrandLogoPreview(ev.target?.result as string); reader.readAsDataURL(file); }
   };
   const handleSaveProduct = async (e: any) => {
     e.preventDefault();
@@ -107,6 +114,7 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
       if (form.wholesale_price) fd.append("wholesale_price", String(form.wholesale_price));
       if (hasDiscount && form.discount_price) fd.append("discount_price", String(form.discount_price));
       if (imageFile) fd.append("image", imageFile);
+      if (brandLogoFile) fd.append("brand_logo", brandLogoFile);
       const url = isAdding ? `${base}/products/` : `${base}/products/${editing.id}/`;
       const method = isAdding ? "POST" : "PATCH";
       const res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body: fd });
@@ -252,7 +260,7 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
               {products.map((p: any) => (
                 <div key={p.id} className="rounded-3xl bg-white border overflow-hidden">
                   <div className="aspect-[4/3] bg-stone-100"><img src={p.image || `/images/p${p.id}.jpg`} alt={p.name} className="h-full w-full object-cover" /></div>
-                  <div className="p-4"><h4 className="font-bold">{p.name}</h4><p className="text-xs text-stone-500 mt-1">{p.stock} موجود • {formatPrice(p.price)}</p><div className="flex gap-2 mt-3"><button onClick={() => { setEditing(p); setForm({ name: p.name, description: p.description || "", price: p.price, wholesale_price: p.wholesale_price || "", discount_price: p.discount_price || "", stock: p.stock ?? 10, unit: p.unit || "pack", category: p.category || 1, brand: p.brand_name || p.brand || "", sku: p.sku || "", tag: p.tag || "", badge: p.badge || "", is_featured: p.is_featured || false }); setImagePreview(p.image); setIsAdding(false); }} className="flex-1 bg-amber-50 text-amber-700 py-2 rounded-xl text-xs font-bold">ویرایش</button><button onClick={() => handleDelete(p.id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-xs font-bold">حذف</button></div></div>
+                  <div className="p-4"><h4 className="font-bold">{p.name}</h4><p className="text-xs text-stone-500 mt-1">{p.stock} موجود • {formatPrice(p.price)}</p><div className="flex gap-2 mt-3"><button onClick={() => { setEditing(p); setForm({ name: p.name, description: p.description || "", price: p.price, wholesale_price: p.wholesale_price || "", discount_price: p.discount_price || "", stock: p.stock ?? 10, unit: p.unit || "pack", category: p.category || 1, brand: p.brand_name || p.brand || "", sku: p.sku || "", tag: p.tag || "", badge: p.badge || "", is_featured: p.is_featured || false }); setImagePreview(p.image); setBrandLogoFile(null); setBrandLogoPreview(null); setIsAdding(false); }} className="flex-1 bg-amber-50 text-amber-700 py-2 rounded-xl text-xs font-bold">ویرایش</button><button onClick={() => handleDelete(p.id)} className="flex-1 bg-red-50 text-red-600 py-2 rounded-xl text-xs font-bold">حذف</button></div></div>
                 </div>
               ))}
             </div>
@@ -265,7 +273,7 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
               <div key={o.id} className="rounded-2xl bg-white p-4 border flex justify-between">
                 <div><p className="font-mono font-bold">{o.order_number} - {o.name}</p><p className="text-xs text-stone-500">{o.phone}</p></div>
                 <select value={o.order_status} onChange={(e) => updateOrderStatus(o.id, e.target.value)} className="rounded-xl border px-3 py-1.5 text-xs font-bold">
-                  <option value="PENDING">در انتظار</option><option value="CONFIRMED">تایید</option><option value="PREPARING">آماده‌سازی</option><option value="SHIPPED">ارسال</option><option value="DELIVERED">تحویل</option><option value="CANCELLED">لغو</option>
+                  <option value="PENDING">در انتظار پرداخت</option><option value="PAID_PENDING_REVIEW">پرداخت شده / در انتظار بررسی</option><option value="CONFIRMED">تایید شده</option><option value="PREPARING">در حال آماده‌سازی</option><option value="SHIPPED">ارسال شده</option><option value="DELIVERED">تحویل داده شده</option><option value="CANCELLED">لغو شده</option>
                 </select>
               </div>
             ))}
@@ -302,6 +310,23 @@ export default function AdminPanelWithAdminMgmt({ onBack }: any) {
               <div className="grid grid-cols-2 gap-4">
                 <input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} placeholder="موجودی" className="rounded-xl border px-4 py-3 text-sm" />
                 <input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="برند - تایپ جدید" list="brands-list" className="rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold" />
+                <datalist id="brands-list">
+                  {brands.map((b: any) => <option key={b.id} value={b.name} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="block text-xs font-black mb-2">لوگوی برند</label>
+                <div className="rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/40 p-4 text-center">
+                  {brandLogoPreview ? (
+                    <div className="relative inline-block">
+                      <img src={brandLogoPreview} alt="brand preview" className="mx-auto h-24 w-24 rounded-2xl border bg-white object-contain p-2 shadow-sm" />
+                      <button type="button" onClick={() => { setBrandLogoFile(null); setBrandLogoPreview(null); }} className="absolute -right-2 -top-2 h-7 w-7 rounded-full bg-red-500 text-xs text-white">✕</button>
+                    </div>
+                  ) : (
+                    <p className="text-xs font-bold text-stone-500">برای برند انتخاب‌شده یا برند جدید، عکس لوگو انتخاب کنید</p>
+                  )}
+                  <input type="file" accept="image/*" onChange={handleBrandLogoChange} className="mt-3 block w-full text-sm" />
+                </div>
               </div>
               <button type="submit" className="w-full bg-stone-900 text-white py-3.5 rounded-2xl font-black">ذخیره</button>
             </form>

@@ -42,11 +42,12 @@ def generate_request_number(): return "WHS-" + "".join(random.choices(string.dig
 
 class Order(models.Model):
     ORDER_STATUS_CHOICES = [
-        ("PENDING", "در انتظار بررسی"),
+        ("PENDING", "در انتظار پرداخت"),
+        ("PAID_PENDING_REVIEW", "پرداخت شده / در انتظار بررسی"),
         ("CONFIRMED", "تایید شده"),
         ("PREPARING", "در حال آماده‌سازی"),
         ("SHIPPED", "ارسال شده"),
-        ("DELIVERED", "تحویل شده"),
+        ("DELIVERED", "تحویل داده شده"),
         ("CANCELLED", "لغو شده"),
     ]
 
@@ -175,6 +176,64 @@ class WholesaleRequestItem(models.Model):
         constraints = [
             models.CheckConstraint(condition=Q(quantity__gt=0), name="wholesaleitem_qty_positive"),
         ]
+
+class PendingRetailPayment(models.Model):
+    PAYMENT_STATUS_CHOICES = [("PENDING", "در انتظار پرداخت"), ("SUCCESS", "موفق"), ("FAILED", "ناموفق")]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="pending_retail_payments", verbose_name="کاربر")
+    payment_number = models.CharField("شناسه پرداخت", max_length=100, unique=True)
+    amount = models.DecimalField("مبلغ", max_digits=12, decimal_places=0)
+    payload = models.JSONField("اطلاعات سفارش جزئی")
+    payment_status = models.CharField("وضعیت پرداخت", max_length=20, choices=PAYMENT_STATUS_CHOICES, default="PENDING")
+    authority = models.CharField("Authority زرین‌پال", max_length=255, blank=True, null=True)
+    transaction_id = models.CharField("کد پیگیری تراکنش", max_length=255, blank=True, null=True)
+    order = models.OneToOneField(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name="payment_intent", verbose_name="سفارش ثبت‌شده")
+    created_at = models.DateTimeField("تاریخ ایجاد", auto_now_add=True)
+    updated_at = models.DateTimeField("تاریخ بروزرسانی", auto_now=True)
+
+    class Meta:
+        verbose_name = "پرداخت در انتظار سفارش جزئی"
+        verbose_name_plural = "پرداخت‌های در انتظار سفارش جزئی"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["payment_status", "-created_at"], name="pending_rt_status_idx"),
+            models.Index(fields=["user", "-created_at"], name="pending_rt_user_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(amount__gte=0), name="pending_rt_amount_non_negative"),
+        ]
+
+    def __str__(self):
+        return self.payment_number
+
+
+class PendingWholesalePayment(models.Model):
+    PAYMENT_STATUS_CHOICES = [("PENDING", "در انتظار پرداخت"), ("SUCCESS", "موفق"), ("FAILED", "ناموفق")]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="pending_wholesale_payments", verbose_name="کاربر")
+    payment_number = models.CharField("شناسه پرداخت", max_length=100, unique=True)
+    amount = models.DecimalField("مبلغ", max_digits=12, decimal_places=0)
+    payload = models.JSONField("اطلاعات درخواست عمده")
+    payment_status = models.CharField("وضعیت پرداخت", max_length=20, choices=PAYMENT_STATUS_CHOICES, default="PENDING")
+    authority = models.CharField("Authority زرین‌پال", max_length=255, blank=True, null=True)
+    transaction_id = models.CharField("کد پیگیری تراکنش", max_length=255, blank=True, null=True)
+    wholesale_request = models.OneToOneField(WholesaleRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name="payment_intent", verbose_name="درخواست عمده ثبت‌شده")
+    created_at = models.DateTimeField("تاریخ ایجاد", auto_now_add=True)
+    updated_at = models.DateTimeField("تاریخ بروزرسانی", auto_now=True)
+
+    class Meta:
+        verbose_name = "پرداخت در انتظار درخواست عمده"
+        verbose_name_plural = "پرداخت‌های در انتظار درخواست عمده"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["payment_status", "-created_at"], name="pending_wh_status_idx"),
+            models.Index(fields=["user", "-created_at"], name="pending_wh_user_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(amount__gte=0), name="pending_wh_amount_non_negative"),
+        ]
+
+    def __str__(self):
+        return self.payment_number
+
 
 class Payment(models.Model):
     PAYMENT_STATUS_CHOICES = [("PENDING", "در انتظار پرداخت"), ("SUCCESS", "موفق"), ("FAILED", "ناموفق"), ("REFUNDED", "مسترد شده")]

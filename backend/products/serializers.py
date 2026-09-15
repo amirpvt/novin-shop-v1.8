@@ -60,7 +60,12 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_wholesale_price(self, obj):
         pricing = self._get_dashboard_pricing(obj)
-        return pricing.wholesale_price if pricing else obj.price
+        if pricing and pricing.wholesale_price is not None and pricing.wholesale_price > 0:
+            return pricing.wholesale_price
+        discount = getattr(obj, "discount_price", None)
+        if discount and discount > 0 and discount < obj.price:
+            return discount
+        return obj.price
 
     def to_internal_value(self, data):
         brand_input = data.get("brand")

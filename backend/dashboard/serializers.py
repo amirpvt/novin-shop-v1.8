@@ -12,6 +12,21 @@ from accounts.models import Customer
 User = get_user_model()
 
 
+def get_effective_wholesale_price(product):
+    if not product:
+        return 0
+    try:
+        pricing = product.dashboard_pricing
+        if pricing.is_active and pricing.wholesale_price is not None and pricing.wholesale_price > 0:
+            return pricing.wholesale_price
+    except Exception:
+        pass
+    discount = getattr(product, 'discount_price', None)
+    if discount and discount > 0 and discount < product.price:
+        return discount
+    return product.price
+
+
 class UserBriefSerializer(serializers.ModelSerializer):
     """نمایش خلاصه کاربر برای لیست‌ها"""
     role = serializers.SerializerMethodField()
@@ -384,11 +399,7 @@ class CommissionSerializer(serializers.ModelSerializer):
                 product = item.product
                 price = 0
                 if product:
-                    try:
-                        pricing = product.dashboard_pricing
-                        price = pricing.wholesale_price if pricing.is_active else product.price
-                    except Exception:
-                        price = product.price
+                    price = get_effective_wholesale_price(product)
                 result.append({
                     'id': item.id,
                     'product': item.product_id,

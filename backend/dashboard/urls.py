@@ -19,6 +19,7 @@ urlpatterns = [
     path('owner/wholesale/', views.OwnerWholesaleList.as_view(), name='owner-wholesale-list'),
     path('owner/commissions/', views.OwnerCommissionManagement.as_view(), name='owner-commissions'),
     path('owner/debtors/', views.OwnerVisitorReport.as_view(), name='owner-debtors'),
+    path('owner/debtors/payments/', views.OwnerDebtPaymentView.as_view(), name='owner-debt-payment'),
 
     # ─── Admin Store ───────────────────────────────────────────────────
     path('admin/orders/create/', views.AdminOrderCreate.as_view(), name='admin-order-create'),

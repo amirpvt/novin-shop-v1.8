@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ordersApi, wholesaleApi } from "../api/client";
 import { formatJalaliDateTime } from "../utils/date";
+import { RETAIL_ORDER_STATUS_OPTIONS } from "../utils/orderStatus";
 
 type Tab = "all" | "retail" | "wholesale";
 type UnifiedOrder = {
@@ -19,14 +20,11 @@ type UnifiedOrder = {
   raw: any;
 };
 
-const retailStatuses = [
-  { value: "PENDING", label: "در انتظار بررسی", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  { value: "CONFIRMED", label: "تایید شده", color: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
-  { value: "PREPARING", label: "در حال آماده‌سازی", color: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500" },
-  { value: "SHIPPED", label: "ارسال شده", color: "bg-cyan-50 text-cyan-700 border-cyan-200", dot: "bg-cyan-500" },
-  { value: "DELIVERED", label: "تحویل شده", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  { value: "CANCELLED", label: "لغو شده", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
-];
+const retailStatuses = RETAIL_ORDER_STATUS_OPTIONS.map((s) =>
+  s.value === "PAID_PENDING_REVIEW"
+    ? { ...s, color: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200", dot: "bg-fuchsia-500" }
+    : s
+);
 
 const wholesaleStatuses = [
   { value: "NEW", label: "درخواست جدید", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
@@ -149,7 +147,7 @@ export default function OwnerOrdersManagement() {
     retailCount: retail.length,
     wholesaleCount: wholesale.length,
     totalSales: allOrders.reduce((s, o) => s + o.total, 0),
-    pending: allOrders.filter((o) => ["PENDING", "NEW"].includes(o.status)).length,
+    pending: allOrders.filter((o) => ["PENDING", "PAID_PENDING_REVIEW", "NEW"].includes(o.status)).length,
     completed: allOrders.filter((o) => ["DELIVERED", "CONVERTED"].includes(o.status)).length,
   }), [allOrders, retail, wholesale]);
 
@@ -280,9 +278,23 @@ function statusLuxuryTone(status: string) {
       box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
       footer: "border-amber-400/40 bg-amber-950/20",
       select: "border-white/30 bg-white text-amber-800 shadow-lg focus:border-white",
-      message: "⏳ این سفارش در انتظار بررسی است",
+      message: "⏳ این سفارش در انتظار پرداخت است",
       modal: "bg-gradient-to-br from-amber-900 via-orange-700 to-yellow-600 shadow-inner",
       ring: "ring-4 ring-amber-400/30",
+    },
+    PAID_PENDING_REVIEW: {
+      card: "border-fuchsia-500 bg-gradient-to-br from-fuchsia-950 via-fuchsia-700 to-pink-600 text-white shadow-2xl shadow-fuchsia-900/25 ring-2 ring-fuchsia-300/45",
+      statusBadge: "border-white/40 bg-white text-fuchsia-800 shadow-lg shadow-fuchsia-950/20",
+      dot: "bg-fuchsia-500 animate-pulse",
+      title: "text-white drop-shadow",
+      sub: "text-fuchsia-50",
+      label: "text-fuchsia-100",
+      box: "bg-white/15 ring-1 ring-white/15 backdrop-blur",
+      footer: "border-fuchsia-400/40 bg-fuchsia-950/20",
+      select: "border-white/30 bg-white text-fuchsia-800 shadow-lg focus:border-white",
+      message: "✅ پرداخت انجام شده و سفارش منتظر بررسی فروشنده است",
+      modal: "bg-gradient-to-br from-fuchsia-950 via-fuchsia-800 to-pink-600 shadow-inner",
+      ring: "ring-4 ring-fuchsia-400/30",
     },
     NEW: {
       card: "border-amber-500 bg-gradient-to-br from-amber-700 via-orange-600 to-yellow-600 text-white shadow-2xl shadow-amber-900/25 ring-2 ring-amber-300/45",

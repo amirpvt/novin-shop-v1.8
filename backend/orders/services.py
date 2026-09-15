@@ -1,7 +1,7 @@
 """
 Zarinpal Payment Gateway - production implementation.
 Flow:
-Create -> Redirect -> Callback -> Verify -> Transaction ID -> Order = CONFIRMED
+Create -> Redirect -> Callback -> Verify -> Transaction ID -> Order = PAID_PENDING_REVIEW
 
 Production rule:
 NO MOCK IN PRODUCTION. Network/configuration/gateway errors fail closed and never confirm orders.
@@ -32,14 +32,15 @@ class ZarinPalGateway(BasePaymentGateway):
     """
     زرین‌پال v4
     - Sandbox: https://sandbox.zarinpal.com/pg/v4/payment/request.json
-    - Production: https://api.zarinpal.com/pg/v4/payment/request.json
+    - Production: https://payment.zarinpal.com/pg/v4/payment/request.json
     """
 
     def __init__(self):
         self.merchant_id = getattr(settings, "ZARINPAL_MERCHANT_ID", "")
         self.sandbox = bool(getattr(settings, "ZARINPAL_SANDBOX", True))
         self.timeout = int(getattr(settings, "ZARINPAL_REQUEST_TIMEOUT", 10))
-        self.base_url = "https://sandbox.zarinpal.com" if self.sandbox else "https://api.zarinpal.com"
+        self.base_url = "https://sandbox.zarinpal.com" if self.sandbox else "https://payment.zarinpal.com"
+        self.currency = getattr(settings, "ZARINPAL_CURRENCY", "IRT")
         self.request_url = f"{self.base_url}/pg/v4/payment/request.json"
         self.verify_url = f"{self.base_url}/pg/v4/payment/verify.json"
         self.startpay_url = f"{self.base_url}/pg/StartPay/"
@@ -65,10 +66,12 @@ class ZarinPalGateway(BasePaymentGateway):
         payload = {
             "merchant_id": self.merchant_id,
             "amount": int(payment.amount),
+            "currency": self.currency,
             "description": description or f"پرداخت سفارش {payment.order.order_number} - نوین شاپ",
             "callback_url": callback_url,
             "metadata": {
                 "mobile": payment.order.phone,
+                "order_id": payment.order.order_number,
             },
         }
 
@@ -81,15 +84,21 @@ class ZarinPalGateway(BasePaymentGateway):
         )
 
         try:
-            response = requests.post(self.request_url, json=payload, timeout=self.timeout)
-            response.raise_for_status()
-            data = response.json()
-            logger.info("Zarinpal create response: %s", data)
+            response = requests.post(self.request_url, json=payload, headers={"accept": "application/json", "content-type": "application/json"}, timeout=self.timeout)
         except requests.exceptions.RequestException as exc:
             logger.error("Zarinpal create network error: %s", exc, exc_info=True)
-            return {"status": "failed", "message": "خطا در ارتباط با زرین‌پال"}
+            message = "خطا در ارتباط با زرین‌پال"
+            if getattr(settings, "DEBUG", False):
+                message = f"{message}: {exc}"
+            return {"status": "failed", "message": message}
+
+        try:
+            data = response.json()
+            logger.info("Zarinpal create response: %s", data)
         except ValueError as exc:
-            logger.error("Invalid Zarinpal create JSON response: %s", exc, exc_info=True)
+            logger.error("Invalid Zarinpal create response: status=%s body=%s", response.status_code, response.text[:500], exc_info=True)
+            if not response.ok:
+                return {"status": "failed", "message": f"خطای HTTP زرین‌پال: {response.status_code}"}
             return {"status": "failed", "message": "پاسخ نامعتبر از زرین‌پال"}
 
         gateway_data = data.get("data") or {}
@@ -123,15 +132,21 @@ class ZarinPalGateway(BasePaymentGateway):
         }
 
         try:
-            response = requests.post(self.verify_url, json=payload, timeout=self.timeout)
-            response.raise_for_status()
-            data = response.json()
-            logger.info("Zarinpal verify response: %s", data)
+            response = requests.post(self.verify_url, json=payload, headers={"accept": "application/json", "content-type": "application/json"}, timeout=self.timeout)
         except requests.exceptions.RequestException as exc:
             logger.error("Zarinpal verify network error: %s", exc, exc_info=True)
-            return {"status": "failed", "message": "خطا در تایید پرداخت زرین‌پال"}
+            message = "خطا در تایید پرداخت زرین‌پال"
+            if getattr(settings, "DEBUG", False):
+                message = f"{message}: {exc}"
+            return {"status": "failed", "message": message}
+
+        try:
+            data = response.json()
+            logger.info("Zarinpal verify response: %s", data)
         except ValueError as exc:
-            logger.error("Invalid Zarinpal verify JSON response: %s", exc, exc_info=True)
+            logger.error("Invalid Zarinpal verify response: status=%s body=%s", response.status_code, response.text[:500], exc_info=True)
+            if not response.ok:
+                return {"status": "failed", "message": f"خطای HTTP تایید زرین‌پال: {response.status_code}"}
             return {"status": "failed", "message": "پاسخ تایید نامعتبر از زرین‌پال"}
 
         gateway_data = data.get("data") or {}
@@ -267,7 +282,7 @@ class PaymentService:
             payment.save(update_fields=["payment_status", "transaction_id"])
 
             order = payment.order
-            order.order_status = "CONFIRMED"
+            order.order_status = "PAID_PENDING_REVIEW"
             order.save(update_fields=["order_status"])
 
             logger.info(

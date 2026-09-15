@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * VisitorOrders لوکس - فقط همین بخش
  * - حرفه‌ای‌تر و لوکس‌تر
@@ -8,6 +7,8 @@
  */
 import { useEffect, useState } from "react";
 import { dashboardApi } from "../services/dashboardApi";
+import { formatJalaliDate, formatJalaliTime } from "../utils/date";
+import { retailOrderStatusLabel, retailOrderStatusMeta } from "../utils/orderStatus";
 
 function formatPrice(n: any) {
   const num = typeof n === "string" ? parseFloat(n) : n;
@@ -35,7 +36,7 @@ export default function VisitorOrdersLuxuryPro() {
   useEffect(() => { load(); }, []);
 
   const filtered = orders.filter((o: any) => {
-    if (filter === "pending") return o.order_status === "PENDING";
+    if (filter === "pending") return o.order_status === "PAID_PENDING_REVIEW";
     if (filter === "confirmed") return o.order_status === "CONFIRMED";
     return true;
   });
@@ -81,8 +82,8 @@ export default function VisitorOrdersLuxuryPro() {
               </div>
             </div>
             <div className="rounded-2xl bg-white text-stone-900 px-5 py-3 shadow-xl">
-              <p className="text-[10px] tracking-widest font-black text-stone-400">در انتظار تایید شما</p>
-              <p className="text-xl font-black">{orders.filter((o: any) => o.order_status === "PENDING").length}</p>
+              <p className="text-[10px] tracking-widest font-black text-stone-400">پرداخت شده / در انتظار بررسی</p>
+              <p className="text-xl font-black">{orders.filter((o: any) => o.order_status === "PAID_PENDING_REVIEW").length}</p>
             </div>
           </div>
         </div>
@@ -93,7 +94,7 @@ export default function VisitorOrdersLuxuryPro() {
         <div className="flex gap-2 p-1.5 bg-stone-900 rounded-2xl border border-white/10 shadow-xl">
           {[
             { id: "all", label: `همه (${orders.length})`, icon: "📦" },
-            { id: "pending", label: `در انتظار (${orders.filter((o: any) => o.order_status === "PENDING").length})`, icon: "⏳" },
+            { id: "pending", label: `در انتظار بررسی (${orders.filter((o: any) => o.order_status === "PAID_PENDING_REVIEW").length})`, icon: "⏳" },
             { id: "confirmed", label: "تایید شده", icon: "✅" },
           ].map((f) => (
             <button key={f.id} onClick={() => setFilter(f.id as any)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all ${filter === f.id ? "bg-white text-stone-900 shadow-lg" : "text-stone-400 hover:text-white hover:bg-white/10"}`}>
@@ -129,8 +130,8 @@ export default function VisitorOrdersLuxuryPro() {
                         <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                         {order.order_number}
                       </span>
-                      <span className={`px-3 py-1 rounded-full text-[11px] font-black border-2 ${order.order_status === "PENDING" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
-                        {order.order_status === "PENDING" ? "⏳ در انتظار تایید شما" : order.order_status}
+                      <span className={`px-3 py-1 rounded-full text-[11px] font-black border-2 ${retailOrderStatusMeta(order.order_status).color}`}>
+                        {retailOrderStatusLabel(order.order_status)}
                       </span>
                       <span className="text-[11px] bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full font-bold">ویزیتور</span>
                     </div>
@@ -154,8 +155,8 @@ export default function VisitorOrdersLuxuryPro() {
 
                       <div className="rounded-2xl bg-stone-50 border-2 border-stone-100 p-4">
                         <p className="text-[10px] font-black tracking-widest text-stone-400">تاریخ ثبت</p>
-                        <p className="text-sm font-bold mt-1">{order.created_at ? new Date(order.created_at).toLocaleDateString("fa-IR") : ""}</p>
-                        <p className="text-[11px] text-stone-500 mt-1">⏰ {order.created_at ? new Date(order.created_at).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }) : ""}</p>
+                        <p className="text-sm font-bold mt-1">{order.created_at ? formatJalaliDate(order.created_at) : ""}</p>
+                        <p className="text-[11px] text-stone-500 mt-1">⏰ {order.created_at ? formatJalaliTime(order.created_at) : ""}</p>
                       </div>
                     </div>
 
@@ -239,13 +240,13 @@ export default function VisitorOrdersLuxuryPro() {
                     <p className="text-xs opacity-80 mt-1">{selectedOrder.items?.length || 0} قلم کالا • {selectedOrder.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0} عدد کل</p>
                     <div className="mt-3 flex gap-2">
                       <span className="bg-stone-900 text-gold-400 px-3 py-1 rounded-full text-[10px] font-black">💰 قابل پرداخت</span>
-                      <span className="bg-white/20 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold border border-white/20">{selectedOrder.order_status}</span>
+                      <span className="bg-white/20 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold border border-white/20">{retailOrderStatusLabel(selectedOrder.order_status)}</span>
                     </div>
                   </div>
                   <div className="rounded-[1.5rem] bg-white/10 backdrop-blur-xl border border-white/10 p-5">
                     <p className="text-[10px] tracking-[0.2em] font-black text-stone-400">زمان ثبت</p>
-                    <p className="font-bold mt-2">{selectedOrder.created_at ? new Date(selectedOrder.created_at).toLocaleDateString("fa-IR") : ""}</p>
-                    <p className="text-xs text-stone-400 mt-1">{selectedOrder.created_at ? new Date(selectedOrder.created_at).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }) : ""}</p>
+                    <p className="font-bold mt-2">{selectedOrder.created_at ? formatJalaliDate(selectedOrder.created_at) : ""}</p>
+                    <p className="text-xs text-stone-400 mt-1">{selectedOrder.created_at ? formatJalaliTime(selectedOrder.created_at) : ""}</p>
                     <div className="mt-4 pt-4 border-t border-white/10">
                       <p className="text-[10px] font-black tracking-widest text-stone-400">شناسه سفارش</p>
                       <p className="font-mono text-xs mt-1 text-stone-300">#{selectedOrder.id} • {selectedOrder.order_number}</p>

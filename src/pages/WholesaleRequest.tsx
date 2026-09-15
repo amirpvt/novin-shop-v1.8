@@ -70,7 +70,9 @@ export default function WholesaleRequest({ products, onSubmit }: Props) {
               const inWholesale = wholesaleItems.find((item: any) => String(item.id) === String(p.id));
               const wholesaleUnit = (p as any).wholesale_unit || p.unit;
               const wholesaleUnitLabel = (p as any).wholesale_unit_display || getUnitLabel(wholesaleUnit);
-              const wholesalePrice = Number((p as any).wholesale_price ?? p.price);
+              const hasWholesalePrice = (p as any).wholesale_price !== undefined && (p as any).wholesale_price !== null && Number((p as any).wholesale_price) > 0;
+              const hasDiscount = p.discount_price && p.discount_price > 0 && p.discount_price < p.price;
+              const wholesalePrice = Number(hasWholesalePrice ? (p as any).wholesale_price : hasDiscount ? p.discount_price : p.price);
               const minQty = (p as any).wholesale_min_quantity || 1;
               return (
                 <div 

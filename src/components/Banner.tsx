@@ -10,7 +10,7 @@ export default function Banner({ onProducts, onOrder }: Props) {
   return (
     <section className="relative isolate overflow-hidden">
       <img
-        src="/images/banners/banner7.png"
+        src="/images/banners/banner11.png"
         alt="پخش سوسیس و کالباس نوین"
         className="absolute inset-0 -z-20 h-full w-full object-cover"
       />

@@ -11,10 +11,14 @@ urlpatterns = [
     path("my-orders/", views.MyOrdersView.as_view(), name="my-orders"),  # سفارشات من
     path("stats/", views.OrderStatsView.as_view(), name="order-stats"),  # آمار ادمین
     path("<int:id>/status/", views.OrderStatusUpdateView.as_view(), name="order-status-update"),  # تغییر وضعیت سفارش تکی
+    path("payments/retail/create/", views.RetailPaymentCreateView.as_view(), name="retail-payment-create"),
+    path("payments/retail/verify/", views.RetailPaymentVerifyView.as_view(), name="retail-payment-verify"),
     path("payments/create/", views.PaymentCreateView.as_view(), name="payment-create"),
     path("payments/verify/", views.PaymentVerifyView.as_view(), name="payment-verify"),
 
     # Wholesale
+    path("wholesale/payments/create/", views.WholesalePaymentCreateView.as_view(), name="wholesale-payment-create"),
+    path("wholesale/payments/verify/", views.WholesalePaymentVerifyView.as_view(), name="wholesale-payment-verify"),
     path("wholesale/", views.WholesaleRequestCreateView.as_view(), name="wholesale-create"),
     path("wholesale/track/<str:request_number>/", views.WholesaleRequestTrackingView.as_view(), name="wholesale-track"),
     path("wholesale/list/", views.WholesaleRequestListView.as_view(), name="wholesale-list"),

@@ -9,11 +9,12 @@ type Props = {
 };
 
 const STATUS_MAP: Record<string, string> = {
-  PENDING: "در انتظار بررسی",
+  PENDING: "در انتظار پرداخت",
+  PAID_PENDING_REVIEW: "پرداخت شده / در انتظار بررسی",
   CONFIRMED: "تایید شده",
   PREPARING: "در حال آماده‌سازی",
   SHIPPED: "ارسال شده",
-  DELIVERED: "تحویل شده",
+  DELIVERED: "تحویل داده شده",
   CANCELLED: "لغو شده",
 };
 

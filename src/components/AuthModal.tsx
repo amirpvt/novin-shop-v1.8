@@ -36,6 +36,10 @@ export default function AuthModal({ open, onClose, onLogin, initialTab = "login"
     if (open) {
       setTab(initialTab);
       setErr(null);
+      setShowPass(false);
+      setUsername("");
+      setPassword("");
+      setR({ first_name: "", last_name: "", phone: "", email: "", username: "", address: "", password: "", password2: "" });
     }
   }, [open, initialTab]);
 
@@ -187,7 +191,9 @@ export default function AuthModal({ open, onClose, onLogin, initialTab = "login"
             )}
 
             {tab === "login" ? (
-              <form onSubmit={handleLogin} className="space-y-5">
+              <form onSubmit={handleLogin} className="space-y-5" autoComplete="off">
+                <input type="text" name="novin_fake_user" autoComplete="off" tabIndex={-1} className="pointer-events-none absolute h-0 w-0 opacity-0" />
+                <input type="password" name="novin_fake_pass" autoComplete="new-password" tabIndex={-1} className="pointer-events-none absolute h-0 w-0 opacity-0" />
                 <div>
                   <h3 className="text-2xl font-black text-stone-900">خوش آمدید 👋</h3>
                   <p className="text-sm text-stone-500 mt-2">برای ادامه وارد حساب کاربری خود شوید</p>
@@ -201,6 +207,8 @@ export default function AuthModal({ open, onClose, onLogin, initialTab = "login"
                       <input
                         type="text"
                         required
+                        autoComplete="off"
+                        name="novin_login_identifier"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         className="w-full rounded-2xl border-2 border-stone-100 bg-stone-50 pr-11 pl-4 py-3.5 text-sm font-medium outline-none focus:border-paprika-500 focus:bg-white transition"
@@ -216,6 +224,8 @@ export default function AuthModal({ open, onClose, onLogin, initialTab = "login"
                       <input
                         type={showPass ? "text" : "password"}
                         required
+                        autoComplete="new-password"
+                        name="novin_login_secret"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         className="w-full rounded-2xl border-2 border-stone-100 bg-stone-50 pr-11 pl-12 py-3.5 text-sm font-medium outline-none focus:border-paprika-500 focus:bg-white transition"
@@ -255,7 +265,9 @@ export default function AuthModal({ open, onClose, onLogin, initialTab = "login"
                 </div>
               </form>
             ) : (
-              <form onSubmit={handleRegister} className="space-y-4">
+              <form onSubmit={handleRegister} className="space-y-4" autoComplete="off">
+                <input type="text" name="novin_register_fake_user" autoComplete="off" tabIndex={-1} className="pointer-events-none absolute h-0 w-0 opacity-0" />
+                <input type="password" name="novin_register_fake_pass" autoComplete="new-password" tabIndex={-1} className="pointer-events-none absolute h-0 w-0 opacity-0" />
                 <div>
                   <h3 className="text-2xl font-black">ایجاد حساب جدید</h3>
                   <p className="text-sm text-stone-500 mt-1">{checkoutMode ? "برای ثبت سفارش، ثبت‌نام و آدرس تحویل الزامی است" : "ثبت‌نام کمتر از ۱ دقیقه"}</p>
@@ -264,42 +276,42 @@ export default function AuthModal({ open, onClose, onLogin, initialTab = "login"
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="text-[11px] font-bold text-stone-500">نام</label>
-                    <input required value={r.first_name} onChange={(e) => setR({ ...r, first_name: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="علی" />
+                    <input required autoComplete="off" name="novin_register_first_name" value={r.first_name} onChange={(e) => setR({ ...r, first_name: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="علی" />
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-stone-500">نام خانوادگی</label>
-                    <input required value={r.last_name} onChange={(e) => setR({ ...r, last_name: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="رضایی" />
+                    <input required autoComplete="off" name="novin_register_last_name" value={r.last_name} onChange={(e) => setR({ ...r, last_name: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="رضایی" />
                   </div>
                 </div>
 
                 <div>
                   <label className="text-[11px] font-bold text-stone-500">شماره موبایل *</label>
-                  <input required type="tel" value={r.phone} onChange={(e) => setR({ ...r, phone: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white font-mono" placeholder="09123456789" dir="ltr" />
+                  <input required type="tel" autoComplete="off" name="novin_register_phone" value={r.phone} onChange={(e) => setR({ ...r, phone: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white font-mono" placeholder="09123456789" dir="ltr" />
                 </div>
 
                 <div>
                   <label className="text-[11px] font-bold text-stone-500">نام کاربری *</label>
-                  <input required value={r.username} onChange={(e) => setR({ ...r, username: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="مثلا ali123" dir="ltr" />
+                  <input required autoComplete="off" name="novin_register_username" value={r.username} onChange={(e) => setR({ ...r, username: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="مثلا ali123" dir="ltr" />
                 </div>
 
                 <div>
                   <label className="text-[11px] font-bold text-stone-500">آدرس کامل تحویل *</label>
-                  <textarea required rows={3} value={r.address} onChange={(e) => setR({ ...r, address: e.target.value })} className="mt-1 w-full resize-none rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="شهر، خیابان، پلاک، واحد و توضیحات لازم برای ارسال" />
+                  <textarea required rows={3} autoComplete="off" name="novin_register_address" value={r.address} onChange={(e) => setR({ ...r, address: e.target.value })} className="mt-1 w-full resize-none rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="شهر، خیابان، پلاک، واحد و توضیحات لازم برای ارسال" />
                 </div>
 
                 <div>
                   <label className="text-[11px] font-bold text-stone-500">ایمیل (اختیاری)</label>
-                  <input type="email" value={r.email} onChange={(e) => setR({ ...r, email: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="ali@email.com" dir="ltr" />
+                  <input type="email" autoComplete="off" name="novin_register_email" value={r.email} onChange={(e) => setR({ ...r, email: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-paprika-500 focus:bg-white" placeholder="ali@email.com" dir="ltr" />
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="text-[11px] font-bold text-stone-500">رمز عبور *</label>
-                    <input required type="password" minLength={8} value={r.password} onChange={(e) => setR({ ...r, password: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500" placeholder="حداقل 8 کاراکتر" />
+                    <input required type="password" minLength={8} autoComplete="new-password" name="novin_register_password" value={r.password} onChange={(e) => setR({ ...r, password: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500" placeholder="حداقل 8 کاراکتر" />
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-stone-500">تکرار رمز *</label>
-                    <input required type="password" value={r.password2} onChange={(e) => setR({ ...r, password2: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500" placeholder="تکرار رمز" />
+                    <input required type="password" autoComplete="new-password" name="novin_register_password_confirm" value={r.password2} onChange={(e) => setR({ ...r, password2: e.target.value })} className="mt-1 w-full rounded-xl border-2 border-stone-100 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-paprika-500" placeholder="تکرار رمز" />
                   </div>
                 </div>
 

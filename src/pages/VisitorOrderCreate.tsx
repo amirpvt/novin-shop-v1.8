@@ -28,7 +28,9 @@ function money(value: number | string | null | undefined) {
 }
 
 function productPrice(product: Product) {
-  const price = Number(product.wholesale_price || product.base_price || product.price || 0);
+  const hasWholesalePrice = product.wholesale_price !== undefined && product.wholesale_price !== null && Number(product.wholesale_price) > 0;
+  const hasDiscount = product.discount_price && product.discount_price > 0 && product.discount_price < product.price;
+  const price = Number(hasWholesalePrice ? product.wholesale_price : hasDiscount ? product.discount_price : product.price);
   return Number.isFinite(price) ? price : 0;
 }
 
@@ -246,7 +248,7 @@ export default function VisitorOrderCreate() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-30">
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-10">
         <div className="rounded-[2rem] border border-blue-100 bg-gradient-to-l from-blue-50 via-white to-cyan-50 p-5 shadow-xl shadow-blue-900/5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
@@ -261,7 +263,7 @@ export default function VisitorOrderCreate() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[310px_1fr_300px] lg:px-0">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[340px_1fr_360px] lg:px-10">
         <aside className="space-y-4">
           <div className="rounded-[2rem] border border-stone-200 bg-white p-5 shadow-xl shadow-stone-900/5">
             <div className="mb-4 flex items-center justify-between gap-3">

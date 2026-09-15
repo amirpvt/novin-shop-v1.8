@@ -15,12 +15,19 @@ async function request<T>(endpoint: string, options: RequestInit = {}, _auth = f
 
   const res = await apiFetchWithAuthRefresh(endpoint, { ...options, headers });
   if (!res.ok) {
+    const text = await res.text();
     let err: any = {};
-    try { err = await res.json(); } catch { err.detail = await res.text(); }
-    throw new Error(err.detail || err.message || JSON.stringify(err) || `HTTP ${res.status}`);
+    try {
+      err = text ? JSON.parse(text) : {};
+    } catch {
+      err = { detail: text };
+    }
+    const message = err.detail || err.error || err.message || (typeof err === "string" ? err : "") || text || `HTTP ${res.status}`;
+    throw new Error(message);
   }
   if (res.status === 204) return {} as T;
-  return res.json();
+  const text = await res.text();
+  return (text ? JSON.parse(text) : {}) as T;
 }
 
 function get<T>(endpoint: string, params?: Record<string, any>, auth = false): Promise<T> {
@@ -51,6 +58,10 @@ export const productsApi = {
 // 🆕 FIX: تمام درخواست‌های سفارش با auth=True تا user ذخیره شود
 export const ordersApi = {
   create: (data: any) => request<Order>("/orders/", { method: "POST", body: JSON.stringify(data) }, true),
+  createRetailPayment: (data: any) =>
+    request<{ payment_url: string; payment_number: string; amount: string | number }>("/orders/payments/retail/create/", { method: "POST", body: JSON.stringify(data) }, true),
+  verifyRetailPayment: (data: { payment_number?: string | null; authority?: string | null; status?: string | null }) =>
+    request<{ status: string; payment_number?: string; transaction_id?: string; order_number?: string; message?: string }>("/orders/payments/retail/verify/", { method: "POST", body: JSON.stringify(data) }, false),
   createPayment: (data: { order_id?: number | string; order_number?: string; callback_url?: string }) =>
     request<{ payment_url: string; payment_number: string; order_number: string; amount: string | number }>("/orders/payments/create/", { method: "POST", body: JSON.stringify(data) }, true),
   verifyPayment: (data: { payment_number?: string | null; authority?: string | null; order_number?: string | null; status?: string | null }) =>
@@ -64,6 +75,9 @@ export const ordersApi = {
 
 export const wholesaleApi = {
   create: (data: any) => request<WholesaleRequest>("/orders/wholesale/", { method: "POST", body: JSON.stringify(data) }, true),
+  createPayment: (data: any) => request<{ payment_url: string; payment_number: string; amount: string | number }>("/orders/wholesale/payments/create/", { method: "POST", body: JSON.stringify(data) }, true),
+  verifyPayment: (data: { payment_number?: string | null; authority?: string | null; status?: string | null }) =>
+    request<{ status: string; payment_number?: string; transaction_id?: string; wholesale_request_number?: string; message?: string }>("/orders/wholesale/payments/verify/", { method: "POST", body: JSON.stringify(data) }, false),
   track: (requestNumber: string) => get<WholesaleRequest>(`/orders/wholesale/track/${requestNumber}/`, undefined, false),
   list: (params?: any) => get<any>("/orders/wholesale/list/", params, true),
   myRequests: () => get<any>("/orders/wholesale/my-requests/", undefined, true),

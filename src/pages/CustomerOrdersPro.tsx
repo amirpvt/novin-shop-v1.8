@@ -1,10 +1,11 @@
-// @ts-nocheck
 /**
  * CustomerOrdersPro - فقط سفارشات خود مشتری (نه ویزیتور)
  * دو قسمت عمده و جزئی حرفه‌ای
  * فیکس: سفارش ویزیتور اینجا نمایش داده نمی‌شود - فقط خود مشتری
  */
 import { useEffect, useState } from "react";
+import { formatJalaliDate } from "../utils/date";
+import { retailOrderStatusLabel } from "../utils/orderStatus";
 
 function formatPrice(n: any) {
   const num = typeof n === "string" ? parseFloat(n) : n;
@@ -119,8 +120,8 @@ export default function CustomerOrdersProSelfOnly() {
                           <span className="font-mono font-black text-lg">{order.order_number}</span>
                         </div>
                         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="bg-stone-50 rounded-2xl p-3 border"><p className="text-[10px] font-black tracking-widest text-stone-400">تاریخ</p><p className="text-sm mt-1">{order.created_at ? new Date(order.created_at).toLocaleDateString("fa-IR") : ""}</p></div>
-                          <div className="bg-stone-50 rounded-2xl p-3 border"><p className="text-[10px] font-black tracking-widest text-stone-400">وضعیت</p><p className="text-sm font-bold mt-1">{order.order_status === "PENDING" ? "در انتظار" : order.order_status}</p></div>
+                          <div className="bg-stone-50 rounded-2xl p-3 border"><p className="text-[10px] font-black tracking-widest text-stone-400">تاریخ</p><p className="text-sm mt-1">{order.created_at ? formatJalaliDate(order.created_at) : ""}</p></div>
+                          <div className="bg-stone-50 rounded-2xl p-3 border"><p className="text-[10px] font-black tracking-widest text-stone-400">وضعیت</p><p className="text-sm font-bold mt-1">{retailOrderStatusLabel(order.order_status)}</p></div>
                           <div className="bg-stone-900 rounded-2xl p-3 text-white"><p className="text-[10px] tracking-widest font-black text-stone-400">مبلغ</p><p className="font-black text-gold-400 mt-1">{formatPrice(order.total_amount)}</p></div>
                         </div>
                       </div>

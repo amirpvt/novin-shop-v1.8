@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useRetailCart } from "../context/RetailCartContext";
-import { ordersApi } from "../api/client";
+import { useWholesaleRequest } from "../context/WholesaleRequestContext";
+import { ordersApi, wholesaleApi } from "../api/client";
 
 function CheckIcon({ className }: { className?: string }) {
   return (
@@ -23,11 +24,13 @@ export default function PaymentVerify() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { clearRetailCart } = useRetailCart();
+  const { clearWholesaleRequest } = useWholesaleRequest();
   const [status, setStatus] = useState<"loading" | "success" | "failed" | "cancelled">("loading");
   const [message, setMessage] = useState("");
 
   const authority = params.get("Authority") || params.get("authority");
   const paymentStatus = params.get("Status") || params.get("status");
+  const paymentType = params.get("type");
   const orderNumber = params.get("order");
   const paymentNumber = params.get("payment_number") || (orderNumber ? `PAY-${orderNumber}` : null);
 
@@ -35,12 +38,18 @@ export default function PaymentVerify() {
     const verify = async () => {
       if (paymentStatus === "NOK") {
         try {
-          await ordersApi.verifyPayment({
-            payment_number: paymentNumber,
-            authority,
-            order_number: orderNumber,
-            status: "NOK",
-          });
+          if (paymentType === "wholesale") {
+            await wholesaleApi.verifyPayment({ payment_number: paymentNumber, authority, status: "NOK" });
+          } else if (paymentType === "retail") {
+            await ordersApi.verifyRetailPayment({ payment_number: paymentNumber, authority, status: "NOK" });
+          } else {
+            await ordersApi.verifyPayment({
+              payment_number: paymentNumber,
+              authority,
+              order_number: orderNumber,
+              status: "NOK",
+            });
+          }
         } catch {
           // لغو پرداخت نباید باعث نمایش خطای فنی به کاربر شود.
         }
@@ -62,17 +71,27 @@ export default function PaymentVerify() {
       }
 
       try {
-        const data = await ordersApi.verifyPayment({
-          payment_number: paymentNumber,
-          authority,
-          order_number: orderNumber,
-          status: paymentStatus || "OK",
-        });
+        const data = paymentType === "wholesale"
+          ? await wholesaleApi.verifyPayment({ payment_number: paymentNumber, authority, status: paymentStatus || "OK" })
+          : paymentType === "retail"
+            ? await ordersApi.verifyRetailPayment({ payment_number: paymentNumber, authority, status: paymentStatus || "OK" })
+            : await ordersApi.verifyPayment({
+                payment_number: paymentNumber,
+                authority,
+                order_number: orderNumber,
+                status: paymentStatus || "OK",
+              });
 
         if (data.status === "SUCCESS") {
-          clearRetailCart();
+          if (paymentType === "wholesale") {
+            clearWholesaleRequest();
+            localStorage.removeItem("novin_pending_wholesale_checkout");
+            setMessage(`پرداخت موفق! درخواست عمده شما ثبت شد. شماره درخواست: ${(data as any).wholesale_request_number || data.payment_number}`);
+          } else {
+            clearRetailCart();
+            setMessage(paymentType === "retail" ? `پرداخت موفق! سفارش شما ثبت شد. شماره سفارش: ${(data as any).order_number || data.payment_number}` : `پرداخت موفق! کد تراکنش: ${data.transaction_id || data.payment_number || authority}`);
+          }
           setStatus("success");
-          setMessage(`پرداخت موفق! کد تراکنش: ${data.transaction_id || data.payment_number || authority}`);
         } else {
           setStatus("failed");
           setMessage(data.message || "تایید پرداخت ناموفق بود");
@@ -84,7 +103,7 @@ export default function PaymentVerify() {
     };
 
     verify();
-  }, [authority, paymentStatus, orderNumber, paymentNumber]);
+  }, [authority, paymentStatus, orderNumber, paymentNumber, paymentType, clearRetailCart, clearWholesaleRequest]);
 
   return (
     <div className="min-h-screen bg-cream-50 flex items-center justify-center p-4 pt-28" dir="rtl">

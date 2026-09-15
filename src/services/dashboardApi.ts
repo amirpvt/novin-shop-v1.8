@@ -85,6 +85,8 @@ export const dashboardApi = {
       }),
     visitorReport: () => authFetch<any[]>("/owner/reports/?type=visitors"),
     debtorsReport: () => authFetch<any[]>("/owner/reports/?type=debtors"),
+    debtorPaymentCreate: (data: { customer: number; amount: number; payment_type?: string; receipt_number?: string; notes?: string }) =>
+      authFetch<any>("/owner/debtors/payments/", { method: "POST", body: JSON.stringify(data) }),
     commissions: (visitor_id?: number) => authFetch<any>(`/owner/commissions/${visitor_id ? `?visitor_id=${visitor_id}` : ""}`),
     commissionRuleUpdate: (data: { visitor_id: number; percentage: number; apply_to_unpaid?: boolean; notes?: string }) =>
       authFetch<any>("/owner/commissions/", { method: "PATCH", body: JSON.stringify(data) }),

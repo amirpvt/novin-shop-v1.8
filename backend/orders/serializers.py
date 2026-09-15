@@ -17,16 +17,19 @@ def get_effective_retail_price(product):
 
 
 def get_effective_wholesale_price(product):
-    """قیمت نهایی عمده برای نمایش آیتم‌های درخواست عمده."""
+    """قیمت نهایی عمده: اول قیمت عمده، بعد قیمت تخفیفی، بعد قیمت اصلی."""
     if not product:
         return 0
     try:
         pricing = product.dashboard_pricing
-        if pricing.is_active:
+        if pricing.is_active and pricing.wholesale_price is not None and pricing.wholesale_price > 0:
             return pricing.wholesale_price
     except Exception:
         pass
-    return product.wholesale_price if getattr(product, "wholesale_price", None) else product.price
+    discount = getattr(product, "discount_price", None)
+    if discount and discount > 0 and discount < product.price:
+        return discount
+    return product.price
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -195,11 +198,7 @@ class WholesaleRequestSerializer(serializers.ModelSerializer):
             product = item.product
             if not product:
                 continue
-            try:
-                pricing = product.dashboard_pricing
-                price = pricing.wholesale_price if pricing.is_active else product.price
-            except Exception:
-                price = product.price
+            price = get_effective_wholesale_price(product)
             total += price * item.quantity
         return total
 
@@ -230,11 +229,7 @@ class WholesaleRequestCreateSerializer(serializers.ModelSerializer):
             prod = products_by_id.get(item["product_id"])
             qty = item["quantity"]
             if prod:
-                try:
-                    pricing = prod.dashboard_pricing
-                    unit_price = pricing.wholesale_price if pricing.is_active else prod.price
-                except Exception:
-                    unit_price = prod.price
+                unit_price = get_effective_wholesale_price(prod)
                 total += unit_price * qty
             bulk.append(WholesaleRequestItem(request=req, product=prod, product_name=prod.name if prod else f"Product {item['product_id']}", quantity=qty, notes=item.get("notes","")))
         WholesaleRequestItem.objects.bulk_create(bulk)

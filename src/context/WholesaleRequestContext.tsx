@@ -1,5 +1,7 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { type Product } from '../data';
+
+const WHOLESALE_CART_STORAGE_KEY = 'novin_wholesale_request_cart';
 
 export interface WholesaleItem {
   id: number;
@@ -23,7 +25,23 @@ interface WholesaleRequestContextType {
 const WholesaleRequestContext = createContext<WholesaleRequestContextType | undefined>(undefined);
 
 export function WholesaleRequestProvider({ children }: { children: ReactNode }) {
-  const [wholesaleItems, setWholesaleItems] = useState<WholesaleItem[]>([]);
+  const [wholesaleItems, setWholesaleItems] = useState<WholesaleItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(WHOLESALE_CART_STORAGE_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WHOLESALE_CART_STORAGE_KEY, JSON.stringify(wholesaleItems));
+    } catch {
+      // اگر مرورگر اجازه ذخیره نداد، سبد در حافظه صفحه باقی می‌ماند.
+    }
+  }, [wholesaleItems]);
 
   const addWholesaleItem = (product: Product) => {
     setWholesaleItems((prev) => {
@@ -55,7 +73,14 @@ export function WholesaleRequestProvider({ children }: { children: ReactNode }) 
     );
   };
 
-  const clearWholesaleRequest = () => setWholesaleItems([]);
+  const clearWholesaleRequest = () => {
+    setWholesaleItems([]);
+    try {
+      localStorage.removeItem(WHOLESALE_CART_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <WholesaleRequestContext.Provider

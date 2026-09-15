@@ -185,11 +185,12 @@ async function apiGet<T>(path: string): Promise<T[]> {
 }
 
 const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
-  PENDING: { label: "در انتظار", cls: "bg-amber-100 text-amber-800 border-amber-200" },
-  CONFIRMED: { label: "تأیید شده", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-  PREPARING: { label: "آماده‌سازی", cls: "bg-blue-100 text-blue-800 border-blue-200" },
+  PENDING: { label: "در انتظار پرداخت", cls: "bg-amber-100 text-amber-800 border-amber-200" },
+  PAID_PENDING_REVIEW: { label: "پرداخت شده / در انتظار بررسی", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  CONFIRMED: { label: "تأیید شده", cls: "bg-blue-100 text-blue-800 border-blue-200" },
+  PREPARING: { label: "در حال آماده‌سازی", cls: "bg-violet-100 text-violet-800 border-violet-200" },
   SHIPPED: { label: "ارسال شده", cls: "bg-indigo-100 text-indigo-800 border-indigo-200" },
-  DELIVERED: { label: "تحویل شده", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  DELIVERED: { label: "تحویل داده شده", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" },
   CANCELLED: { label: "لغو شده", cls: "bg-rose-100 text-rose-800 border-rose-200" },
 };
 

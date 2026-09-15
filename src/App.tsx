@@ -7,12 +7,16 @@ import Footer from "./components/Footer";
 import AdminPanel from "./pages/AdminPanel";
 import { siteName } from "./data";
 import { useRetailCart } from "./context/RetailCartContext";
-import { useWholesaleRequest } from "./context/WholesaleRequestContext";
 import { useToast } from "./hooks/useToast";
 import { useAuth } from "./hooks/useAuth";
 import { useProducts } from "./hooks/useProducts";
 import { useNavigation } from "./hooks/useNavigation";
 import { useOrders } from "./hooks/useOrders";
+import { ordersApi, wholesaleApi } from "./api/client";
+
+const PENDING_WHOLESALE_CHECKOUT_KEY = "novin_pending_wholesale_checkout";
+
+type AuthCheckoutTarget = "retail" | "wholesale" | null;
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -31,7 +35,6 @@ export default function App() {
     goRetailCart,
     goWholesaleRequest,
     goProductDetails,
-    goOrderSuccess,
     handleSearch,
   } = useNavigation();
 
@@ -40,43 +43,101 @@ export default function App() {
   // پنل‌های داخلی داشبورد: هدر اصلی سایت (Navbar) نمایش داده نمی‌شود
   const isDashboardPanel = location.pathname.startsWith("/dashboard/manager") || location.pathname.startsWith("/dashboard/visitor");
 
-  const { getRetailCount, clearRetailCart, addRetailItem } = useRetailCart();
-  const { clearWholesaleRequest } = useWholesaleRequest();
+  const { getRetailCount, addRetailItem } = useRetailCart();
 
   const { products, loading: productsLoading } = useProducts();
-  const { orders, createOrder, addWholesaleOrder } = useOrders();
+  const { orders } = useOrders();
 
   const { toast, showToast } = useToast();
   const { user, login, logout } = useAuth();
 
   const [authOpen, setAuthOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState("login");
-  const [authCheckoutMode, setAuthCheckoutMode] = useState(false);
+  const [authCheckoutTarget, setAuthCheckoutTarget] = useState<AuthCheckoutTarget>(null);
 
-  // ✅ لاگین خودکار بر اساس نقش - فقط همین بخش تغییر کرده
-  const handleLogin = (newUser: any) => {
+  // ✅ لاگین خودکار بر اساس نقش
+  const handleLogin = async (newUser: any) => {
     login(newUser);
     showToast(`خوش آمدید، ${newUser.name || newUser.username}`);
 
     // بستن مودال ورود
     setAuthOpen(false);
 
-    // ریدایرکت خودکار بر اساس نقش
-    setTimeout(() => {
-      if (newUser.role === "manager" || newUser.role === "superadmin") {
-        // مدیرکل -> /dashboard/manager
-        window.location.href = "/dashboard/manager";
-      } else if (newUser.role === "admin") {
-        // ادمین فروشگاه -> /admin
-        window.location.href = "/admin";
-      } else if (newUser.role === "visitor") {
-        // ویزیتور -> /dashboard/visitor/today (یا /visitor)
-        window.location.href = "/dashboard/visitor/today";
-      } else {
-        // مشتری: اگر ثبت‌نام برای خرید بوده، بعد از ثبت‌نام به سبد خرید برگردد
-        window.location.href = authCheckoutMode ? "/cart" : "/";
+    if (newUser.role === "manager" || newUser.role === "superadmin") {
+      window.location.href = "/dashboard/manager";
+      return;
+    }
+    if (newUser.role === "admin") {
+      window.location.href = "/admin";
+      return;
+    }
+    if (newUser.role === "visitor") {
+      window.location.href = "/dashboard/visitor/today";
+      return;
+    }
+
+    if (authCheckoutTarget === "wholesale") {
+      const saved = localStorage.getItem(PENDING_WHOLESALE_CHECKOUT_KEY);
+      if (saved) {
+        try {
+          const pending = JSON.parse(saved);
+          if (pending?.formData && Array.isArray(pending.items) && pending.items.length > 0) {
+            localStorage.removeItem(PENDING_WHOLESALE_CHECKOUT_KEY);
+            setAuthCheckoutTarget(null);
+            await startWholesalePayment(pending.formData, pending.items);
+            return;
+          }
+        } catch (err: any) {
+          showToast(err.message || "ثبت‌نام انجام شد، اما ثبت درخواست عمده با خطا روبرو شد");
+          goWholesaleRequest();
+          return;
+        }
       }
-    }, 300);
+      goWholesaleRequest();
+      return;
+    }
+
+    if (authCheckoutTarget === "retail") {
+      setAuthCheckoutTarget(null);
+      try {
+        await startRetailPayment(newUser);
+      } catch (err: any) {
+        showToast(err.message || "ثبت‌نام انجام شد، اما ایجاد پرداخت سفارش جزئی با خطا روبرو شد");
+        goRetailCart();
+      }
+      return;
+    }
+
+    goHome();
+  };
+
+  const startRetailPayment = async (checkoutUser: any = user) => {
+    const cartItems = JSON.parse(localStorage.getItem("novin_shopping_cart") || "[]");
+    if (cartItems.length === 0) {
+      showToast("سبد خرید خالی است");
+      return;
+    }
+    const payment = await ordersApi.createRetailPayment({
+      name: checkoutUser?.name || checkoutUser?.username || "مشتری",
+      phone: checkoutUser?.phone || checkoutUser?.customer?.phone || "",
+      address: checkoutUser?.customer?.address || "",
+      items: cartItems.map((item: any) => ({ product_id: Number(item.id), quantity: item.qty })),
+      callback_url: `${window.location.origin}/payment/verify?type=retail`,
+    });
+    window.location.href = payment.payment_url;
+  };
+
+  const startWholesalePayment = async (formData: any, items: any[]) => {
+    const payment = await wholesaleApi.createPayment({
+      company_name: formData.companyName,
+      contact_person: formData.contactPerson,
+      phone: formData.phone,
+      address: formData.address || "",
+      description: formData.description || "",
+      items: items.map((item: any) => ({ product_id: item.id, quantity: item.quantity, notes: item.notes || "" })),
+      callback_url: `${window.location.origin}/payment/verify?type=wholesale`,
+    });
+    window.location.href = payment.payment_url;
   };
 
   const handleLogout = async () => {
@@ -89,31 +150,14 @@ export default function App() {
     if (!user) {
       showToast("برای ثبت سفارش ابتدا ثبت‌نام کنید و آدرس تحویل را وارد کنید");
       setAuthInitialTab("register");
-      setAuthCheckoutMode(true);
+      setAuthCheckoutTarget("retail");
       setAuthOpen(true);
       return;
     }
     try {
-      const cartItems = JSON.parse(localStorage.getItem("novin_shopping_cart") || "[]");
-      if (cartItems.length === 0) {
-        showToast("سبد خرید خالی است");
-        return;
-      }
-      const order = await createOrder({
-        name: user?.name || user?.username || "مهمان",
-        phone: user?.phone || user?.customer?.phone || "09120000000",
-        address: user?.customer?.address || "",
-        items: cartItems.map((item: any) => ({ 
-
-          product_id: Number(item.id),
-          quantity: item.qty,
-        })),
-      });
-      goOrderSuccess(order.order_number);
-      clearRetailCart();
-      showToast("سفارش شما با موفقیت ثبت شد");
+      await startRetailPayment(user);
     } catch (err: any) {
-      showToast(err.message || "خطا در ثبت سفارش");
+      showToast(err.message || "خطا در ایجاد پرداخت سفارش جزئی");
     }
   };
 
@@ -121,17 +165,15 @@ export default function App() {
     if (!user) {
       showToast("برای ثبت درخواست عمده ابتدا ثبت‌نام کنید و آدرس را وارد کنید");
       setAuthInitialTab("register");
-      setAuthCheckoutMode(true);
+      setAuthCheckoutTarget("wholesale");
+      localStorage.setItem(PENDING_WHOLESALE_CHECKOUT_KEY, JSON.stringify({ formData, items }));
       setAuthOpen(true);
       return;
     }
     try {
-      await addWholesaleOrder(formData, items);
-      clearWholesaleRequest();
-      goHome();
-      showToast("درخواست عمده شما ثبت شد");
+      await startWholesalePayment(formData, items);
     } catch (err: any) {
-      showToast(err.message || "خطا در ثبت درخواست");
+      showToast(err.message || "خطا در ایجاد پرداخت درخواست عمده");
     }
   };
 
@@ -156,7 +198,7 @@ export default function App() {
           onOrder={goWholesaleRequest}
           onAbout={goAbout}
           onContact={goContact}
-          onOpenAuth={() => { setAuthInitialTab("login"); setAuthCheckoutMode(false); setAuthOpen(true); }}
+          onOpenAuth={() => { setAuthInitialTab("login"); setAuthCheckoutTarget(null); setAuthOpen(true); }}
           onLogout={handleLogout}
           onOpenCart={goRetailCart}
           onSearch={handleSearch}
@@ -184,7 +226,7 @@ export default function App() {
 
       <Footer id="contact" siteName={siteName} onOrder={goWholesaleRequest} onShop={() => goShop(null)} onAbout={goAbout} onContact={goContact} />
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onLogin={handleLogin} initialTab={authInitialTab as any} checkoutMode={authCheckoutMode} />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onLogin={handleLogin} initialTab={authInitialTab as any} checkoutMode={authCheckoutTarget !== null} />
 
       {toast && (
         <div className="fixed bottom-8 left-1/2 z-[150] -translate-x-1/2 rounded-2xl bg-stone-900 px-6 py-3.5 text-sm font-bold text-white shadow-2xl">

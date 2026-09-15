@@ -6,16 +6,10 @@
 import { useEffect, useState } from "react";
 import { dashboardApi } from "../services/dashboardApi";
 import { formatJalaliDate } from "../utils/date";
+import { RETAIL_ORDER_STATUS_OPTIONS } from "../utils/orderStatus";
 
 
-const retailStatuses = [
-  { value: "PENDING", label: "در انتظار بررسی", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  { value: "CONFIRMED", label: "تایید شده", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  { value: "PREPARING", label: "در حال آماده‌سازی", color: "bg-violet-50 text-violet-700 border-violet-200" },
-  { value: "SHIPPED", label: "ارسال شده", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  { value: "DELIVERED", label: "تحویل شده", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  { value: "CANCELLED", label: "لغو شده", color: "bg-red-50 text-red-700 border-red-200" },
-];
+const retailStatuses = RETAIL_ORDER_STATUS_OPTIONS;
 const wholesaleStatuses = [
   { value: "NEW", label: "درخواست جدید", color: "bg-amber-50 text-amber-700 border-amber-200" },
   { value: "QUOTED", label: "پیش‌فاکتور صادر شده", color: "bg-blue-50 text-blue-700 border-blue-200" },
@@ -168,7 +162,7 @@ export default function VisitorOrdersPro() {
 
       setStats({
         total,
-        pending: validOrders.filter((o: any) => ["PENDING", "NEW"].includes(o.order_status)).length,
+        pending: validOrders.filter((o: any) => ["PENDING", "PAID_PENDING_REVIEW", "NEW"].includes(o.order_status)).length,
         confirmed: validOrders.filter((o: any) => ["CONFIRMED", "QUOTED", "PREPARING", "SHIPPED", "CONVERTED"].includes(o.order_status)).length,
         delivered: validOrders.filter((o: any) => ["DELIVERED", "CONVERTED"].includes(o.order_status)).length,
         totalSales,
@@ -189,7 +183,7 @@ export default function VisitorOrdersPro() {
   }, []);
 
   const filteredOrders = orders.filter((o: any) => {
-    if (filter === "pending" && !["PENDING", "NEW"].includes(o.order_status)) return false;
+    if (filter === "pending" && !["PENDING", "PAID_PENDING_REVIEW", "NEW"].includes(o.order_status)) return false;
     if (filter === "confirmed" && !["CONFIRMED", "QUOTED", "PREPARING", "SHIPPED", "CONVERTED"].includes(o.order_status)) return false;
     if (filter === "delivered" && !["DELIVERED", "CONVERTED"].includes(o.order_status)) return false;
     if (search && !o.order_number?.toLowerCase().includes(search.toLowerCase()) && !o.name?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -253,9 +247,9 @@ export default function VisitorOrdersPro() {
           <div className="flex gap-2 overflow-x-auto pb-2">
             {[
               { id: "all", label: "همه", count: stats.total },
-              { id: "pending", label: "در انتظار", count: stats.pending },
+              { id: "pending", label: "در انتظار بررسی", count: stats.pending },
               { id: "confirmed", label: "تایید شده", count: stats.confirmed },
-              { id: "delivered", label: "تحویل شده", count: stats.delivered },
+              { id: "delivered", label: "تحویل داده شده", count: stats.delivered },
             ].map((f) => (
               <button key={f.id} onClick={() => setFilter(f.id as any)} className={`px-5 py-2.5 rounded-xl text-sm font-black whitespace-nowrap transition ${filter === f.id ? "bg-stone-900 text-white shadow" : "bg-white border text-stone-600 hover:bg-stone-50"}`}>
                 {f.label} {f.count > 0 && `(${f.count})`}

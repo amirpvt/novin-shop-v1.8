@@ -26,6 +26,22 @@ from accounts.models import Customer
 User = get_user_model()
 
 
+def get_effective_wholesale_price(product):
+    """قیمت عمده: اگر قیمت عمده فعال نبود، تخفیف محصول و سپس قیمت اصلی اعمال می‌شود."""
+    if not product:
+        return 0
+    try:
+        pricing = product.dashboard_pricing
+        if pricing.is_active and pricing.wholesale_price is not None and pricing.wholesale_price > 0:
+            return pricing.wholesale_price
+    except Exception:
+        pass
+    discount = getattr(product, 'discount_price', None)
+    if discount and discount > 0 and discount < product.price:
+        return discount
+    return product.price
+
+
 def calculate_wholesale_request_total(req):
     """محاسبه مبلغ واقعی درخواست عمده از روی اقلام و قیمت عمده محصول"""
     stored_total = getattr(req, 'total_amount', 0) or 0
@@ -38,11 +54,7 @@ def calculate_wholesale_request_total(req):
         product = item.product
         if not product:
             continue
-        try:
-            pricing = product.dashboard_pricing
-            price = pricing.wholesale_price if pricing.is_active else product.price
-        except Exception:
-            price = product.price
+        price = get_effective_wholesale_price(product)
         total += price * item.quantity
 
     if total and not stored_total:
@@ -404,7 +416,10 @@ class OwnerVisitorReport(APIView):
                 retail_orders = Order.objects.filter(user=customer, commission__visitor_id__in=visitor_ids).exclude(order_status='CANCELLED').distinct()
                 wholesale_request_ids = Commission.objects.filter(visitor_id__in=visitor_ids, wholesale_request__user=customer).values_list('wholesale_request_id', flat=True)
                 wholesale_requests = WholesaleRequest.objects.filter(id__in=wholesale_request_ids).exclude(status='REJECTED').distinct()
-                visitor_payments = CashCollection.objects.filter(customer=customer, visitor_id__in=visitor_ids)
+                visitor_payments = CashCollection.objects.filter(
+                    Q(visitor_id__in=visitor_ids) | Q(visitor__is_superuser=True) | Q(visitor__customer_profile__role='manager'),
+                    customer=customer,
+                )
 
                 retail_total = retail_orders.aggregate(s=Sum('total_amount'))['s'] or 0
                 wholesale_total = wholesale_requests.aggregate(s=Sum('total_amount'))['s'] or 0
@@ -425,6 +440,19 @@ class OwnerVisitorReport(APIView):
                 else:
                     last_order_date = last_order or last_wholesale
 
+                recent_payments = [
+                    {
+                        'id': payment.id,
+                        'amount': payment.amount,
+                        'payment_type': payment.payment_type,
+                        'receipt_number': payment.receipt_number,
+                        'notes': payment.notes,
+                        'collected_at': payment.collected_at,
+                        'received_by': payment.visitor.get_full_name() or payment.visitor.username if payment.visitor_id else '',
+                    }
+                    for payment in visitor_payments.select_related('visitor').order_by('-collected_at')[:10]
+                ]
+
                 profile = getattr(customer, 'customer_profile', None)
                 report.append({
                     'id': debt.id if debt else customer.id,
@@ -439,6 +467,7 @@ class OwnerVisitorReport(APIView):
                     'is_overdue': debt.is_overdue if debt else False,
                     'notes': debt.notes if debt else '',
                     'updated_at': debt.updated_at if debt else last_order_date,
+                    'recent_payments': recent_payments,
                 })
 
             return Response(sorted(report, key=lambda x: x['remaining_debt'], reverse=True)[:50])
@@ -466,11 +495,7 @@ class OwnerVisitorReport(APIView):
                     product = item.product
                     if not product:
                         continue
-                    try:
-                        pricing = product.dashboard_pricing
-                        price = pricing.wholesale_price if pricing.is_active else product.price
-                    except Exception:
-                        price = product.price
+                    price = get_effective_wholesale_price(product)
                     wholesale_sales += price * item.quantity
 
             total_sales = retail_sales + wholesale_sales
@@ -695,11 +720,7 @@ class AdminOrderCreate(APIView):
 
             # اگر عمده و مشتری تایید شده، قیمت عمده
             if sale_type == 'wholesale':
-                try:
-                    pricing = product.dashboard_pricing
-                    price = pricing.wholesale_price if pricing.is_active else product.price
-                except ProductPricing.DoesNotExist:
-                    price = product.price
+                price = get_effective_wholesale_price(product)
                 # چک تایید عمده
                 try:
                     if not customer_user.customer_profile.is_wholesale_approved:
@@ -756,8 +777,8 @@ class AdminPendingOrders(APIView):
         # پس باید از طریق Commission فیلتر کنیم
         from .models import Commission
 
-        # همه سفارشات PENDING
-        qs = Order.objects.filter(order_status='PENDING').order_by('-created_at')
+        # سفارش‌های پرداخت‌شده که منتظر بررسی فروشنده هستند
+        qs = Order.objects.filter(order_status='PAID_PENDING_REVIEW').order_by('-created_at')
 
         # سفارشاتی که کمیسیون دارند (یعنی توسط ویزیتور ثبت شده)
         commission_order_ids = Commission.objects.values_list('order_id', flat=True)
@@ -975,11 +996,7 @@ class VisitorOrderCreateWithWeight(APIView):
             weight = to_decimal(item.get('weight'), '0')
 
             if sale_type == 'wholesale':
-                try:
-                    pricing = product.dashboard_pricing
-                    price = pricing.wholesale_price if pricing.is_active else product.price
-                except Exception:
-                    price = product.price
+                price = get_effective_wholesale_price(product)
                 total += price * qty
                 wholesale_items_data.append((product, qty))
             else:
@@ -1054,13 +1071,102 @@ class VisitorOrderCreateWithWeight(APIView):
         return Response(OrderSerializer(order, context={'request': request}).data, status=201)
 
 
+class OwnerDebtPaymentView(APIView):
+    """ثبت پرداخت بدهی مشتری توسط مدیرکل از صفحه بدهکاران"""
+    permission_classes = [IsManager]
+
+    def _visitor_related_customer_ids(self):
+        visitor_ids = User.objects.filter(customer_profile__role='visitor').values_list('id', flat=True)
+        scheduled_customer_ids = VisitSchedule.objects.filter(visitor_id__in=visitor_ids).values_list('customer_id', flat=True)
+        retail_customer_ids = Order.objects.filter(commission__visitor_id__in=visitor_ids).exclude(order_status='CANCELLED').values_list('user_id', flat=True)
+        wholesale_customer_ids = Commission.objects.filter(visitor_id__in=visitor_ids, wholesale_request__isnull=False).values_list('wholesale_request__user_id', flat=True)
+        paid_customer_ids = CashCollection.objects.filter(visitor_id__in=visitor_ids).values_list('customer_id', flat=True)
+        return {
+            customer_id
+            for customer_id in list(scheduled_customer_ids) + list(retail_customer_ids) + list(wholesale_customer_ids) + list(paid_customer_ids)
+            if customer_id
+        }
+
+    def post(self, request):
+        from decimal import Decimal, InvalidOperation
+
+        customer_id = request.data.get('customer')
+        amount_raw = request.data.get('amount')
+        payment_type = request.data.get('payment_type') or 'cash'
+        receipt_number = request.data.get('receipt_number') or ''
+        notes = request.data.get('notes') or ''
+
+        try:
+            amount = Decimal(str(amount_raw))
+        except (InvalidOperation, TypeError, ValueError):
+            return Response({"error": "مبلغ پرداخت معتبر نیست"}, status=400)
+
+        if amount <= 0:
+            return Response({"error": "مبلغ پرداخت باید بیشتر از صفر باشد"}, status=400)
+
+        if not customer_id:
+            return Response({"error": "انتخاب مشتری الزامی است"}, status=400)
+
+        try:
+            customer_id = int(customer_id)
+        except (TypeError, ValueError):
+            return Response({"error": "شناسه مشتری معتبر نیست"}, status=400)
+
+        if customer_id not in self._visitor_related_customer_ids():
+            return Response({"error": "این مشتری در لیست بدهکاران ویزیتورها نیست"}, status=400)
+
+        try:
+            customer = User.objects.get(id=customer_id, customer_profile__role='customer')
+        except User.DoesNotExist:
+            return Response({"error": "مشتری یافت نشد"}, status=404)
+
+        payment = CashCollection.objects.create(
+            visitor=request.user,
+            customer=customer,
+            amount=amount,
+            payment_type=payment_type,
+            receipt_number=receipt_number,
+            notes=notes,
+            collected_at=timezone.now(),
+        )
+
+        debt, _ = CustomerDebt.objects.get_or_create(customer=customer)
+        debt.total_paid = (debt.total_paid or 0) + amount
+        debt.last_payment_date = payment.collected_at
+        debt.save(update_fields=['total_paid', 'last_payment_date', 'updated_at'])
+
+        serializer = CashCollectionSerializer(payment, context={'request': request})
+        return Response(serializer.data, status=201)
+
+
 class VisitorCashCollectionView(APIView):
     """ثبت دریافت وجه نقد از مشتری"""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        # لیست دریافت‌های امروز این ویزیتور
-        qs = CashCollection.objects.filter(visitor=request.user).order_by('-collected_at')[:20]
+        # لیست دریافت‌های مربوط به مشتری‌های همین ویزیتور
+        # پرداخت‌هایی که مدیرکل برای بدهی مشتری‌های این ویزیتور ثبت می‌کند هم نمایش داده می‌شود.
+        related_customer_ids = set(
+            VisitSchedule.objects.filter(visitor=request.user).values_list('customer_id', flat=True)
+        )
+        related_customer_ids.update(
+            Order.objects.filter(commission__visitor=request.user).exclude(order_status='CANCELLED').values_list('user_id', flat=True)
+        )
+        related_customer_ids.update(
+            Commission.objects.filter(visitor=request.user, wholesale_request__isnull=False).values_list('wholesale_request__user_id', flat=True)
+        )
+        related_customer_ids.update(
+            CashCollection.objects.filter(visitor=request.user).values_list('customer_id', flat=True)
+        )
+        related_customer_ids.discard(None)
+
+        qs = CashCollection.objects.filter(
+            Q(visitor=request.user) |
+            (
+                Q(customer_id__in=related_customer_ids) &
+                (Q(visitor__is_superuser=True) | Q(visitor__customer_profile__role='manager'))
+            )
+        ).select_related('visitor', 'customer', 'customer__customer_profile').distinct().order_by('-collected_at')[:20]
         from .serializers import CashCollectionSerializer
         serializer = CashCollectionSerializer(qs, many=True)
         return Response(serializer.data)
@@ -1155,10 +1261,9 @@ class CustomerPriceList(APIView):
             try:
                 pricing = p.dashboard_pricing
                 base = pricing.base_price if pricing.is_active else p.price
-                wholesale = pricing.wholesale_price if pricing.is_active else p.price
             except ProductPricing.DoesNotExist:
                 base = p.price
-                wholesale = p.price * 0.9  # 10% تخفیف فرضی برای عمده
+            wholesale = get_effective_wholesale_price(p)
 
             retail_price = base
             discount = getattr(p, 'discount_price', None)

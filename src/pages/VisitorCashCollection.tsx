@@ -18,6 +18,7 @@ type CashRecord = {
   id: number;
   customer: number;
   customer_name?: string;
+  visitor_name?: string;
   amount: number | string;
   payment_type?: string;
   receipt_number?: string;
@@ -363,7 +364,7 @@ export default function VisitorCashCollection() {
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-black text-slate-900">آخرین دریافت‌ها</h2>
-                <p className="mt-1 text-[10px] font-bold text-slate-400">۲۰ رسید آخر ثبت‌شده توسط شما</p>
+                <p className="mt-1 text-[10px] font-bold text-slate-400">۲۰ رسید آخر مربوط به مشتری‌های شما</p>
               </div>
               <button onClick={load} type="button" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50">بروزرسانی</button>
             </div>
@@ -384,6 +385,7 @@ export default function VisitorCashCollection() {
                         <div>
                           <div className="font-black text-slate-900">{record.customer_name || "مشتری"}</div>
                           <div className="mt-1 text-[11px] font-bold text-slate-400">{formatJalaliDateTime(record.collected_at || record.created_at)}</div>
+                          {record.visitor_name && <div className="mt-1 text-[10px] font-black text-cyan-700">ثبت‌کننده: {record.visitor_name}</div>}
                         </div>
                       </div>
                       <div className="text-left">

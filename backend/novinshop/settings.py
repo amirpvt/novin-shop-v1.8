@@ -190,6 +190,7 @@ FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173").rstrip("/")
 ZARINPAL_MERCHANT_ID = env("ZARINPAL_MERCHANT_ID", default="")
 ZARINPAL_SANDBOX = env.bool("ZARINPAL_SANDBOX", default=DEBUG)
 ZARINPAL_REQUEST_TIMEOUT = env.int("ZARINPAL_REQUEST_TIMEOUT", default=10)
+ZARINPAL_CURRENCY = env("ZARINPAL_CURRENCY", default="IRT")
 
 if not DEBUG:
     if not FRONTEND_URL.startswith("https://") or "localhost" in FRONTEND_URL or "127.0.0.1" in FRONTEND_URL:

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { retailOrderStatusLabel, retailOrderStatusMeta } from "../utils/orderStatus";
 
 function CheckIcon({ className }: { className?: string }) {
   return (
@@ -85,8 +86,8 @@ export default function OrderTracking() {
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-500">وضعیت</span>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${order.order_status === "PENDING" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
-                  {order.order_status}
+                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${retailOrderStatusMeta(order.order_status).color}`}>
+                  {retailOrderStatusLabel(order.order_status)}
                 </span>
               </div>
               <div className="flex justify-between">

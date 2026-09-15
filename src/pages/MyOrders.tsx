@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ordersApi, wholesaleApi, type Order, type WholesaleRequest } from "../api/client";
 import { formatPrice } from "../data";
 import { formatJalaliDateTime } from "../utils/date";
+import { RETAIL_ORDER_STATUS_OPTIONS } from "../utils/orderStatus";
 
 type OrderType = "retail" | "wholesale";
 type Tab = "all" | OrderType;
@@ -23,13 +24,7 @@ type UnifiedOrder = {
   raw: any;
 };
 
-const retailStatuses = [
-  { value: "PENDING", label: "در انتظار بررسی", desc: "سفارش ثبت شده و منتظر بررسی مدیریت است", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  { value: "CONFIRMED", label: "تایید شده", desc: "سفارش تایید شده و وارد صف آماده‌سازی شده است", color: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
-  { value: "PREPARING", label: "در حال آماده‌سازی", desc: "اقلام سفارش در حال آماده‌سازی هستند", color: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500" },
-  { value: "SHIPPED", label: "ارسال شده", desc: "سفارش از انبار خارج شده و در مسیر ارسال است", color: "bg-cyan-50 text-cyan-700 border-cyan-200", dot: "bg-cyan-500" },
-  { value: "DELIVERED", label: "تحویل شده", desc: "سفارش با موفقیت تحویل شده است", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-];
+const retailStatuses = RETAIL_ORDER_STATUS_OPTIONS.filter((s) => s.value !== "CANCELLED");
 
 const wholesaleStatuses = [
   { value: "NEW", label: "درخواست جدید", desc: "درخواست عمده ثبت شده و منتظر بررسی است", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
@@ -379,14 +374,12 @@ function StatusTimeline({ type, status, compact = false }: { type: OrderType; st
             <div>
               <p className="text-sm font-black text-red-700">{type === "retail" ? "لغو شده" : "رد شده"}</p>
               <p className="mt-1 text-xs font-bold leading-6 text-red-500">
-                {type === "retail" ? "این سفارش از چرخه ارسال خارج شده و دیگر در مراحل پیگیری نمایش داده نمی‌شود." : "این درخواست عمده رد شده و دیگر در مراحل پیگیری نمایش داده نمی‌شود."}
+                {type === "retail" ? "این سفارش لغو شد." : "این درخواست عمده رد شد."}
               </p>
             </div>
           </div>
         </div>
-      ) : (
-        <p className="mt-4 text-[11px] font-bold text-stone-500">در موبایل می‌توانید مسیر وضعیت را افقی بکشید؛ کامیون روی مرحله فعلی قرار دارد و اگر تحویل شده باشد اگزوز خاموش است.</p>
-      )}
+      ) : null}
     </div>
   );
 }

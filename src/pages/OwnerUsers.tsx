@@ -2,12 +2,13 @@
  * OwnerUsers.tsx - فیکس 1: هدر 1 سانت پایین‌تر، فیکس 2: مشتری‌ها نمایش داده می‌شوند
  * بقیه دست نخورده
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dashboardApi } from "../services/dashboardApi";
 
 export default function OwnerUsers() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [showPassConfirm, setShowPassConfirm] = useState(false);
   const [form, setForm] = useState({
@@ -89,6 +90,18 @@ export default function OwnerUsers() {
       alert("❌ " + err.message);
     }
   };
+
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u: any) => {
+      const fullName = u.full_name || `${u.first_name || ""} ${u.last_name || ""}`.trim();
+      const roleLabel = u.role === "admin" ? "ادمین" : u.role === "visitor" ? "ویزیتور" : u.role === "customer" ? "مشتری" : u.role;
+      return [u.username, fullName, u.first_name, u.last_name, u.phone, u.email, u.role, roleLabel]
+        .filter(Boolean)
+        .some((value: any) => String(value).toLowerCase().includes(q));
+    });
+  }, [users, search]);
 
   const adminsCount = users.filter((u: any) => u.role === "admin").length;
   const visitorsCount = users.filter((u: any) => u.role === "visitor").length;
@@ -232,11 +245,27 @@ export default function OwnerUsers() {
         </form>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button onClick={() => load()} className="px-5 py-2.5 bg-stone-900 text-white border rounded-xl text-sm font-bold shadow">همه ({users.length})</button>
-        <button onClick={() => { const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api"; const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access; fetch(`${base}/dashboard/owner/users/?role=visitor`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => setUsers(d.results ?? d)); }} className="px-5 py-2.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-sm font-bold hover:bg-blue-100">ویزیتورها</button>
-        <button onClick={() => { const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api"; const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access; fetch(`${base}/dashboard/owner/users/?role=admin`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => setUsers(d.results ?? d)); }} className="px-5 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm font-bold hover:bg-amber-100">ادمین‌ها</button>
-        <button onClick={() => { const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api"; const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access; fetch(`${base}/dashboard/owner/users/?role=customer`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => { setUsers(d.results ?? d); if ((d.results ?? d).length === 0) alert("برای دیدن مشتریان، بک‌اند باید فیکس شود - به زودی"); }); }} className="px-5 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-bold hover:bg-emerald-100">مشتریان ثبت‌نام کرده ✅</button>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => load()} className="px-5 py-2.5 bg-stone-900 text-white border rounded-xl text-sm font-bold shadow">همه ({users.length})</button>
+          <button onClick={() => { const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api"; const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access; fetch(`${base}/dashboard/owner/users/?role=visitor`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => setUsers(d.results ?? d)); }} className="px-5 py-2.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-sm font-bold hover:bg-blue-100">ویزیتورها</button>
+          <button onClick={() => { const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api"; const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access; fetch(`${base}/dashboard/owner/users/?role=admin`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => setUsers(d.results ?? d)); }} className="px-5 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm font-bold hover:bg-amber-100">ادمین‌ها</button>
+          <button onClick={() => { const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api"; const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access; fetch(`${base}/dashboard/owner/users/?role=customer`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => { setUsers(d.results ?? d); if ((d.results ?? d).length === 0) alert("برای دیدن مشتریان، بک‌اند باید فیکس شود - به زودی"); }); }} className="px-5 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-bold hover:bg-emerald-100">مشتریان ثبت‌نام کرده ✅</button>
+        </div>
+
+        <div className="relative w-full lg:max-w-md">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="جستجو بر اساس نام، نام کاربری، موبایل، ایمیل یا نقش..."
+            className="w-full rounded-2xl border-2 border-stone-200 bg-white px-4 py-3 pl-12 text-sm font-bold outline-none transition focus:border-stone-900 focus:bg-white"
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-xl bg-stone-100 px-3 py-1 text-xs font-black text-stone-500 hover:bg-stone-200">
+              پاک کردن
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -246,8 +275,9 @@ export default function OwnerUsers() {
         </div>
       ) : (
         <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b bg-stone-50 flex justify-between items-center">
-            <h3 className="font-black text-lg">لیست کاربران ({users.length})</h3>
+          <div className="p-6 border-b bg-stone-50 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="font-black text-lg">لیست کاربران ({filteredUsers.length}{search.trim() ? ` از ${users.length}` : ""})</h3>
+            {search.trim() && <span className="text-xs font-bold text-stone-500">نتیجه جستجو برای: {search}</span>}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-right text-sm">
@@ -261,7 +291,7 @@ export default function OwnerUsers() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {users.map((u: any) => (
+                {filteredUsers.map((u: any) => (
                   <tr key={u.id} className="hover:bg-stone-50/80 transition group">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -305,11 +335,11 @@ export default function OwnerUsers() {
               </tbody>
             </table>
           </div>
-          {users.length === 0 && (
+          {filteredUsers.length === 0 && (
             <div className="p-12 text-center">
               <div className="text-5xl mb-4">👥</div>
-              <p className="text-stone-500 font-bold">کاربری یافت نشد، کاربر جدید اضافه کنید</p>
-              <p className="text-xs text-stone-400 mt-2">اگر دکمه "مشتریان ثبت‌نام کرده" را زدی و این پیام آمد، یعنی بک‌اند باید فیکس شود تا مشتریان را هم برگرداند</p>
+              <p className="text-stone-500 font-bold">{search.trim() ? "کاربری با این جستجو یافت نشد" : "کاربری یافت نشد، کاربر جدید اضافه کنید"}</p>
+              {!search.trim() && <p className="text-xs text-stone-400 mt-2">اگر دکمه "مشتریان ثبت‌نام کرده" را زدی و این پیام آمد، یعنی بک‌اند باید فیکس شود تا مشتریان را هم برگرداند</p>}
             </div>
           )}
         </div>
