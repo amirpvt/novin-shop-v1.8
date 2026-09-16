@@ -1,6 +1,8 @@
+import json
+from decimal import Decimal, InvalidOperation
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import Product, Category, Brand
+from .models import Product, Category, Brand, ProductWholesaleOption
 
 class CategorySerializer(serializers.ModelSerializer):
     product_count = serializers.SerializerMethodField()
@@ -24,6 +26,13 @@ class BrandSerializer(serializers.ModelSerializer):
             rep['logo'] = request.build_absolute_uri(instance.logo.url) if request else instance.logo.url
         return rep
 
+class ProductWholesaleOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductWholesaleOption
+        fields = ["id", "code", "label", "unit_price", "is_active", "order"]
+        read_only_fields = ["id"]
+
+
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     brand_name = serializers.CharField(source="brand.name", read_only=True, default="")
@@ -33,6 +42,7 @@ class ProductSerializer(serializers.ModelSerializer):
     wholesale_unit_display = serializers.CharField(source="get_wholesale_unit_display", read_only=True)
     base_price = serializers.SerializerMethodField()
     wholesale_price = serializers.SerializerMethodField()
+    wholesale_options = ProductWholesaleOptionSerializer(many=True, required=False)
 
     class Meta:
         model = Product
@@ -42,7 +52,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "base_price", "wholesale_price",
             "unit", "retail_unit", "retail_unit_display",
             "wholesale_unit", "wholesale_unit_display",
-            "wholesale_min_quantity",
+            "wholesale_min_quantity", "wholesale_options",
             "tag", "badge", "image", "stock", "weight", "available", "order", "is_featured", "status", "sku", "barcode",
         ]
         read_only_fields = ["id", "slug", "retail_unit_display", "wholesale_unit_display", "base_price", "wholesale_price"]
@@ -54,20 +64,38 @@ class ProductSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def _to_decimal(self, value, default=0):
+        try:
+            if value in (None, ""):
+                return Decimal(default)
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError):
+            return Decimal(default)
+
     def get_base_price(self, obj):
         pricing = self._get_dashboard_pricing(obj)
-        return pricing.base_price if pricing else obj.price
+        return self._to_decimal(pricing.base_price) if pricing else obj.price
 
     def get_wholesale_price(self, obj):
         pricing = self._get_dashboard_pricing(obj)
-        if pricing and pricing.wholesale_price is not None and pricing.wholesale_price > 0:
-            return pricing.wholesale_price
+        wholesale_price = self._to_decimal(pricing.wholesale_price) if pricing and pricing.wholesale_price is not None else Decimal("0")
+        if wholesale_price > 0:
+            return wholesale_price
         discount = getattr(obj, "discount_price", None)
-        if discount and discount > 0 and discount < obj.price:
-            return discount
+        discount_price = self._to_decimal(discount) if discount is not None else Decimal("0")
+        product_price = self._to_decimal(obj.price)
+        if discount_price > 0 and discount_price < product_price:
+            return discount_price
         return obj.price
 
     def to_internal_value(self, data):
+        if "wholesale_options" in data and isinstance(data.get("wholesale_options"), str):
+            if hasattr(data, "copy"):
+                data = data.copy()
+            try:
+                data["wholesale_options"] = json.loads(data.get("wholesale_options") or "[]")
+            except json.JSONDecodeError:
+                raise serializers.ValidationError({"wholesale_options": "فرمت گزینه‌های عمده معتبر نیست"})
         brand_input = data.get("brand")
         if brand_input is not None and brand_input != "" and brand_input != "null":
             try:
@@ -110,12 +138,58 @@ class ProductSerializer(serializers.ModelSerializer):
             product.brand.logo = brand_logo
             product.brand.save(update_fields=["logo", "updated_at"])
 
+    def _initial_wholesale_options_data(self):
+        if not hasattr(self, "initial_data"):
+            return None
+        raw = self.initial_data.get("wholesale_options")
+        if raw in (None, ""):
+            return None
+        if isinstance(raw, str):
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                return None
+        return raw
+
+    def _sync_wholesale_options(self, product, options_data):
+        if options_data is None:
+            return
+        ProductWholesaleOption.objects.filter(product=product).delete()
+        bulk = []
+        used_codes = set()
+        for idx, option in enumerate(options_data):
+            label = str(option.get("label") or "").strip()
+            code = str(option.get("code") or label or f"option-{idx + 1}").strip()
+            unit_price = option.get("unit_price")
+            if not label or unit_price in (None, ""):
+                continue
+            code = code[:30]
+            base_code = code
+            counter = 2
+            while code in used_codes:
+                code = f"{base_code[:24]}-{counter}"
+                counter += 1
+            used_codes.add(code)
+            bulk.append(ProductWholesaleOption(
+                product=product,
+                code=code,
+                label=label[:60],
+                unit_price=unit_price,
+                is_active=bool(option.get("is_active", True)),
+                order=option.get("order", idx),
+            ))
+        if bulk:
+            ProductWholesaleOption.objects.bulk_create(bulk)
+
     def create(self, validated_data):
         from django.utils.text import slugify
         from django.db import IntegrityError
         import time
 
         brand_logo = validated_data.pop("brand_logo", None)
+        wholesale_options_data = validated_data.pop("wholesale_options", None)
+        if wholesale_options_data is None:
+            wholesale_options_data = self._initial_wholesale_options_data()
         name = validated_data.get("name", "")
         base_slug = slugify(name, allow_unicode=True) or f"product-{Product.objects.count()+1}"
         slug = base_slug
@@ -136,10 +210,14 @@ class ProductSerializer(serializers.ModelSerializer):
             validated_data["slug"] = f"{base_slug}-{int(time.time() * 1000)}"
             product = super().create(validated_data)
         self._save_brand_logo(product, brand_logo)
+        self._sync_wholesale_options(product, wholesale_options_data)
         return product
 
     def update(self, instance, validated_data):
         brand_logo = validated_data.pop("brand_logo", None)
+        wholesale_options_data = validated_data.pop("wholesale_options", None)
+        if wholesale_options_data is None:
+            wholesale_options_data = self._initial_wholesale_options_data()
         if "name" in validated_data and validated_data["name"] != instance.name:
             from django.utils.text import slugify
             base_slug = slugify(validated_data["name"], allow_unicode=True) or instance.slug
@@ -153,4 +231,5 @@ class ProductSerializer(serializers.ModelSerializer):
             validated_data["available"] = validated_data["stock"] > 0
         product = super().update(instance, validated_data)
         self._save_brand_logo(product, brand_logo)
+        self._sync_wholesale_options(product, wholesale_options_data)
         return product

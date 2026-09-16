@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { siteName, siteSlogan, phone } from "../data";
 import { PhoneIcon } from "./icons";
 
@@ -6,15 +7,69 @@ type Props = {
   onOrder: () => void;
 };
 
+const bannerImages = [
+  "/images/banners/banner1.png",
+  "/images/banners/banner2.png",
+  "/images/banners/banner3.png",
+  "/images/banners/banner4.png",
+  "/images/banners/banner5.png",
+  "/images/banners/banner6.png",
+];
+
 export default function Banner({ onProducts, onOrder }: Props) {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % bannerImages.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const goPrev = () => {
+    setActiveIndex((prev) => (prev - 1 + bannerImages.length) % bannerImages.length);
+  };
+
+  const goNext = () => {
+    setActiveIndex((prev) => (prev + 1) % bannerImages.length);
+  };
+
   return (
     <section className="relative isolate overflow-hidden">
-      <img
-        src="/images/banners/banner11.png"
-        alt="پخش سوسیس و کالباس نوین"
-        className="absolute inset-0 -z-20 h-full w-full object-cover"
-      />
+      <div className="absolute inset-0 -z-20 overflow-hidden" dir="ltr">
+        <div
+          className="flex h-full w-full transition-transform duration-700 ease-in-out"
+          style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+        >
+          {bannerImages.map((src) => (
+            <div key={src} className="h-full w-full flex-shrink-0">
+              <img
+                src={src}
+                alt="پخش سوسیس و کالباس نوین"
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="absolute inset-0 -z-10 bg-gradient-to-l from-stone-950/55 via-stone-900/30 to-stone-950/15" />
+
+      <button
+        type="button"
+        onClick={goNext}
+        className="absolute right-4 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-stone-950/35 text-2xl font-black text-white shadow-xl backdrop-blur transition hover:bg-white/20 sm:flex"
+        aria-label="تصویر قبلی"
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        onClick={goPrev}
+        className="absolute left-4 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-stone-950/35 text-2xl font-black text-white shadow-xl backdrop-blur transition hover:bg-white/20 sm:flex"
+        aria-label="تصویر بعدی"
+      >
+        ›
+      </button>
 
       <div className="mx-auto flex max-w-7xl flex-col items-center px-4 py-20 text-center sm:px-6 sm:py-28 lg:py-32">
         {/* 🆕 لوگوی بزرگ روی بنر */}
@@ -66,6 +121,18 @@ export default function Banner({ onProducts, onOrder }: Props) {
           <PhoneIcon className="h-4 w-4 text-amber-300" />
           سفارش تلفنی: {phone}
         </a>
+
+        <div className="mt-8 flex items-center gap-2" dir="ltr">
+          {bannerImages.map((src, idx) => (
+            <button
+              key={src}
+              type="button"
+              onClick={() => setActiveIndex(idx)}
+              className={`h-2.5 rounded-full transition-all ${idx === activeIndex ? "w-8 bg-white" : "w-2.5 bg-white/40 hover:bg-white/70"}`}
+              aria-label={`نمایش تصویر ${idx + 1}`}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );

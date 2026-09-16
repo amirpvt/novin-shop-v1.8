@@ -2,6 +2,7 @@
 Product views - Phase 3
 Admin CRUD + ReadOnly for public
 """
+from decimal import Decimal, InvalidOperation
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Product, Category, Brand
@@ -43,9 +44,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         # ادمین همه محصولات را ببیند، کاربران عادی فقط موجودها
         user = self.request.user
         if user and user.is_staff:
-            return Product.objects.all()
+            return Product.objects.prefetch_related("wholesale_options").all()
         # برای لیست عمومی فقط published و available
-        return Product.objects.filter(status="published", available=True)
+        return Product.objects.prefetch_related("wholesale_options").filter(status="published", available=True)
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
@@ -57,12 +58,17 @@ class ProductViewSet(viewsets.ModelViewSet):
         if wholesale_price in (None, ""):
             return
         try:
+            base_price = Decimal(str(self.request.data.get("price", product.price) or product.price))
+            wholesale = Decimal(str(wholesale_price))
+        except (InvalidOperation, TypeError, ValueError):
+            return
+        try:
             from dashboard.models import ProductPricing
             ProductPricing.objects.update_or_create(
                 product=product,
                 defaults={
-                    "base_price": self.request.data.get("price", product.price) or product.price,
-                    "wholesale_price": wholesale_price,
+                    "base_price": base_price,
+                    "wholesale_price": wholesale,
                     "is_active": True,
                     "updated_by": self.request.user if self.request.user.is_authenticated else None,
                 },

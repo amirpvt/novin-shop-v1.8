@@ -25,7 +25,7 @@ from .serializers import (
 )
 from .services import PaymentService
 from .serializers import get_effective_retail_price, get_effective_wholesale_price
-from products.models import Product
+from products.models import Product, ProductWholesaleOption
 
 
 # ─── Retail Orders ───────────────────────────────────────────────────
@@ -444,8 +444,14 @@ class WholesalePaymentCreateView(APIView):
                 quantity = 1
             if quantity < 1:
                 return Response({"error": f"تعداد محصول {product.name} معتبر نیست"}, status=status.HTTP_400_BAD_REQUEST)
-            amount += get_effective_wholesale_price(product) * quantity
-            normalized_items.append({"product_id": product.id, "quantity": quantity, "notes": item.get("notes", "")})
+            option_id = item.get("wholesale_option_id")
+            option = None
+            if option_id:
+                option = ProductWholesaleOption.objects.filter(id=option_id, product=product, is_active=True).first()
+                if not option:
+                    return Response({"error": f"نوع عمده انتخاب‌شده برای {product.name} معتبر نیست"}, status=status.HTTP_400_BAD_REQUEST)
+            amount += get_effective_wholesale_price(product, option.id if option else None) * quantity
+            normalized_items.append({"product_id": product.id, "quantity": quantity, "wholesale_option_id": option.id if option else None, "notes": item.get("notes", "")})
 
         if amount <= 0:
             return Response({"error": "مبلغ پرداخت معتبر نیست"}, status=status.HTTP_400_BAD_REQUEST)

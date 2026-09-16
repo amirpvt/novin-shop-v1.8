@@ -481,6 +481,7 @@ function OrderDetailsModal({ order, onClose }: { order: UnifiedOrder; onClose: (
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black text-stone-900">{item.product_name || item.name || "محصول"}</p>
                       <p dir="ltr" className="mt-1 text-right font-mono text-xs font-black text-paprika-700">*{qty.toLocaleString("en-US")}</p>
+                      {item.wholesale_option_label && <p className="mt-1 text-xs font-bold text-gold-700">نوع عمده: {item.wholesale_option_label}</p>}
                       {item.notes && <p className="mt-1 text-xs font-bold text-stone-400">{item.notes}</p>}
                       <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-black">
                         <span className="rounded-xl bg-stone-50 px-3 py-1.5 text-stone-600">تعداد: {qty.toLocaleString("en-US")}</span>

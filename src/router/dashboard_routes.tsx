@@ -14,6 +14,7 @@ import OwnerPricing from "../pages/OwnerPricing";
 import OwnerCommissions from "../pages/OwnerCommissions";
 import OwnerOrdersManagement from "../pages/OwnerOrdersManagement";
 import OwnerUsers from "../pages/OwnerUsers";
+import OwnerTransport from "../pages/OwnerTransport";
 
 // Admin pages
 import AdminStoreDashboard from "../pages/AdminStoreDashboard";
@@ -100,6 +101,16 @@ export default function DashboardRoutes() {
           <RoleGuard allowedRoles={["manager"]}>
             <DashboardLayout role="manager">
               <OwnerCommissions />
+            </DashboardLayout>
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/manager/transport"
+        element={
+          <RoleGuard allowedRoles={["manager"]}>
+            <DashboardLayout role="manager">
+              <OwnerTransport />
             </DashboardLayout>
           </RoleGuard>
         }

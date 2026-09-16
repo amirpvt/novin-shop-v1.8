@@ -10,6 +10,9 @@ export interface WholesaleItem {
   image: string;
   quantity: number;
   notes?: string;
+  wholesale_option_id?: number | null;
+  wholesale_option_label?: string;
+  wholesale_unit_price?: number;
 }
 
 interface WholesaleRequestContextType {
@@ -18,6 +21,7 @@ interface WholesaleRequestContextType {
   removeWholesaleItem: (productId: number) => void;
   updateWholesaleQuantity: (productId: number, qty: number) => void;
   updateWholesaleNotes: (productId: number, notes: string) => void;
+  updateWholesaleOption: (productId: number, optionId: number | null, label?: string, unitPrice?: number) => void;
   clearWholesaleRequest: () => void;
   getWholesaleCount: () => number;
 }
@@ -47,12 +51,17 @@ export function WholesaleRequestProvider({ children }: { children: ReactNode }) 
     setWholesaleItems((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) return prev;
+      const options = ((product as any).wholesale_options || []).filter((o: any) => o.is_active !== false && Number(o.unit_price || 0) > 0);
+      const firstOption = options[0];
       return [...prev, { 
         id: product.id, 
         name: product.name, 
         unit: product.unit, 
         image: product.image, 
-        quantity: 10 // Default wholesale min
+        quantity: (product as any).wholesale_min_quantity || 10,
+        wholesale_option_id: firstOption?.id ?? null,
+        wholesale_option_label: firstOption?.label || "",
+        wholesale_unit_price: firstOption ? Number(firstOption.unit_price || 0) : Number((product as any).wholesale_price || product.price || 0),
       }];
     });
   };
@@ -73,6 +82,12 @@ export function WholesaleRequestProvider({ children }: { children: ReactNode }) 
     );
   };
 
+  const updateWholesaleOption = (productId: number, optionId: number | null, label = "", unitPrice = 0) => {
+    setWholesaleItems((prev) =>
+      prev.map((item) => (item.id === productId ? { ...item, wholesale_option_id: optionId, wholesale_option_label: label, wholesale_unit_price: unitPrice } : item))
+    );
+  };
+
   const clearWholesaleRequest = () => {
     setWholesaleItems([]);
     try {
@@ -90,6 +105,7 @@ export function WholesaleRequestProvider({ children }: { children: ReactNode }) 
         removeWholesaleItem,
         updateWholesaleQuantity,
         updateWholesaleNotes,
+        updateWholesaleOption,
         clearWholesaleRequest,
         getWholesaleCount: () => wholesaleItems.length,
       }}

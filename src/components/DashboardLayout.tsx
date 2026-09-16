@@ -19,6 +19,7 @@ const menuByRole: Record<Role, { label: string; path: string; icon: string }[]> 
     { label: "برنامه امروز", path: "/dashboard/manager/today", icon: "📅" },
     { label: "مدیریت محصولات", path: "/dashboard/manager/pricing", icon: "💰" },
     { label: "مدیریت سفارش‌ها", path: "/dashboard/manager/orders", icon: "📦" },
+    { label: "حمل و نقل", path: "/dashboard/manager/transport", icon: "🚚" },
     { label: "پورسانت‌ها", path: "/dashboard/manager/commissions", icon: "💎" },
     { label: "مدیریت کاربران", path: "/dashboard/manager/users", icon: "👥" },
     { label: "گزارش ویزیتورها", path: "/dashboard/manager/visitors", icon: "📈" },

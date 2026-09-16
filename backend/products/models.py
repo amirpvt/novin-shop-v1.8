@@ -149,3 +149,29 @@ class Product(models.Model):
 
     def get_wholesale_unit_display(self):
         return dict(UNIT_CHOICES).get(self.wholesale_unit, self.wholesale_unit)
+
+
+class ProductWholesaleOption(models.Model):
+    product = models.ForeignKey(Product, related_name="wholesale_options", on_delete=models.CASCADE, verbose_name="محصول")
+    code = models.CharField("کد نوع عمده", max_length=30)
+    label = models.CharField("عنوان نوع عمده", max_length=60)
+    unit_price = models.DecimalField("قیمت این نوع عمده (تومان)", max_digits=12, decimal_places=0)
+    is_active = models.BooleanField("فعال", default=True)
+    order = models.PositiveIntegerField("ترتیب نمایش", default=0)
+    created_at = models.DateTimeField("تاریخ ایجاد", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین بروزرسانی", auto_now=True)
+
+    class Meta:
+        verbose_name = "گزینه فروش عمده محصول"
+        verbose_name_plural = "گزینه‌های فروش عمده محصول"
+        ordering = ["order", "id"]
+        unique_together = ("product", "code")
+        indexes = [
+            models.Index(fields=["product", "is_active", "order"], name="whopt_product_active_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(unit_price__gte=0), name="whopt_price_non_negative"),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.label}"

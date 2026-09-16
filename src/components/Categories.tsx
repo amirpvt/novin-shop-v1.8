@@ -9,12 +9,14 @@ const CAT_IMAGES_LOCAL: Record<string, string> = {
   "سس": "/images/categories/sauces.jpg",
   "ترشی، خیارشور و زیتون": "/images/categories/pickles-olives.jpg",
   "نوشیدنی ها": "/images/categories/drinks.jpg",
+  "پنیر ها": "/images/categories/cheese.jpg",
   sausage: "/images/categories/sausage.jpg",
   kalbas: "/images/categories/calbas.jpg",
   frozen: "/images/categories/frozen-products.jpg",
   sauce: "/images/categories/sauces.jpg",
   "pickles-olives": "/images/categories/pickles-olives.jpg",
   drinks: "/images/categories/drinks.jpg",
+  cheese: "/images/categories/cheese.jpg",
   // fallback اضافی
   default1: "/images/categories/p1.jpg",
   default2: "/images/categories/p3.jpg",
@@ -28,12 +30,14 @@ const CAT_SUB: Record<string, string> = {
   "سس": "انواع سس برای فست‌فود، رستوران و مصرف خانگی",
   "ترشی، خیارشور و زیتون": "ترشیجات، خیارشور و زیتون مناسب سفارش‌های غذایی",
   "نوشیدنی ها": "نوشیدنی‌های سرد و مکمل سفارش‌های غذایی",
+  "پنیر ها": "انواع پنیر مناسب فست‌فود، رستوران و مصرف خانگی",
   sausage: "سوسیس آلمانی، دودی، مرغ",
   kalbas: "کالباس گوشت و مرغ",
   frozen: "ناگت، کتلت، برگر",
   sauce: "انواع سس برای فست‌فود و رستوران",
   "pickles-olives": "ترشیجات، خیارشور و زیتون",
   drinks: "نوشیدنی‌های سرد و مکمل سفارش",
+  cheese: "انواع پنیر مناسب فست‌فود و رستوران",
 };
 
 type Props = {
@@ -80,7 +84,7 @@ export default function Categories({ onSelect }: Props) {
       return cat.image;
     }
     // ✅ فقط عکس‌های لوکال پروژه
-    return CAT_IMAGES_LOCAL[cat.name] || CAT_IMAGES_LOCAL[cat.slug] || `/images/p${(cat.id % 8) + 1}.jpg`;
+    return CAT_IMAGES_LOCAL[cat.name] || CAT_IMAGES_LOCAL[cat.slug] || CAT_IMAGES_LOCAL[`default${(cat.id % 3) + 1}`] || "/images/placeholder.jpg";
   };
 
   if (loading) {
@@ -123,9 +127,12 @@ export default function Categories({ onSelect }: Props) {
                 src={getImageUrl(cat)}
                 alt={cat.name}
                 loading="lazy"
+                onError={(event) => {
+                  event.currentTarget.src = "/images/placeholder.jpg";
+                }}
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-110"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/70 to-stone-950/10 transition group-hover:from-paprika-950 group-hover:via-stone-950/75" />
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-stone-950/20 to-transparent transition group-hover:from-stone-950/60 group-hover:via-stone-950/10" />
 
               <div className="relative z-10 p-8 text-white">
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold backdrop-blur">

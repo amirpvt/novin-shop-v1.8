@@ -70,7 +70,7 @@ export default function AboutPage({ onBack, onShop, onOrder }: Props) {
       {/* HERO */}
       <section className="relative isolate overflow-hidden">
         <img
-          src="/images/banners/banner7.png"
+          src="/images/banners/banner5.png"
           alt="درباره پخش سوسیس و کالباس نوین"
           className="absolute inset-0 -z-20 h-full w-full object-cover"
         />

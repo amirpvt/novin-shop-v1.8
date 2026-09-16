@@ -162,7 +162,10 @@ class WholesaleRequest(models.Model):
 class WholesaleRequestItem(models.Model):
     request = models.ForeignKey(WholesaleRequest, related_name="items", on_delete=models.CASCADE)
     product = models.ForeignKey("products.Product", related_name="wholesale_items", on_delete=models.SET_NULL, null=True, blank=True)
+    wholesale_option = models.ForeignKey("products.ProductWholesaleOption", related_name="wholesale_items", on_delete=models.SET_NULL, null=True, blank=True, verbose_name="نوع فروش عمده")
     product_name = models.CharField("نام محصول", max_length=150)
+    wholesale_option_label = models.CharField("عنوان نوع عمده", max_length=60, blank=True)
+    wholesale_unit_price = models.DecimalField("قیمت نوع عمده در زمان سفارش", max_digits=12, decimal_places=0, default=0)
     quantity = models.PositiveIntegerField("تعداد مورد نیاز")
     notes = models.TextField("توضیحات اختصاصی", blank=True)
 

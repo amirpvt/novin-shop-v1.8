@@ -4,7 +4,7 @@ orders/serializers.py - MyOrders with product images
 """
 from django.db import transaction
 from rest_framework import serializers
-from products.models import Product
+from products.models import Product, ProductWholesaleOption
 from .models import Order, OrderItem, WholesaleRequest, WholesaleRequestItem
 
 
@@ -16,10 +16,17 @@ def get_effective_retail_price(product):
     return product.price
 
 
-def get_effective_wholesale_price(product):
-    """قیمت نهایی عمده: اول قیمت عمده، بعد قیمت تخفیفی، بعد قیمت اصلی."""
+def get_effective_wholesale_price(product, wholesale_option_id=None):
+    """قیمت نهایی عمده: اول گزینه انتخابی عمده، بعد قیمت عمده، بعد قیمت تخفیفی، بعد قیمت اصلی."""
     if not product:
         return 0
+    if wholesale_option_id:
+        try:
+            option = ProductWholesaleOption.objects.get(id=wholesale_option_id, product=product, is_active=True)
+            if option.unit_price is not None and option.unit_price > 0:
+                return option.unit_price
+        except ProductWholesaleOption.DoesNotExist:
+            pass
     try:
         pricing = product.dashboard_pricing
         if pricing.is_active and pricing.wholesale_price is not None and pricing.wholesale_price > 0:
@@ -152,14 +159,14 @@ class WholesaleRequestItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WholesaleRequestItem
-        fields = ["id", "product", "product_name", "quantity", "notes", "price", "subtotal", "product_image"]
+        fields = ["id", "product", "product_name", "quantity", "notes", "wholesale_option", "wholesale_option_label", "wholesale_unit_price", "price", "subtotal", "product_image"]
         read_only_fields = fields
 
     def get_price(self, obj):
-        return get_effective_wholesale_price(obj.product)
+        return obj.wholesale_unit_price if obj.wholesale_unit_price and obj.wholesale_unit_price > 0 else get_effective_wholesale_price(obj.product)
 
     def get_subtotal(self, obj):
-        return get_effective_wholesale_price(obj.product) * obj.quantity
+        return self.get_price(obj) * obj.quantity
 
     def get_product_image(self, obj):
         if obj.product and obj.product.image and hasattr(obj.product.image, 'url'):
@@ -176,6 +183,7 @@ class WholesaleRequestItemSerializer(serializers.ModelSerializer):
 class WholesaleRequestItemInputSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     quantity = serializers.IntegerField(min_value=1)
+    wholesale_option_id = serializers.IntegerField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 class WholesaleRequestSerializer(serializers.ModelSerializer):
@@ -198,7 +206,7 @@ class WholesaleRequestSerializer(serializers.ModelSerializer):
             product = item.product
             if not product:
                 continue
-            price = get_effective_wholesale_price(product)
+            price = item.wholesale_unit_price if item.wholesale_unit_price and item.wholesale_unit_price > 0 else get_effective_wholesale_price(product)
             total += price * item.quantity
         return total
 
@@ -228,10 +236,24 @@ class WholesaleRequestCreateSerializer(serializers.ModelSerializer):
         for item in items_data:
             prod = products_by_id.get(item["product_id"])
             qty = item["quantity"]
+            option = None
+            unit_price = 0
             if prod:
-                unit_price = get_effective_wholesale_price(prod)
+                option_id = item.get("wholesale_option_id")
+                if option_id:
+                    option = ProductWholesaleOption.objects.filter(id=option_id, product=prod, is_active=True).first()
+                unit_price = get_effective_wholesale_price(prod, option.id if option else None)
                 total += unit_price * qty
-            bulk.append(WholesaleRequestItem(request=req, product=prod, product_name=prod.name if prod else f"Product {item['product_id']}", quantity=qty, notes=item.get("notes","")))
+            bulk.append(WholesaleRequestItem(
+                request=req,
+                product=prod,
+                wholesale_option=option,
+                product_name=prod.name if prod else f"Product {item['product_id']}",
+                wholesale_option_label=option.label if option else "",
+                wholesale_unit_price=unit_price,
+                quantity=qty,
+                notes=item.get("notes", ""),
+            ))
         WholesaleRequestItem.objects.bulk_create(bulk)
         try:
             req.total_amount = total

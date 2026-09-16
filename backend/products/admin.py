@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Category, Brand
+from .models import Product, Category, Brand, ProductWholesaleOption
 
 
 @admin.register(Category)
@@ -49,6 +49,12 @@ class BrandAdmin(admin.ModelAdmin):
     )
 
 
+class ProductWholesaleOptionInline(admin.TabularInline):
+    model = ProductWholesaleOption
+    extra = 0
+    fields = ("label", "code", "unit_price", "is_active", "order")
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
@@ -84,6 +90,7 @@ class ProductAdmin(admin.ModelAdmin):
     )
 
     list_per_page = 25
+    inlines = (ProductWholesaleOptionInline,)
 
     fieldsets = (
         ("اطلاعات اصلی", {

@@ -7,6 +7,18 @@ import { useEffect, useState } from "react";
 import { dashboardApi } from "../services/dashboardApi";
 import { productsApi } from "../api/client";
 
+const DEFAULT_WHOLESALE_OPTIONS = [
+  { code: "box", label: "باکس", unit_price: "", is_active: false, order: 1 },
+  { code: "carton", label: "کارتن", unit_price: "", is_active: false, order: 2 },
+  { code: "pack", label: "بسته", unit_price: "", is_active: false, order: 3 },
+  { code: "case", label: "کیس", unit_price: "", is_active: false, order: 4 },
+];
+
+const normalizeWholesaleOptions = (options?: any[]) => {
+  const byCode = new Map((options || []).map((o: any) => [o.code, { ...o, unit_price: String(o.unit_price || ""), is_active: o.is_active !== false }]));
+  return DEFAULT_WHOLESALE_OPTIONS.map((item) => byCode.get(item.code) || item);
+};
+
 export default function OwnerPricing() {
   const [products, setProducts] = useState<any[]>([]);
   const [pricings, setPricings] = useState<Record<number, any>>({});
@@ -42,6 +54,7 @@ export default function OwnerPricing() {
     is_featured: false,
     status: "published",
     weight: 1000,
+    wholesale_options: normalizeWholesaleOptions(),
   });
 
   const loadAll = async () => {
@@ -97,7 +110,7 @@ export default function OwnerPricing() {
   };
 
   const handleAddProduct = () => {
-    setProductForm({ name: "", description: "", price: "", wholesale_price: "", discount_price: "", stock: 10, unit: "pack", category: categories[0]?.id || 1, brand: "", sku: "", tag: "", badge: "", is_featured: false, status: "published", weight: 1000 });
+    setProductForm({ name: "", description: "", price: "", wholesale_price: "", discount_price: "", stock: 10, unit: "pack", category: categories[0]?.id || 1, brand: "", sku: "", tag: "", badge: "", is_featured: false, status: "published", weight: 1000, wholesale_options: normalizeWholesaleOptions() });
     setEditingProduct(null);
     setImageFile(null);
     setImagePreview(null);
@@ -125,6 +138,7 @@ export default function OwnerPricing() {
       is_featured: p.is_featured || false,
       status: p.status || "published",
       weight: p.weight || 1000,
+      wholesale_options: normalizeWholesaleOptions(p.wholesale_options),
     });
     setHasDiscount(!!p.discount_price);
     setImagePreview(p.image || null);
@@ -164,6 +178,10 @@ export default function OwnerPricing() {
       fd.append("weight", String(productForm.weight));
       fd.append("available", productForm.stock > 0 ? "true" : "false");
       if (productForm.wholesale_price) fd.append("wholesale_price", String(productForm.wholesale_price));
+      const wholesaleOptions = (productForm.wholesale_options || [])
+        .filter((o: any) => o.is_active && Number(o.unit_price || 0) > 0)
+        .map((o: any, index: number) => ({ code: o.code, label: o.label, unit_price: Number(o.unit_price), is_active: true, order: index + 1 }));
+      fd.append("wholesale_options", JSON.stringify(wholesaleOptions));
       if (hasDiscount && productForm.discount_price) fd.append("discount_price", String(productForm.discount_price));
       if (imageFile) fd.append("image", imageFile);
       if (brandLogoFile) fd.append("brand_logo", brandLogoFile);
@@ -368,6 +386,41 @@ export default function OwnerPricing() {
               <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4">
                 <label className="block text-xs font-black mb-2 text-emerald-700">قیمت عمده</label>
                 <input type="number" value={productForm.wholesale_price} onChange={(e) => setProductForm({ ...productForm, wholesale_price: e.target.value })} placeholder="مثلا 80000" className="w-full rounded-xl border-2 border-emerald-200 bg-white px-4 py-3 text-sm font-mono font-bold text-emerald-700 outline-none focus:border-emerald-500" />
+              </div>
+
+              <div className="rounded-2xl border-2 border-blue-100 bg-blue-50/40 p-4">
+                <label className="block text-xs font-black mb-3 text-blue-800">گزینه‌های نوع سفارش عمده</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {(productForm.wholesale_options || []).map((option: any, idx: number) => (
+                    <div key={option.code} className={`rounded-2xl border p-3 ${option.is_active ? "border-blue-200 bg-white" : "border-stone-200 bg-stone-50"}`}>
+                      <label className="flex items-center gap-2 text-sm font-black text-stone-800">
+                        <input
+                          type="checkbox"
+                          checked={option.is_active}
+                          onChange={(e) => {
+                            const next = [...(productForm.wholesale_options || [])];
+                            next[idx] = { ...next[idx], is_active: e.target.checked };
+                            setProductForm({ ...productForm, wholesale_options: next });
+                          }}
+                        />
+                        {option.label}
+                      </label>
+                      <input
+                        type="number"
+                        value={option.unit_price}
+                        disabled={!option.is_active}
+                        onChange={(e) => {
+                          const next = [...(productForm.wholesale_options || [])];
+                          next[idx] = { ...next[idx], unit_price: e.target.value };
+                          setProductForm({ ...productForm, wholesale_options: next });
+                        }}
+                        placeholder={`قیمت ${option.label}`}
+                        className="mt-2 w-full rounded-xl border border-blue-100 bg-white px-3 py-2 text-xs font-mono font-bold outline-none disabled:bg-stone-100 disabled:text-stone-400"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[10px] font-bold text-stone-500">هر گزینه‌ای که تیک بخورد، در سفارش عمده به کاربر نمایش داده می‌شود و قیمت خودش را دارد.</p>
               </div>
 
               <div className="rounded-2xl border-2 border-amber-100 bg-amber-50/50 p-4">

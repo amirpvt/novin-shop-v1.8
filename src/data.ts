@@ -16,6 +16,15 @@ export const UNIT_LABELS: Record<string, string> = {
 };
 
 // ✅ اعداد انگلیسی
+export type WholesaleOption = {
+  id: number;
+  code: string;
+  label: string;
+  unit_price: number;
+  is_active: boolean;
+  order: number;
+};
+
 export type Product = {
   id: number;
   name: string;
@@ -31,6 +40,7 @@ export type Product = {
   wholesale_unit?: string;
   wholesale_unit_display?: string;
   wholesale_min_quantity?: number;
+  wholesale_options?: WholesaleOption[];
   brand: string;
   tag?: string;
   category: string;
@@ -88,6 +98,9 @@ export function mapApiProduct(apiProduct: any): Product {
     wholesale_unit: apiProduct.wholesale_unit || "kg",
     wholesale_unit_display: apiProduct.wholesale_unit_display || UNIT_LABELS[apiProduct.wholesale_unit] || "کیلوگرم",
     wholesale_min_quantity: apiProduct.wholesale_min_quantity ?? 10,
+    wholesale_options: Array.isArray(apiProduct.wholesale_options)
+      ? apiProduct.wholesale_options.map((o: any) => ({ ...o, unit_price: Number(o.unit_price || 0), is_active: o.is_active !== false }))
+      : [],
     brand: brandName,
     tag: apiProduct.tag || undefined,
     category: catName,

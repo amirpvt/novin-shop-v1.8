@@ -134,7 +134,11 @@ export default function App() {
       phone: formData.phone,
       address: formData.address || "",
       description: formData.description || "",
-      items: items.map((item: any) => ({ product_id: item.id, quantity: item.quantity, notes: item.notes || "" })),
+      items: items.map((item: any) => {
+        const product = products.find((p: any) => String(p.id) === String(item.id)) as any;
+        const firstOption = ((product?.wholesale_options || []) as any[]).find((o: any) => o.is_active !== false && Number(o.unit_price || 0) > 0);
+        return { product_id: item.id, quantity: item.quantity, wholesale_option_id: item.wholesale_option_id || firstOption?.id || null, notes: item.notes || "" };
+      }),
       callback_url: `${window.location.origin}/payment/verify?type=wholesale`,
     });
     window.location.href = payment.payment_url;
