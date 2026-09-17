@@ -186,20 +186,38 @@ export default function WholesaleRequest({ products, onSubmit }: Props) {
                         </div>
 
                         {inWholesale && options.length > 0 && (
-                          <div className="mt-3 max-w-md rounded-2xl border border-gold-100 bg-gold-50/50 p-3">
-                            <label className="mb-2 block text-[10px] font-black text-gold-700">نوع سفارش عمده</label>
+                          <div className="mt-4 max-w-xl rounded-[1.5rem] border-2 border-gold-400 bg-gradient-to-br from-gold-50 via-white to-amber-50 p-4 shadow-lg shadow-gold-900/10 ring-4 ring-gold-100/70">
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                              <label className="flex items-center gap-2 text-sm font-black text-gold-800">
+                                <span className="grid h-8 w-8 place-items-center rounded-full bg-gold-700 text-white shadow-md">👇</span>
+                                نوع سفارش عمده را انتخاب کنید
+                              </label>
+                              {selectedOption && (
+                                <span className="rounded-full bg-emerald-600 px-3 py-1.5 text-[11px] font-black text-white shadow-sm">
+                                  انتخاب فعلی: {selectedOption.label}
+                                </span>
+                              )}
+                            </div>
                             <select
                               value={selectedOption?.id || ""}
                               onChange={(e) => {
                                 const option = options.find((o: any) => String(o.id) === e.target.value);
                                 if (option) updateWholesaleOption(p.id as any, option.id, option.label, Number(option.unit_price || 0));
                               }}
-                              className="w-full rounded-xl border border-gold-200 bg-white px-3 py-2 text-xs font-black text-stone-800 outline-none focus:border-gold-600"
+                              className="w-full rounded-2xl border-2 border-gold-300 bg-white px-4 py-3.5 text-sm font-black text-stone-900 shadow-inner outline-none transition focus:border-gold-700 focus:ring-4 focus:ring-gold-200"
                             >
                               {options.map((option: any) => (
                                 <option key={option.id} value={option.id}>{option.label} - {formatPrice(Number(option.unit_price || 0))}</option>
                               ))}
                             </select>
+                            {selectedOption && (
+                              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-black">
+                                <span className="rounded-full bg-gold-700 px-3 py-1.5 text-white">{selectedOption.label}</span>
+                                <span className="rounded-full bg-white px-3 py-1.5 text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+                                  قیمت این نوع: {formatPrice(Number(selectedOption.unit_price || 0))}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

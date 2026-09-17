@@ -24,8 +24,6 @@ export default function OwnerPricing() {
   const [pricings, setPricings] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [editingPrice, setEditingPrice] = useState<number | null>(null);
-  const [priceForm, setPriceForm] = useState({ base_price: "", wholesale_price: "" });
 
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -42,7 +40,6 @@ export default function OwnerPricing() {
     name: "",
     description: "",
     price: "",
-    wholesale_price: "",
     discount_price: "",
     stock: 10,
     unit: "pack",
@@ -84,33 +81,10 @@ export default function OwnerPricing() {
 
   useEffect(() => { loadAll(); }, []);
 
-  const handlePriceEdit = (product: any) => {
-    const pricing = pricings[product.id];
-    setEditingPrice(product.id);
-    setPriceForm({
-      base_price: pricing ? String(pricing.base_price) : String(product.price),
-      wholesale_price: pricing ? String(pricing.wholesale_price) : String(Math.round(product.price * 0.85)),
-    });
-  };
 
-  const handlePriceSave = async (productId: number) => {
-    try {
-      const base = parseFloat(priceForm.base_price);
-      const wholesale = parseFloat(priceForm.wholesale_price);
-      if (wholesale >= base) { alert("❌ قیمت عمده باید کمتر از پایه باشد"); return; }
-      if (pricings[productId]) {
-        await dashboardApi.owner.pricingUpdate(productId, { base_price: base, wholesale_price: wholesale });
-      } else {
-        await dashboardApi.owner.pricingCreate({ product: productId, base_price: base, wholesale_price: wholesale });
-      }
-      alert("✅ قیمت ذخیره شد");
-      setEditingPrice(null);
-      loadAll();
-    } catch (e: any) { alert("❌ " + e.message); }
-  };
 
   const handleAddProduct = () => {
-    setProductForm({ name: "", description: "", price: "", wholesale_price: "", discount_price: "", stock: 10, unit: "pack", category: categories[0]?.id || 1, brand: "", sku: "", tag: "", badge: "", is_featured: false, status: "published", weight: 1000, wholesale_options: normalizeWholesaleOptions() });
+    setProductForm({ name: "", description: "", price: "", discount_price: "", stock: 10, unit: "pack", category: categories[0]?.id || 1, brand: "", sku: "", tag: "", badge: "", is_featured: false, status: "published", weight: 1000, wholesale_options: normalizeWholesaleOptions() });
     setEditingProduct(null);
     setImageFile(null);
     setImagePreview(null);
@@ -126,7 +100,6 @@ export default function OwnerPricing() {
       name: p.name,
       description: p.description || "",
       price: p.price,
-      wholesale_price: pricings[p.id]?.wholesale_price || p.wholesale_price || "",
       discount_price: p.discount_price || "",
       stock: p.stock ?? 10,
       unit: p.unit || "pack",
@@ -177,7 +150,11 @@ export default function OwnerPricing() {
       fd.append("status", productForm.status);
       fd.append("weight", String(productForm.weight));
       fd.append("available", productForm.stock > 0 ? "true" : "false");
-      if (productForm.wholesale_price) fd.append("wholesale_price", String(productForm.wholesale_price));
+      const invalidWholesaleOption = (productForm.wholesale_options || []).find((o: any) => o.is_active && Number(o.unit_price || 0) <= 0);
+      if (invalidWholesaleOption) {
+        alert(`❌ برای ${invalidWholesaleOption.label} قیمت عمده را وارد کنید`);
+        return;
+      }
       const wholesaleOptions = (productForm.wholesale_options || [])
         .filter((o: any) => o.is_active && Number(o.unit_price || 0) > 0)
         .map((o: any, index: number) => ({ code: o.code, label: o.label, unit_price: Number(o.unit_price), is_active: true, order: index + 1 }));
@@ -220,7 +197,6 @@ export default function OwnerPricing() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((product: any) => {
             const pricing = pricings[product.id];
-            const isEditingThis = editingPrice === product.id;
             return (
               <div key={product.id} className="group rounded-[2rem] bg-white border shadow-sm hover:shadow-xl transition-all">
                 <div className="aspect-[4/3] bg-stone-50 relative overflow-hidden rounded-t-[2rem]">
@@ -236,21 +212,24 @@ export default function OwnerPricing() {
                     {product.brand_name && <span className="text-[10px] bg-stone-50 border px-2 py-1 rounded-full">{product.brand_name}</span>}
                   </div>
                   <div className="mt-4 rounded-2xl bg-stone-50 border p-3">
-                    {isEditingThis ? (
-                      <div className="space-y-2">
-                        <input type="number" value={priceForm.base_price} onChange={(e) => setPriceForm({ ...priceForm, base_price: e.target.value })} placeholder="قیمت پایه" className="w-full rounded-xl border px-3 py-2 text-sm" />
-                        <input type="number" value={priceForm.wholesale_price} onChange={(e) => setPriceForm({ ...priceForm, wholesale_price: e.target.value })} placeholder="قیمت عمده" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm" />
-                        <div className="flex gap-2"><button onClick={() => handlePriceSave(product.id)} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-xs font-black">ذخیره</button><button onClick={() => setEditingPrice(null)} className="flex-1 bg-stone-200 py-2 rounded-xl text-xs">لغو</button></div>
-                      </div>
-                    ) : (
-                      <div className="flex justify-between items-center">
-                        <div><p className="text-[10px] text-stone-400 font-bold">پایه</p><p className="font-mono font-black">{pricing ? Number(pricing.base_price).toLocaleString("en-US") : Number(product.price).toLocaleString("en-US")}</p></div>
-                        <div className="text-left"><p className="text-[10px] text-emerald-600 font-bold">عمده</p><p className="font-mono font-black text-emerald-700">{pricing ? Number(pricing.wholesale_price).toLocaleString("en-US") : "—"}</p></div>
-                      </div>
-                    )}
+                    <div className="flex justify-between items-start gap-3">
+                      <div><p className="text-[10px] text-stone-400 font-bold">قیمت اصلی</p><p className="font-mono font-black">{pricing ? Number(pricing.base_price).toLocaleString("en-US") : Number(product.price).toLocaleString("en-US")}</p></div>
+                      <div className="text-left"><p className="text-[10px] text-emerald-600 font-bold">عمده بر اساس نوع</p><p className="text-[11px] font-black text-emerald-700">بدون قیمت عمده عمومی</p></div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {(product.wholesale_options || []).filter((o: any) => o.is_active !== false && Number(o.unit_price || 0) > 0).length > 0 ? (
+                        (product.wholesale_options || []).filter((o: any) => o.is_active !== false && Number(o.unit_price || 0) > 0).map((option: any) => (
+                          <span key={option.id || option.code} className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-800">
+                            {option.label}: {Number(option.unit_price).toLocaleString("en-US")}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[10px] font-bold text-stone-400">نوع عمده‌ای تعریف نشده است</span>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2">
-                    <button onClick={() => handlePriceEdit(product)} className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 py-2 rounded-xl text-xs font-black">💰 قیمت</button>
+                    <button onClick={() => handleEditProduct(product)} className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 py-2 rounded-xl text-xs font-black">💰 نوع عمده</button>
                     <button onClick={() => handleEditProduct(product)} className="bg-stone-50 hover:bg-stone-100 border py-2 rounded-xl text-xs font-bold">✏️ ویرایش</button>
                     <button onClick={() => { if(confirm("حذف؟")) { const base = (import.meta as any).env?.VITE_API_BASE_URL || "http://127.0.0.1:8000/api"; const token = JSON.parse(localStorage.getItem("novin_auth_tokens") || "{}")?.access; fetch(`${base}/products/${product.id}/`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).then(() => loadAll()); } }} className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 py-2 rounded-xl text-xs font-bold">🗑️ حذف</button>
                   </div>
@@ -383,13 +362,8 @@ export default function OwnerPricing() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4">
-                <label className="block text-xs font-black mb-2 text-emerald-700">قیمت عمده</label>
-                <input type="number" value={productForm.wholesale_price} onChange={(e) => setProductForm({ ...productForm, wholesale_price: e.target.value })} placeholder="مثلا 80000" className="w-full rounded-xl border-2 border-emerald-200 bg-white px-4 py-3 text-sm font-mono font-bold text-emerald-700 outline-none focus:border-emerald-500" />
-              </div>
-
               <div className="rounded-2xl border-2 border-blue-100 bg-blue-50/40 p-4">
-                <label className="block text-xs font-black mb-3 text-blue-800">گزینه‌های نوع سفارش عمده</label>
+                <label className="block text-xs font-black mb-3 text-blue-800">قیمت عمده بر اساس نوع سفارش</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {(productForm.wholesale_options || []).map((option: any, idx: number) => (
                     <div key={option.code} className={`rounded-2xl border p-3 ${option.is_active ? "border-blue-200 bg-white" : "border-stone-200 bg-stone-50"}`}>
@@ -420,7 +394,7 @@ export default function OwnerPricing() {
                     </div>
                   ))}
                 </div>
-                <p className="mt-3 text-[10px] font-bold text-stone-500">هر گزینه‌ای که تیک بخورد، در سفارش عمده به کاربر نمایش داده می‌شود و قیمت خودش را دارد.</p>
+                <p className="mt-3 text-[10px] font-bold text-stone-500">قیمت عمده فقط برای نوع‌های انتخاب‌شده ثبت می‌شود؛ قیمت عمده عمومی و بدون نوع در افزودن محصول ذخیره نمی‌شود.</p>
               </div>
 
               <div className="rounded-2xl border-2 border-amber-100 bg-amber-50/50 p-4">

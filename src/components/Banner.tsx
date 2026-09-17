@@ -8,12 +8,18 @@ type Props = {
 };
 
 const bannerImages = [
-  "/images/banners/banner1.png",
-  "/images/banners/banner2.png",
-  "/images/banners/banner3.png",
-  "/images/banners/banner4.png",
-  "/images/banners/banner5.png",
-  "/images/banners/banner6.png",
+  "/images/banners/b (1).jpg",
+  "/images/banners/b (2).jpg",
+  "/images/banners/b (3).jpg",
+  "/images/banners/b (4).jpg",
+  "/images/banners/b (5).jpg",
+  "/images/banners/b (6).jpg",
+  "/images/banners/b (7).jpg",
+  "/images/banners/b (8).jpg",
+  "/images/banners/b (9).jpg",
+  "/images/banners/b (10).jpg",
+  "/images/banners/b (11).jpg",
+  "/images/banners/b (12).jpg",
 ];
 
 export default function Banner({ onProducts, onOrder }: Props) {
