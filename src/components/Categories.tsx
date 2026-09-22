@@ -102,7 +102,7 @@ export default function Categories({ onSelect }: Props) {
   }
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-cream-50 to-white py-20 sm:py-28">
+    <section className="relative overflow-hidden bg-gradient-to-b from-cream-50 to-white py-14 sm:py-20 lg:py-28">
       <div className="pointer-events-none absolute -top-20 left-1/4 h-72 w-72 rounded-full bg-paprika-200/30 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-1/4 h-72 w-72 rounded-full bg-gold-200/30 blur-3xl" />
 
@@ -115,13 +115,13 @@ export default function Categories({ onSelect }: Props) {
           <p className="mx-auto mt-3 max-w-2xl text-stone-500">روی هر دسته کلیک کنید تا محصولات آن را در فروشگاه مشاهده کنید</p>
         </div>
 
-        <div className="mt-14 grid grid-cols-1 gap-8 md:grid-cols-3">
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3 lg:mt-14 lg:gap-8">
           {apiCategories.map((cat, idx) => (
             <button
               key={cat.id}
               onClick={() => onSelect(cat.name)}
               style={{ animationDelay: `${idx * 120}ms` }}
-              className="group relative flex h-[30rem] flex-col justify-end overflow-hidden rounded-[2rem] border border-stone-200/70 bg-stone-900 text-right shadow-xl shadow-stone-900/10 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-paprika-900/20 cursor-pointer sm:h-[34rem]"
+              className="group relative flex h-80 flex-col justify-end overflow-hidden rounded-[1.75rem] border border-stone-200/70 bg-stone-900 text-right shadow-xl shadow-stone-900/10 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-paprika-900/20 cursor-pointer sm:h-[26rem] sm:rounded-[2rem] lg:h-[34rem]"
             >
               <img
                 src={getImageUrl(cat)}
@@ -134,7 +134,7 @@ export default function Categories({ onSelect }: Props) {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-stone-950/20 to-transparent transition group-hover:from-stone-950/60 group-hover:via-stone-950/10" />
 
-              <div className="relative z-10 p-8 text-white">
+              <div className="relative z-10 p-5 text-white sm:p-6 lg:p-8">
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold backdrop-blur">
                   <span className="h-1.5 w-1.5 rounded-full bg-paprika-500" />
                   دسته‌بندی

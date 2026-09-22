@@ -62,8 +62,8 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
           <div className="flex items-center gap-6 lg:min-w-[180px]">
             <button onClick={onHome} className="group flex items-center gap-2.5 text-right cursor-pointer">
               <img src="/images/logo.png" alt={siteName} className="h-9 w-9 lg:h-10 lg:w-10 rounded-lg object-cover shadow-md" />
-              <div className="flex flex-col">
-                <span className="font-display text-lg font-black tracking-tight text-stone-800 sm:text-xl">{siteName.split(' ')[0]} <span className="text-paprika-600">{siteName.split(' ').slice(1).join(' ')}</span></span>
+              <div className="flex min-w-0 flex-col">
+                <span className="max-w-[190px] truncate font-display text-base font-black tracking-tight text-stone-800 sm:max-w-none sm:text-xl">{siteName.split(' ')[0]} <span className="text-paprika-600">{siteName.split(' ').slice(1).join(' ')}</span></span>
                 <span className="hidden lg:block text-[9px] font-bold text-stone-400">توزیع تخصصی</span>
               </div>
             </button>
@@ -76,7 +76,7 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
             </div>
           </form>
 
-          <div className="flex items-center gap-2 lg:min-w-[300px] justify-end">
+          <div className="flex shrink-0 items-center gap-2 lg:min-w-[300px] justify-end">
             <div className="hidden sm:flex items-center">
               {user ? (
                 <div className="relative ml-1">
@@ -209,9 +209,23 @@ export default function Navbar({ user, cartCount, currentPage, onHome, onShop, o
           <div className="flex flex-col h-full text-right" dir="rtl">
             <div className="flex items-center justify-between p-5 border-b"><span className="font-black">منو</span><button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-lg bg-stone-50"><CloseIcon className="h-5 w-5" /></button></div>
             <div className="p-4 flex-1 overflow-y-auto">
+              <form onSubmit={(e) => { e.preventDefault(); submitSearch(searchValue); setMobileMenuOpen(false); }} className="mb-4">
+                <div className="relative">
+                  <button type="submit" className="absolute inset-y-0 right-0 flex items-center pr-3 text-stone-400" aria-label="جستجو"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></button>
+                  <input type="text" value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="جستجوی محصول..." className="w-full rounded-2xl border-2 border-stone-100 bg-stone-50 py-3 pr-10 pl-3 text-sm font-bold outline-none focus:border-paprika-200 focus:bg-white" />
+                </div>
+              </form>
               <div className="space-y-1">
                 {navLinks.map((l) => (<button key={l.id} onClick={() => { l.onClick(); setMobileMenuOpen(false); }} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-bold text-stone-700 hover:bg-stone-50">{l.label}</button>))}
               </div>
+              {!user && (
+                <div className="mt-6 rounded-[1.5rem] border border-stone-100 bg-stone-50 p-3">
+                  <button onClick={() => { onOpenAuth(); setMobileMenuOpen(false); }} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-900 py-3 text-sm font-black text-white shadow-lg">
+                    <UserIcon className="h-4 w-4" />
+                    ورود / ثبت‌نام
+                  </button>
+                </div>
+              )}
               {user && (
                 <div className="mt-6 space-y-2">
                   <div className={`relative overflow-hidden rounded-[2rem] bg-gradient-to-br ${roleBadgeClass} p-4 shadow-xl`}>

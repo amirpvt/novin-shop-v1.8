@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { productsApi } from "../api/client";
 
 type Brand = { id: number; name: string; slug?: string; logo?: string | null; description?: string; is_active?: boolean; is_featured?: boolean; };
@@ -123,6 +123,19 @@ type Props = {
 export default function Brands({ onSelect }: Props) {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const brandRailRef = useRef<HTMLDivElement | null>(null);
+
+  const updateScrollProgress = () => {
+    const el = brandRailRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    if (maxScroll <= 0) {
+      setScrollProgress(1);
+      return;
+    }
+    setScrollProgress(Math.min(1, Math.max(0, Math.abs(el.scrollLeft) / maxScroll)));
+  };
 
   useEffect(() => {
     let ignore = false;
@@ -140,12 +153,16 @@ export default function Brands({ onSelect }: Props) {
     return () => { ignore = true; };
   }, []);
 
+  useEffect(() => {
+    window.requestAnimationFrame(updateScrollProgress);
+  }, [brands]);
+
   if (loading) {
     return (
-      <section className="border-b border-stone-100 bg-white py-16 sm:py-20">
+      <section className="border-b border-stone-100 bg-white py-10 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
-            {[1, 2, 3, 4, 5].map((item) => <div key={item} className="h-64 animate-pulse rounded-3xl bg-stone-100" />)}
+          <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-5">
+            {[1, 2, 3, 4, 5].map((item) => <div key={item} className="h-56 w-[72vw] max-w-[280px] shrink-0 animate-pulse rounded-3xl bg-stone-100 sm:h-64 sm:w-auto sm:max-w-none" />)}
           </div>
         </div>
       </section>
@@ -155,7 +172,7 @@ export default function Brands({ onSelect }: Props) {
   if (brands.length === 0) return null;
 
   return (
-    <section className="border-b border-stone-100 bg-white py-16 sm:py-20">
+    <section className="border-b border-stone-100 bg-white py-10 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-100 px-4 py-1.5 text-xs font-bold text-gold-700">
@@ -164,24 +181,34 @@ export default function Brands({ onSelect }: Props) {
           <h2 className="mt-4 font-display text-3xl font-bold text-stone-800 sm:text-4xl">
             برندهای همکار ما در توزیع
           </h2>
-          <p className="mt-2 text-base text-stone-500">
+          <p className="mt-2 text-sm leading-6 text-stone-500 sm:text-base">
             افتخار همکاری با معتبرترین و باکیفیت‌ترین نام‌های ایران در پخش عمده و خرده
           </p>
+          <div className="mx-auto mt-3 flex w-fit items-center gap-2 rounded-full border border-gold-200 bg-gold-50 px-4 py-2 text-[11px] font-black text-gold-800 shadow-sm sm:hidden">
+            برندها را افقی بکشید
+          </div>
         </div>
 
-        {/* Larger brand cards with magnificent icon displays */}
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Mobile: horizontal brand rail / Desktop: original grid */}
+        <div className="relative mt-8 sm:mt-12">
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white to-transparent sm:hidden" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white to-transparent sm:hidden" />
+          <div
+            ref={brandRailRef}
+            onScroll={updateScrollProgress}
+            className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-5 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-5"
+          >
           {brands.map((b) => (
             <button
               key={b.name}
               onClick={() => onSelect(b.name)}
-              className="group relative flex flex-col items-center justify-between overflow-hidden rounded-3xl border border-stone-200/80 bg-gradient-to-b from-white to-cream-50/40 p-8 text-center shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-paprika-400 hover:shadow-xl hover:shadow-paprika-950/10 cursor-pointer"
+              className="group relative flex w-[74vw] max-w-[290px] shrink-0 snap-center flex-col items-center justify-between overflow-hidden rounded-[1.75rem] border border-stone-200/80 bg-gradient-to-b from-white to-cream-50/40 p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-paprika-400 hover:shadow-xl hover:shadow-paprika-950/10 cursor-pointer sm:w-auto sm:max-w-none sm:rounded-3xl sm:p-8"
             >
               {/* Subtle top glow on hover */}
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-paprika-500 to-gold-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
               {/* Extremely large icon / image container */}
-              <div className="relative my-4 flex h-32 w-32 items-center justify-center rounded-2xl bg-white p-2 transition-transform duration-500 group-hover:scale-110 sm:h-36 sm:w-36">
+              <div className="relative my-3 flex h-24 w-24 items-center justify-center rounded-2xl bg-white p-2 transition-transform duration-500 group-hover:scale-110 sm:my-4 sm:h-36 sm:w-36">
                 <img 
                   src={b.logo || "/images/placeholder.jpg"} 
                   alt={b.name}
@@ -200,7 +227,7 @@ export default function Brands({ onSelect }: Props) {
 
               {/* Brand Name Text */}
               <div className="mt-2 flex flex-col items-center">
-                <h3 className="font-display text-lg font-bold text-stone-800 transition-colors group-hover:text-paprika-700 sm:text-xl">
+                <h3 className="font-display text-base font-bold text-stone-800 transition-colors group-hover:text-paprika-700 sm:text-xl">
                   {b.name}
                 </h3>
                 <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-600">
@@ -209,6 +236,13 @@ export default function Brands({ onSelect }: Props) {
               </div>
             </button>
           ))}
+          </div>
+          <div className="mx-auto mt-1 flex h-2 w-32 justify-end overflow-hidden rounded-full bg-stone-100 shadow-inner sm:hidden" dir="ltr">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-paprika-500 to-gold-500 transition-all duration-200 ease-out"
+              style={{ width: `${Math.max(10, scrollProgress * 100)}%` }}
+            />
+          </div>
         </div>
       </div>
     </section>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { formatPrice, type Product, mapApiProduct } from "../data";
+import { formatPrice, getUnitLabel, type Product, mapApiProduct } from "../data";
 import { ArrowRightIcon, TruckIcon, PhoneIcon } from "../components/icons";
 import { useRetailCart } from "../context/RetailCartContext";
 import { useWholesaleRequest } from "../context/WholesaleRequestContext";
@@ -172,8 +172,10 @@ export default function ProductDetails({ products: propProducts }: Props) {
               ) : null}
               {isOutOfStock && <span className="bg-stone-800 text-white px-5 py-2 rounded-full text-xs font-black shadow-lg">ناموجود</span>}
             </div>
-            {product.stock !== undefined && product.stock > 0 && product.stock <= 20 && !isOutOfStock && (
-              <div className="absolute bottom-6 left-6 bg-amber-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg">تنها {product.stock} عدد باقی مانده</div>
+            {product.stock !== undefined && product.stock > 0 && product.stock < 3 && !isOutOfStock && (
+              <div className="absolute bottom-6 left-6 bg-amber-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg">
+                تنها {product.stock.toLocaleString("en-US")} عدد در انبار موجود است
+              </div>
             )}
           </div>
 
@@ -184,7 +186,12 @@ export default function ProductDetails({ products: propProducts }: Props) {
                 {product.brand && <span className="text-[10px] text-stone-400 font-bold">{product.brand}</span>}
               </div>
               <h1 className="font-display text-3xl sm:text-4xl font-black text-stone-800 leading-tight">{product.name}</h1>
-              <p className="mt-3 text-stone-400 text-sm font-medium flex items-center gap-2"><span>{product.unit}</span>{product.stock !== undefined && <span>• {product.stock} عدد موجود</span>}</p>
+              <p className="mt-3 flex items-center gap-2 text-sm font-medium text-stone-400">
+                <span>{getUnitLabel(product.unit)}</span>
+                {product.stock !== undefined && product.stock > 0 && product.stock < 3 && (
+                  <span className="font-bold text-amber-600">• تنها {product.stock.toLocaleString("en-US")} عدد در انبار موجود است</span>
+                )}
+              </p>
             </div>
 
             {/* ✅ FIX: قیمت با تخفیف */}
@@ -203,6 +210,11 @@ export default function ProductDetails({ products: propProducts }: Props) {
               </div>
               {isOutOfStock ? (
                 <div className="mr-auto text-paprika-500 font-bold text-sm">ناموجود</div>
+              ) : product.stock !== undefined && product.stock > 0 && product.stock < 3 ? (
+                <div className="mr-auto flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-sm font-black text-amber-700">
+                  <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  تنها {product.stock.toLocaleString("en-US")} عدد در انبار موجود است
+                </div>
               ) : (
                 <div className="mr-auto flex items-center gap-1.5 text-emerald-600 font-bold text-sm"><span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />موجود در انبار</div>
               )}

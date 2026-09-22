@@ -260,7 +260,7 @@ export default function MyOrders() {
 
 function TruckSvg({ exhaustOn = true }: { exhaustOn?: boolean }) {
   return (
-    <svg viewBox="0 0 170 86" className="h-20 w-44 drop-shadow-2xl" aria-hidden="true">
+    <svg viewBox="0 0 170 86" className="max-w-none drop-shadow-2xl" style={{ width: 190, height: 96 }} aria-hidden="true">
       <defs>
         <linearGradient id="redVanBody" x1="0" x2="1" y1="0" y2="1">
           <stop offset="0" stopColor="#991b1b" />
@@ -351,7 +351,7 @@ function StatusTimeline({ type, status, compact = false }: { type: OrderType; st
                 <div className={`absolute right-1/2 top-[16px] h-1.5 w-full rounded-full ${passedLine ? "bg-emerald-400" : "bg-stone-200"}`} />
               )}
               {active && (
-                <div className="absolute -top-24 left-1/2 z-20 -translate-x-1/2">
+                <div className="absolute -top-[92px] left-1/2 z-20 w-[190px] -translate-x-1/2">
                   <TruckSvg exhaustOn={status !== "DELIVERED"} />
                 </div>
               )}

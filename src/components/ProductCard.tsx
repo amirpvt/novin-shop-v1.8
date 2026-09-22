@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { formatPrice, type Product } from "../data";
+import { formatPrice, getUnitLabel, type Product } from "../data";
 import { CartIcon } from "./icons";
 import { useRetailCart } from "../context/RetailCartContext";
 
@@ -16,6 +16,7 @@ export default function ProductCard({ product, onClick, onWholesale }: Props) {
   const addTimeoutRef = useRef<number | null>(null);
   const isOutOfStock = product.available === false || (product.stock !== undefined && product.stock <= 0);
   const hasDiscount = product.discount_price && product.discount_price > 0 && product.discount_price < product.price;
+  const unitLabel = product.retail_unit_display || getUnitLabel(product.retail_unit || product.unit);
 
   useEffect(() => {
     return () => {
@@ -33,7 +34,7 @@ export default function ProductCard({ product, onClick, onWholesale }: Props) {
   };
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-stone-200 bg-white shadow-sm transition-all duration-500 hover:-translate-y-2 hover:border-stone-400 hover:shadow-2xl">
+    <div className="group relative flex flex-col overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-sm transition-all duration-500 hover:-translate-y-2 hover:border-stone-400 hover:shadow-2xl sm:rounded-[2.5rem]">
       <div className="relative aspect-[4/3] overflow-hidden bg-stone-50">
         <img
           src={product.image}
@@ -60,7 +61,7 @@ export default function ProductCard({ product, onClick, onWholesale }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-6 text-right">
+      <div className="flex flex-1 flex-col p-4 text-right sm:p-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">{product.category_name || product.category}</span>
           {product.brand && <span className="text-[9px] text-stone-400">{product.brand}</span>}
@@ -72,7 +73,7 @@ export default function ProductCard({ product, onClick, onWholesale }: Props) {
         <p className="mt-2 flex-1 text-xs font-medium leading-relaxed text-stone-500 line-clamp-2">{product.description}</p>
 
         <div className="mt-4 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-stone-400 bg-stone-50 px-2 py-1 rounded-lg">{product.unit}</span>
+          <span className="text-[10px] font-bold text-stone-400 bg-stone-50 px-2 py-1 rounded-lg">{unitLabel}</span>
           {isOutOfStock ? (
             <span className="text-[10px] font-bold text-stone-400">ناموجود</span>
           ) : (
@@ -83,25 +84,27 @@ export default function ProductCard({ product, onClick, onWholesale }: Props) {
           )}
         </div>
 
-        <div className="mt-5 border-t border-stone-100 pt-4">
+        <div className="mt-4 border-t border-stone-100 pt-4 sm:mt-5">
           <div className="flex items-end justify-between mb-4">
             <div>
               {hasDiscount ? (
                 <>
                   <span className="block text-[20px] line-through text-stone-400">{formatPrice(product.price)}</span>
-                  <span className="font-display text-lg font-black text-black">{formatPrice(product.discount_price!)}</span>
+                  <span className="font-display text-base font-black text-black sm:text-lg">{formatPrice(product.discount_price!)}</span>
                 </>
               ) : (
-                <span className="font-display text-lg font-black text-black">{formatPrice(product.price)}</span>
+                <span className="font-display text-base font-black text-black sm:text-lg">{formatPrice(product.price)}</span>
               )}
             </div>
-            {product.stock !== undefined && product.stock > 0 && (
-              <span className="text-[10px] text-stone-400">{product.stock} عدد موجود</span>
+            {product.stock !== undefined && product.stock > 0 && product.stock < 3 && (
+              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">
+                تنها {product.stock.toLocaleString("en-US")} عدد در انبار موجود است
+              </span>
             )}
           </div>
           
-          <div className="grid grid-cols-5 gap-2">
-            <div className="relative col-span-3">
+          <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-5">
+            <div className="relative min-[380px]:col-span-3">
               {added && (
                 <div
                   key={addAnimationKey}
@@ -130,7 +133,7 @@ export default function ProductCard({ product, onClick, onWholesale }: Props) {
             <button
               onClick={() => onWholesale(product)}
               disabled={isOutOfStock}
-              className={`col-span-2 flex items-center justify-center rounded-2xl border-2 text-[11px] font-black transition active:scale-95 ${isOutOfStock ? "border-stone-100 bg-stone-50 text-stone-300 cursor-not-allowed" : "border-stone-200 bg-white text-stone-700 hover:border-black hover:text-black"}`}
+              className={`flex items-center justify-center rounded-2xl border-2 py-3 text-[11px] font-black transition active:scale-95 min-[380px]:col-span-2 min-[380px]:py-0 ${isOutOfStock ? "border-stone-100 bg-stone-50 text-stone-300 cursor-not-allowed" : "border-stone-200 bg-white text-stone-700 hover:border-black hover:text-black"}`}
             >
               عمده
             </button>

@@ -8,11 +8,28 @@ export const address = "استان البرز، کرج، جاده ملارد، �
 // ✅ واحدها به صورت درست فارسی - بسته بندی و کیلوگرم جدا
 export const UNIT_LABELS: Record<string, string> = {
   kg: "کیلوگرم",
-  pack: "بسته بندی",
-  piece: "عدد",
-  carton: "کارتن",
-  box: "بسته بندی",
+  kgs: "کیلوگرم",
+  kilo: "کیلوگرم",
   kilogram: "کیلوگرم",
+  kilograms: "کیلوگرم",
+  g: "گرم",
+  gram: "گرم",
+  grams: "گرم",
+  pack: "بسته بندی",
+  package: "بسته بندی",
+  packet: "بسته بندی",
+  piece: "عدد",
+  pieces: "عدد",
+  pcs: "عدد",
+  pc: "عدد",
+  peace: "عدد",
+  عدد: "عدد",
+  carton: "کارتن",
+  cartons: "کارتن",
+  کارتن: "کارتن",
+  box: "باکس",
+  boxes: "باکس",
+  باکس: "باکس",
 };
 
 // ✅ اعداد انگلیسی
@@ -60,8 +77,11 @@ export function formatNumber(n: number) {
   return n.toLocaleString("en-US");
 }
 
-export function getUnitLabel(unit: string) {
-  return UNIT_LABELS[unit] || unit;
+export function getUnitLabel(unit?: string | null) {
+  const raw = String(unit || "").trim();
+  if (!raw) return "";
+  const normalized = raw.toLowerCase();
+  return UNIT_LABELS[raw] || UNIT_LABELS[normalized] || raw;
 }
 
 export function mapApiProduct(apiProduct: any): Product {

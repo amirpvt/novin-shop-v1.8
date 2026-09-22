@@ -121,9 +121,9 @@ export default function DashboardLayout({ children, role }: Props) {
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Main */}
-      <div className={`flex-1 transition-[margin] duration-300 ${sidebarOpen ? "lg:mr-72" : "lg:mr-0"}`}>
+      <div className={`min-w-0 flex-1 transition-[margin] duration-300 ${sidebarOpen ? "lg:mr-72" : "lg:mr-0"}`}>
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-stone-200">
-          <div className="flex items-center justify-between p-4">
+          <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
             <button
               onClick={() => setSidebarOpen((v) => !v)}
               aria-label={sidebarOpen ? "بستن منو" : "باز کردن منو"}
@@ -137,7 +137,7 @@ export default function DashboardLayout({ children, role }: Props) {
           </div>
         </header>
 
-        <main className={role === "visitor" ? "p-0" : "p-4 sm:p-6 lg:p-8"}>
+        <main className={role === "visitor" ? "min-w-0 p-0" : "min-w-0 p-3 sm:p-6 lg:p-8"}>
           {children}
         </main>
       </div>
