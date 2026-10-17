@@ -1,0 +1,1 @@
+<section class="page"><div class="container empty panel"><h1>صفحه پیدا نشد</h1><p>این آدرس در فروشگاه وجود ندارد.</p><a class="btn btn-primary" href="<?= e(url('')) ?>">بازگشت به خانه</a></div></section>

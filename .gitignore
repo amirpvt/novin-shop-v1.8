@@ -69,3 +69,22 @@ pnpm-debug.log*
 # =========================
 .cache/
 .eslintcache
+
+# =========================
+# PHP site runtime (do not commit secrets or uploads)
+# =========================
+php-site/storage/config.php
+php-site/storage/*.sqlite
+php-site/storage/*.sqlite-*
+php-site/storage/sessions/*
+!php-site/storage/sessions/.gitkeep
+php-site/storage/logs/*
+!php-site/storage/logs/.gitkeep
+php-site/uploads/products/*
+!php-site/uploads/products/.gitkeep
+php-site/uploads/receipts/*
+!php-site/uploads/receipts/.gitkeep
+php-site/uploads/brands/*
+!php-site/uploads/brands/.gitkeep
+php-site/uploads/categories/*
+!php-site/uploads/categories/.gitkeep
